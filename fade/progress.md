@@ -97,3 +97,25 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented projection module)
 - Tests: 21 new tests added (96 total), covering edge cases (age 0/120, term 1/50), hand-calculated validation, multipliers, gender-specific mortality, variable interest rates, NPV consistency
 
+## 2026-01-23 23:45 - US-005: Nested Stochastic Valuation - COMPLETE
+
+- Implemented run_valuation() function with outer loop (scenarios) and inner loop (policies)
+- Created ValuationResult struct with summary statistics (mean, std_dev, percentiles, CTE_95, execution_time_ms)
+- Created ValuationConfig struct with store_scenario_npvs flag and multipliers for mortality/lapse/expenses
+- Statistics implementation:
+  - Mean: arithmetic mean of scenario NPVs
+  - Std Dev: population standard deviation
+  - Percentiles: P50, P75, P90, P95, P99 using linear interpolation
+  - CTE_95: average of worst 5% of scenarios (lower tail)
+- Performance benchmark results:
+  - 10K policies × 1K scenarios: 2.5 seconds (target: <30 seconds) ✓
+  - 100K policies × 1K scenarios: 25 seconds
+  - Throughput: ~4 million projections/second
+- Files changed:
+  - livecalc-engine/src/valuation.hpp, valuation.cpp (new)
+  - livecalc-engine/tests/test_valuation.cpp (new)
+  - livecalc-engine/tests/benchmark_valuation.cpp (new)
+  - livecalc-engine/CMakeLists.txt (added new sources and benchmark target)
+  - livecalc-engine/README.md (documented valuation module)
+- Tests: 25 new tests added (121 total), covering edge cases (empty scenarios/policies), aggregation correctness, statistics validation, CTE calculation, multipliers, seed reproducibility, scale tests (1K×100, 100×100)
+

@@ -128,7 +128,7 @@
         "signature": "ValuationResult run_valuation(const std::vector<Policy>&, const MortalityTable&, const LapseTable&, const ExpenseAssumptions&, const ScenarioSet&)",
         "returnType": "struct ValuationResult { double mean_npv; double std_dev; double percentiles[5]; double cte_95; std::vector<double> scenario_npvs; double execution_time_ms; }"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

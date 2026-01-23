@@ -308,3 +308,116 @@ ProjectionResult stressed = project_policy(policy, mortality, lapse, expenses, s
 - **Term > 50**: Projects limited to min(policy.term, MAX_YEAR=50)
 - **Zero term**: Returns NPV = 0
 - **All lives depleted**: Projection stops early if lives < 1e-10
+
+## Nested Stochastic Valuation
+
+The `run_valuation()` function performs nested stochastic valuation across all scenarios and policies, returning statistical results.
+
+### Basic Usage
+
+```cpp
+#include "valuation.hpp"
+
+// Load data
+PolicySet policies = PolicySet::load_from_csv("policies.csv");
+MortalityTable mortality = MortalityTable::load_from_csv("mortality.csv");
+LapseTable lapse = LapseTable::load_from_csv("lapse.csv");
+ExpenseAssumptions expenses = ExpenseAssumptions::load_from_csv("expenses.csv");
+
+// Generate stochastic scenarios
+ScenarioGeneratorParams params(0.04, 0.0, 0.015, 0.0, 0.15);
+ScenarioSet scenarios = ScenarioSet::generate(1000, params, 42);
+
+// Run valuation
+ValuationResult result = run_valuation(
+    policies, mortality, lapse, expenses, scenarios);
+
+// Access results
+std::cout << "Mean NPV: " << result.mean_npv << std::endl;
+std::cout << "Std Dev: " << result.std_dev << std::endl;
+std::cout << "P95: " << result.p95() << std::endl;
+std::cout << "CTE_95: " << result.cte_95 << std::endl;
+std::cout << "Execution time: " << result.execution_time_ms << " ms" << std::endl;
+```
+
+### Valuation Algorithm
+
+The nested stochastic valuation follows this structure:
+
+1. **Outer loop**: Iterate over all scenarios
+2. **Inner loop**: For each scenario, project all policies and sum NPVs
+3. **Statistics**: Calculate summary statistics across scenario results
+
+```
+For each scenario s in ScenarioSet:
+    scenario_npv = 0
+    For each policy p in policies:
+        scenario_npv += project_policy(p, assumptions, s).npv
+    scenario_npvs.append(scenario_npv)
+
+Calculate: mean, std_dev, percentiles, CTE
+```
+
+### Result Statistics
+
+| Statistic | Description |
+|-----------|-------------|
+| `mean_npv` | Mean NPV across all scenarios |
+| `std_dev` | Standard deviation (population) |
+| `percentiles[0-4]` | P50, P75, P90, P95, P99 |
+| `cte_95` | Conditional Tail Expectation at 95% (average of worst 5%) |
+| `scenario_npvs` | Individual scenario NPVs (for distribution charting) |
+| `execution_time_ms` | Total execution time in milliseconds |
+
+### Percentile Accessors
+
+```cpp
+result.p50();  // Median (50th percentile)
+result.p75();  // 75th percentile
+result.p90();  // 90th percentile
+result.p95();  // 95th percentile
+result.p99();  // 99th percentile
+```
+
+### CTE (Conditional Tail Expectation)
+
+CTE_95 represents the average NPV of the worst 5% of scenarios. This is a key risk metric for actuarial reserving:
+
+- It captures tail risk better than VaR (percentiles)
+- Provides insight into severe but plausible outcomes
+- Used in regulatory frameworks like Solvency II
+
+### Configuration Options
+
+```cpp
+ValuationConfig config;
+config.store_scenario_npvs = true;   // Store individual scenario NPVs
+config.mortality_multiplier = 1.10;  // 10% increase in mortality
+config.lapse_multiplier = 0.80;      // 20% decrease in lapses
+config.expense_multiplier = 1.15;    // 15% increase in expenses
+
+ValuationResult result = run_valuation(
+    policies, mortality, lapse, expenses, scenarios, config);
+```
+
+### Performance
+
+Typical execution times (native, single-threaded):
+
+| Scale | Policies | Scenarios | Projections | Time |
+|-------|----------|-----------|-------------|------|
+| Small | 1,000 | 100 | 100K | ~25 ms |
+| Medium | 1,000 | 1,000 | 1M | ~250 ms |
+| **Target** | **10,000** | **1,000** | **10M** | **~2.5 sec** |
+| Large | 100,000 | 1,000 | 100M | ~25 sec |
+
+Throughput: ~4 million projections/second (native, M1/M2 Mac).
+
+### Running the Benchmark
+
+```bash
+cd build
+./benchmark
+```
+
+The benchmark runs valuations at increasing scale and reports statistics and performance metrics.
