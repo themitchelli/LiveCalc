@@ -186,7 +186,7 @@
         "nodeUsage": "import { LiveCalcEngine } from 'livecalc'; const engine = new LiveCalcEngine(); await engine.initialize();",
         "wasmtimeUsage": "wasmtime run --wasm-features=threads livecalc.wasm -- --input policies.bin --output results.json"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

@@ -128,6 +128,7 @@ export type {
   // Configuration types
   ScenarioParams,
   ValuationConfig,
+  MemoryConfig,
 
   // Result types
   ValuationResult,
@@ -145,4 +146,9 @@ export type {
 } from './types.js';
 
 // Constants
-export { DEFAULT_SCENARIO_PARAMS } from './types.js';
+export {
+  DEFAULT_SCENARIO_PARAMS,
+  DEFAULT_MEMORY_CONFIG,
+  MEMORY_CONFIG_SMALL,
+  MEMORY_CONFIG_LARGE,
+} from './types.js';

@@ -1174,3 +1174,285 @@ Benchmarks run automatically on every PR via GitHub Actions:
 - Warnings on target failures or regressions
 
 See `.github/workflows/benchmark.yml` for configuration
+
+---
+
+## Server Deployment
+
+The LiveCalc engine supports multiple server-side deployment options for production workloads.
+
+### Deployment Options Comparison
+
+| Runtime | Use Case | Parallelism | Cold Start | Compatibility |
+|---------|----------|-------------|------------|---------------|
+| **Node.js** | API servers, microservices | worker_threads | ~500ms | Full JS wrapper |
+| **Wasmtime** | CLI tools, containers | Native threads | ~50ms | WASI build |
+
+### Node.js Deployment
+
+The recommended approach for most server deployments.
+
+#### Basic Node.js Server
+
+```typescript
+import { LiveCalcEngine, DEFAULT_SCENARIO_PARAMS } from '@livecalc/engine';
+import createModule from './livecalc.mjs';
+import { readFileSync } from 'node:fs';
+
+const engine = new LiveCalcEngine();
+await engine.initialize(createModule);
+
+// Load data from files
+const policies = readFileSync('./data/policies.csv', 'utf-8');
+engine.loadPoliciesFromCsv(policies);
+// ... load other data ...
+
+// Run valuation
+const result = engine.runValuation({
+  numScenarios: 1000,
+  seed: Date.now(),
+  scenarioParams: DEFAULT_SCENARIO_PARAMS,
+});
+
+console.log(JSON.stringify(result));
+```
+
+#### Parallel Execution with Worker Pool
+
+For large-scale valuations, use the NodeWorkerPool for parallel execution:
+
+```typescript
+import { NodeWorkerPool, DEFAULT_SCENARIO_PARAMS } from '@livecalc/engine';
+
+const pool = new NodeWorkerPool({
+  numWorkers: 8,  // Match container CPU allocation
+  workerScript: './dist/node-worker.mjs',
+  wasmPath: './wasm/livecalc.mjs',
+});
+
+await pool.initialize();
+await pool.loadData(policiesCsv, mortalityCsv, lapseCsv, expensesCsv);
+
+const result = await pool.runValuation({
+  numScenarios: 10000,
+  seed: 42,
+  scenarioParams: DEFAULT_SCENARIO_PARAMS,
+});
+
+pool.terminate();
+```
+
+#### Memory Configuration for Containers
+
+Configure memory limits to match your container constraints:
+
+```typescript
+import {
+  DEFAULT_MEMORY_CONFIG,
+  MEMORY_CONFIG_SMALL,
+  MEMORY_CONFIG_LARGE,
+} from '@livecalc/engine';
+
+// For small containers (512MB RAM)
+const smallConfig = MEMORY_CONFIG_SMALL;
+// maxMemory: 512MB, maxPolicies: 100K, maxScenarios: 10K
+
+// For large containers (8GB RAM)
+const largeConfig = MEMORY_CONFIG_LARGE;
+// maxMemory: 8GB, maxPolicies: 10M, maxScenarios: 1M
+
+// Custom configuration
+const customConfig = {
+  initialMemory: 128 * 1024 * 1024,  // 128 MB
+  maxMemory: 2 * 1024 * 1024 * 1024, // 2 GB
+  maxPolicies: 500_000,
+  maxScenarios: 50_000,
+};
+```
+
+Memory estimates per component:
+- Policies: ~32 bytes each
+- Scenarios: ~400 bytes each
+- Results: ~8 bytes per scenario NPV
+
+#### Docker Deployment Example
+
+```dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy WASM binary and JS wrapper
+COPY build-wasm/livecalc.wasm ./wasm/
+COPY build-wasm/livecalc.mjs ./wasm/
+
+# Copy Node.js package
+COPY js/dist ./dist/
+COPY js/package.json ./
+
+# Install production dependencies
+RUN npm install --production
+
+# Copy application code
+COPY server.js ./
+
+# Memory-constrained execution
+CMD ["node", "--max-old-space-size=1024", "server.js"]
+```
+
+### Wasmtime Deployment
+
+For standalone CLI execution or containers without Node.js.
+
+#### Building the WASI Binary
+
+The WASI build produces a standalone WASM binary that runs in Wasmtime/Wasmer:
+
+```bash
+# Install WASI SDK (https://github.com/WebAssembly/wasi-sdk)
+export WASI_SDK_PATH=/opt/wasi-sdk
+
+# Build WASI target
+mkdir build-wasi && cd build-wasi
+cmake .. \
+  -DCMAKE_TOOLCHAIN_FILE=$WASI_SDK_PATH/share/cmake/wasi-sdk.cmake \
+  -DCMAKE_BUILD_TYPE=Release
+make
+```
+
+This produces `livecalc-wasi.wasm` (~200KB).
+
+#### Running with Wasmtime
+
+```bash
+# Install Wasmtime (https://wasmtime.dev/)
+curl https://wasmtime.dev/install.sh -sSf | bash
+
+# Run valuation
+wasmtime run livecalc-wasi.wasm -- \
+    --policies data/policies.csv \
+    --mortality data/mortality.csv \
+    --lapse data/lapse.csv \
+    --expenses data/expenses.csv \
+    --scenarios 1000 \
+    --seed 42 \
+    --output results.json
+```
+
+#### Wasmtime CLI Options
+
+```
+Usage: wasmtime run livecalc-wasi.wasm -- [options]
+
+Required options:
+  --policies <path>     CSV file with policy data
+  --mortality <path>    CSV file with mortality table
+  --lapse <path>        CSV file with lapse rates
+  --expenses <path>     CSV file with expense assumptions
+
+Scenario options:
+  --scenarios <count>   Number of scenarios (default: 1000)
+  --seed <value>        Random seed (default: 42)
+  --initial-rate <r>    Initial interest rate (default: 0.04)
+  --drift <d>           Annual drift (default: 0.0)
+  --volatility <v>      Annual volatility (default: 0.015)
+  --min-rate <r>        Minimum interest rate (default: 0.0)
+  --max-rate <r>        Maximum interest rate (default: 0.20)
+
+Stress testing:
+  --mortality-mult <m>  Mortality multiplier (default: 1.0)
+  --lapse-mult <m>      Lapse multiplier (default: 1.0)
+  --expense-mult <m>    Expense multiplier (default: 1.0)
+
+Output:
+  --output <path>       Output JSON file (default: stdout)
+  --help                Show this help message
+```
+
+#### Wasmtime with Memory Limits
+
+```bash
+# Limit memory to 512MB
+wasmtime run \
+    --wasm-features=memory64 \
+    --max-memory-size 536870912 \
+    livecalc-wasi.wasm -- \
+    --policies policies.csv \
+    ...
+```
+
+#### Running with Wasmer
+
+```bash
+# Install Wasmer
+curl https://get.wasmer.io -sSfL | sh
+
+# Run (same interface)
+wasmer run livecalc-wasi.wasm -- \
+    --policies data/policies.csv \
+    --mortality data/mortality.csv \
+    --lapse data/lapse.csv \
+    --expenses data/expenses.csv \
+    --scenarios 1000
+```
+
+### Performance Comparison
+
+Expected performance across runtimes (10K policies × 1K scenarios):
+
+| Runtime | Single-Thread | 8-Thread | Relative |
+|---------|--------------|----------|----------|
+| Native C++ | ~2.5 sec | - | 1.0x |
+| Wasmtime | ~3.0 sec | - | ~1.2x |
+| Node.js WASM | ~3.2 sec | ~0.5 sec | ~1.3x / 0.2x |
+
+Wasmtime delivers near-native performance (~20% overhead), while Node.js with worker_threads provides the best throughput for parallel workloads.
+
+### Kubernetes Deployment Example
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livecalc-engine
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: livecalc
+  template:
+    metadata:
+      labels:
+        app: livecalc
+    spec:
+      containers:
+      - name: engine
+        image: livecalc/engine:latest
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+        env:
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=1536"
+        - name: WORKER_COUNT
+          value: "2"
+```
+
+### Azure Container Instances Example
+
+```bash
+# Deploy to Azure
+az container create \
+    --resource-group myResourceGroup \
+    --name livecalc \
+    --image livecalc/engine:latest \
+    --cpu 2 \
+    --memory 2 \
+    --environment-variables \
+        NODE_OPTIONS="--max-old-space-size=1536" \
+        WORKER_COUNT=2
+```

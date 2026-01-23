@@ -5,13 +5,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Detect Emscripten
+# Detect build environment
+# Emscripten: Browser/Node.js WASM with JS wrapper
+# WASI: Standalone WASM for Wasmtime/Wasmer CLI execution
 if(EMSCRIPTEN)
-    message(STATUS "Building for WebAssembly with Emscripten")
+    message(STATUS "Building for WebAssembly with Emscripten (Browser/Node.js)")
     set(WASM_BUILD ON)
+    set(WASI_BUILD OFF)
+elseif(DEFINED ENV{WASI_SDK_PATH} OR DEFINED WASI_SDK_PATH)
+    message(STATUS "Building for WebAssembly with WASI SDK (Wasmtime/Wasmer)")
+    set(WASM_BUILD OFF)
+    set(WASI_BUILD ON)
 else()
     message(STATUS "Building native executable")
     set(WASM_BUILD OFF)
+    set(WASI_BUILD OFF)
 endif()
 
 # Build type configuration
@@ -19,8 +27,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Compiler warnings (not all work with Emscripten)
-if(NOT WASM_BUILD)
+# Compiler warnings
+if(NOT WASM_BUILD AND NOT WASI_BUILD)
     add_compile_options(-Wall -Wextra -Werror -pedantic)
 else()
     add_compile_options(-Wall -Wextra)
@@ -40,7 +48,7 @@ set(LIB_SOURCES
 # ============================================================================
 # Native Build Configuration
 # ============================================================================
-if(NOT WASM_BUILD)
+if(NOT WASM_BUILD AND NOT WASI_BUILD)
     # Fetch Catch2 for testing
     include(FetchContent)
     FetchContent_Declare(
@@ -202,5 +210,46 @@ else()
         COMMAND ${CMAKE_COMMAND} -E echo "WASM build complete:"
         COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.wasm || true
         COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.mjs || true
+    )
+
+# ============================================================================
+# WASI Build Configuration (for Wasmtime/Wasmer)
+# ============================================================================
+elseif(WASI_BUILD)
+    # WASI standalone executable with CLI interface
+    set(WASI_SOURCES
+        ${LIB_SOURCES}
+        src/wasm/wasi_main.cpp
+    )
+
+    set(WASI_OUTPUT_NAME "livecalc-wasi")
+
+    add_executable(${WASI_OUTPUT_NAME} ${WASI_SOURCES})
+    target_include_directories(${WASI_OUTPUT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+    # WASI-specific compile options
+    target_compile_options(${WASI_OUTPUT_NAME} PRIVATE
+        -O3
+        -fno-exceptions
+    )
+
+    # WASI link options for standalone execution
+    target_link_options(${WASI_OUTPUT_NAME} PRIVATE
+        -Wl,--export=main
+        -Wl,--export=__heap_base
+        -Wl,--export=__data_end
+        -Wl,--initial-memory=67108864    # 64MB initial memory
+        -Wl,--max-memory=4294967296      # 4GB max memory
+    )
+
+    # Output .wasm suffix
+    set_target_properties(${WASI_OUTPUT_NAME} PROPERTIES
+        SUFFIX ".wasm"
+    )
+
+    # Report build size
+    add_custom_command(TARGET ${WASI_OUTPUT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "WASI build complete:"
+        COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASI_OUTPUT_NAME}.wasm || true
     )
 endif()

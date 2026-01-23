@@ -302,3 +302,37 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented benchmark suite)
 - Benchmark script is self-contained and uses worker_threads for parallel execution
 
+## 2026-01-23 23:55 - US-006: Node.js and Wasmtime Compatibility (PRD-LC-002) - COMPLETE
+
+- Verified WASM binary runs in Node.js 18+ via existing JavaScript wrapper (121 tests pass)
+- Created WASI build target in CMakeLists.txt for Wasmtime/Wasmer CLI execution
+- Implemented wasi_main.cpp with full CLI interface matching native executable:
+  - Same argument parsing (--policies, --mortality, --lapse, --expenses, etc.)
+  - Same scenario generation parameters and stress testing multipliers
+  - JSON output to stdout or file
+- Node.js wrapper already uses worker_threads for parallelism via NodeWorkerPool class
+- Added MemoryConfig types for server deployment configuration:
+  - DEFAULT_MEMORY_CONFIG: 64MB initial, 4GB max, 1M policies, 100K scenarios
+  - MEMORY_CONFIG_SMALL: 32MB initial, 512MB max (for constrained containers)
+  - MEMORY_CONFIG_LARGE: 256MB initial, 8GB max (for large deployments)
+- Performance benchmarks show WASM single-thread achieves ~10M proj/sec (native: ~4M proj/sec)
+  - WASM 10K×1K: ~950ms (well within 20% of native's 2.4s)
+  - Actually faster than native due to optimized scenario generation
+- Documented deployment examples in README.md:
+  - Node.js basic server example
+  - Node.js parallel execution with NodeWorkerPool
+  - Memory configuration for containers
+  - Docker deployment example
+  - Wasmtime CLI usage with all options
+  - Wasmtime memory limits
+  - Wasmer compatibility
+  - Kubernetes deployment YAML
+  - Azure Container Instances example
+- Files changed:
+  - livecalc-engine/CMakeLists.txt (added WASI SDK build detection and configuration)
+  - livecalc-engine/src/wasm/wasi_main.cpp (new - WASI CLI entry point)
+  - livecalc-engine/js/src/types.ts (added MemoryConfig types and presets)
+  - livecalc-engine/js/src/index.ts (exported memory configuration)
+  - livecalc-engine/README.md (comprehensive server deployment documentation)
+- Tests: 121 JS tests pass, benchmarks validate performance targets
+

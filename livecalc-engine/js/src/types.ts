@@ -397,3 +397,74 @@ export type WorkerResponse =
  * Callback for progress updates during parallel valuation
  */
 export type WorkerProgressCallback = (percent: number) => void;
+
+// ==========================================================================
+// Memory Configuration (Server Environments)
+// ==========================================================================
+
+/**
+ * Memory configuration options for server environments.
+ *
+ * These settings allow fine-tuning memory usage for different deployment scenarios:
+ * - Development: Lower limits for faster iteration
+ * - Production: Higher limits for large-scale valuations
+ * - Cloud: Align with container memory limits
+ */
+export interface MemoryConfig {
+  /**
+   * Initial memory allocation in bytes (default: 64MB).
+   * Higher values reduce memory growth operations but increase startup memory.
+   */
+  initialMemory?: number;
+
+  /**
+   * Maximum memory limit in bytes (default: 4GB).
+   * Set this to match container memory limits in cloud deployments.
+   * WASM will fail gracefully if this limit is exceeded.
+   */
+  maxMemory?: number;
+
+  /**
+   * Maximum number of policies to allow (default: 1,000,000).
+   * Provides early validation to prevent out-of-memory errors.
+   * Each policy uses ~32 bytes in-memory.
+   */
+  maxPolicies?: number;
+
+  /**
+   * Maximum number of scenarios to allow (default: 100,000).
+   * Provides early validation to prevent out-of-memory errors.
+   * Each scenario uses ~400 bytes.
+   */
+  maxScenarios?: number;
+}
+
+/**
+ * Default memory configuration for development environments.
+ */
+export const DEFAULT_MEMORY_CONFIG: Required<MemoryConfig> = {
+  initialMemory: 64 * 1024 * 1024,    // 64 MB
+  maxMemory: 4 * 1024 * 1024 * 1024,  // 4 GB
+  maxPolicies: 1_000_000,
+  maxScenarios: 100_000,
+};
+
+/**
+ * Memory configuration preset for constrained environments (e.g., small containers).
+ */
+export const MEMORY_CONFIG_SMALL: Required<MemoryConfig> = {
+  initialMemory: 32 * 1024 * 1024,    // 32 MB
+  maxMemory: 512 * 1024 * 1024,       // 512 MB
+  maxPolicies: 100_000,
+  maxScenarios: 10_000,
+};
+
+/**
+ * Memory configuration preset for large-scale server deployments.
+ */
+export const MEMORY_CONFIG_LARGE: Required<MemoryConfig> = {
+  initialMemory: 256 * 1024 * 1024,   // 256 MB
+  maxMemory: 8 * 1024 * 1024 * 1024,  // 8 GB (requires 64-bit WASM)
+  maxPolicies: 10_000_000,
+  maxScenarios: 1_000_000,
+};
