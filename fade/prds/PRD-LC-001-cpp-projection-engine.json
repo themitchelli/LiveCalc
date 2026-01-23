@@ -1,0 +1,202 @@
+{
+  "id": "PRD-LC-001",
+  "title": "C++ Projection Engine Core",
+  "type": "feature",
+  "priority": "critical",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Build a realistic nested stochastic projection engine in C++ that demonstrates actuarial calculations at scale. This forms the computational core that will be compiled to WASM for browser and server execution.",
+  "problem": [
+    "Actuaries wait 15-45 minutes per iteration when testing assumption changes",
+    "Azure Batch spin-up time (3-10 min) dominates the feedback loop",
+    "No ability to run projections locally without expensive infrastructure",
+    "Development velocity limited to 10-15 iterations per day"
+  ],
+  "solution": [
+    "Build a C++ projection engine that compiles to WASM",
+    "Enable browser-based execution with instant feedback (<5 seconds)",
+    "Support nested stochastic calculations (scenarios × policies)",
+    "Provide realistic actuarial outputs (NPV, percentiles, CTE)"
+  ],
+  "dependencies": [],
+  "technicalNotes": {
+    "language": "C++17",
+    "buildSystem": "CMake",
+    "targetPlatforms": ["Native (testing)", "WASM (production via Emscripten)"],
+    "testFramework": "Catch2",
+    "performanceTargets": {
+      "10K_policies_1K_scenarios_native": "<1 second",
+      "10K_policies_1K_scenarios_wasm": "<5 seconds",
+      "100K_policies_1K_scenarios_native": "<10 seconds"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Policy Data Structure",
+      "story": "As a developer, I need a data structure to represent insurance policies so the engine can process realistic actuarial data",
+      "acceptanceCriteria": [
+        "Policy struct contains: policy_id, age, gender, sum_assured, premium, term, product_type",
+        "Support for at least 100,000 policies in memory",
+        "Policies can be loaded from CSV format",
+        "Policies can be serialized to/from binary format for WASM",
+        "Memory footprint documented (bytes per policy)",
+        "Unit tests validate struct serialization round-trip"
+      ],
+      "technicalNotes": {
+        "struct": "Policy { uint32_t policy_id; uint8_t age; uint8_t gender; double sum_assured; double premium; uint8_t term; uint8_t product_type; }",
+        "estimatedSize": "~32 bytes per policy"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Assumption Tables",
+      "story": "As a developer, I need assumption table structures so the engine can apply mortality, lapse, and expense assumptions",
+      "acceptanceCriteria": [
+        "MortalityTable struct: qx rates by age (0-120) and gender",
+        "LapseTable struct: lapse rates by policy year (1-50)",
+        "ExpenseAssumptions struct: per-policy and percentage-of-premium expenses",
+        "Tables can be loaded from CSV format",
+        "Tables can be serialized to/from binary format for WASM",
+        "Support for assumption multipliers (e.g., 1.1x mortality)",
+        "Unit tests validate table lookups at boundaries (age 0, age 120, year 1, year 50)"
+      ],
+      "technicalNotes": {
+        "mortalitySize": "~2KB (121 ages × 2 genders × 8 bytes)",
+        "lapseSize": "~400 bytes (50 years × 8 bytes)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Economic Scenario Structure",
+      "story": "As a developer, I need economic scenario structures so the engine can run stochastic projections with varying interest rates",
+      "acceptanceCriteria": [
+        "Scenario struct contains interest rates by year (1-50)",
+        "ScenarioSet contains multiple scenarios (1,000 - 10,000)",
+        "Scenarios can be generated programmatically (random walk with drift)",
+        "Scenarios can be loaded from CSV",
+        "Seed-based generation for reproducibility",
+        "Unit tests validate scenario generation produces expected distribution"
+      ],
+      "technicalNotes": {
+        "generator": "Geometric Brownian Motion with configurable drift and volatility",
+        "parameters": "initial_rate, drift, volatility, seed"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Single Policy Projection",
+      "story": "As a developer, I need a function to project a single policy under a single scenario so I can validate the core calculation logic",
+      "acceptanceCriteria": [
+        "project_policy() function takes Policy, Assumptions, Scenario",
+        "Projects cash flows year-by-year for policy term",
+        "Calculates: premium income, death benefits, surrender benefits, expenses",
+        "Applies mortality decrements correctly",
+        "Applies lapse decrements correctly",
+        "Discounts cash flows at scenario interest rates",
+        "Returns NPV of cash flows",
+        "Returns detailed cash flow vector (optional, for debugging)",
+        "Matches hand-calculated example within 0.01%",
+        "Unit tests cover edge cases: age 0, age 120, term 1, term 50"
+      ],
+      "technicalNotes": {
+        "signature": "ProjectionResult project_policy(const Policy&, const MortalityTable&, const LapseTable&, const ExpenseAssumptions&, const Scenario&)",
+        "returnType": "struct ProjectionResult { double npv; std::vector<double> cashflows; }"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Nested Stochastic Valuation",
+      "story": "As a developer, I need a function to run nested stochastic valuation (scenarios × policies) so the engine can produce statistical results",
+      "acceptanceCriteria": [
+        "run_valuation() iterates: outer loop (scenarios), inner loop (policies)",
+        "Aggregates NPV per scenario (sum across all policies)",
+        "Calculates statistics: mean, std dev, percentiles (P50, P75, P90, P95, P99)",
+        "Calculates CTE (Conditional Tail Expectation) at 95%",
+        "Returns distribution of scenario results for charting",
+        "Execution time logged",
+        "10K policies × 1K scenarios completes in <30 seconds (native)",
+        "Results match expected values for known test case"
+      ],
+      "technicalNotes": {
+        "signature": "ValuationResult run_valuation(const std::vector<Policy>&, const MortalityTable&, const LapseTable&, const ExpenseAssumptions&, const ScenarioSet&)",
+        "returnType": "struct ValuationResult { double mean_npv; double std_dev; double percentiles[5]; double cte_95; std::vector<double> scenario_npvs; double execution_time_ms; }"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Command Line Interface",
+      "story": "As a developer, I need a CLI to run projections from the command line so I can validate the engine before WASM compilation",
+      "acceptanceCriteria": [
+        "CLI accepts: policies CSV, assumptions CSVs, scenario config",
+        "CLI outputs: JSON results (statistics + distribution)",
+        "CLI supports flags: --policies, --mortality, --lapse, --expenses, --scenarios, --seed, --output",
+        "CLI validates inputs and reports clear errors",
+        "CLI prints execution time",
+        "Example invocation documented in README",
+        "Integration test runs full valuation via CLI"
+      ],
+      "technicalNotes": {
+        "example": "./livecalc-engine --policies data/policies.csv --mortality data/mortality.csv --lapse data/lapse.csv --expenses data/expenses.json --scenarios 1000 --seed 42 --output results.json"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/CMakeLists.txt",
+    "livecalc-engine/src/main.cpp",
+    "livecalc-engine/src/policy.hpp",
+    "livecalc-engine/src/policy.cpp",
+    "livecalc-engine/src/assumptions.hpp",
+    "livecalc-engine/src/assumptions.cpp",
+    "livecalc-engine/src/scenario.hpp",
+    "livecalc-engine/src/scenario.cpp",
+    "livecalc-engine/src/projection.hpp",
+    "livecalc-engine/src/projection.cpp",
+    "livecalc-engine/src/valuation.hpp",
+    "livecalc-engine/src/valuation.cpp",
+    "livecalc-engine/src/io/csv_reader.hpp",
+    "livecalc-engine/src/io/csv_reader.cpp",
+    "livecalc-engine/src/io/json_writer.hpp",
+    "livecalc-engine/src/io/json_writer.cpp",
+    "livecalc-engine/tests/test_policy.cpp",
+    "livecalc-engine/tests/test_assumptions.cpp",
+    "livecalc-engine/tests/test_projection.cpp",
+    "livecalc-engine/tests/test_valuation.cpp",
+    "livecalc-engine/data/sample_policies.csv",
+    "livecalc-engine/data/sample_mortality.csv",
+    "livecalc-engine/data/sample_lapse.csv",
+    "livecalc-engine/data/sample_expenses.json",
+    "livecalc-engine/README.md"
+  ],
+  "testData": {
+    "samplePolicies": {
+      "count": 1000,
+      "description": "Representative mix of ages (25-75), terms (10-30), and sum assured (£50K-£500K)"
+    },
+    "sampleMortality": {
+      "source": "Simplified AM92 table",
+      "description": "Standard UK mortality table for testing"
+    },
+    "sampleLapse": {
+      "description": "Typical lapse curve: high early (15% year 1), declining to 3% by year 10+"
+    }
+  },
+  "definitionOfDone": [
+    "All 6 user stories pass acceptance criteria",
+    "Unit tests pass with >90% coverage on core logic",
+    "Integration test runs full 10K × 1K valuation",
+    "Performance meets targets (10K × 1K < 30 seconds native)",
+    "Results validated against hand-calculated example",
+    "README documents build and run instructions",
+    "Code compiles with -Wall -Werror (no warnings)"
+  ],
+  "estimatedSessions": "4-5 FADE sessions"
+}

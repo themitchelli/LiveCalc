@@ -1,0 +1,11 @@
+policy_id,age,gender,sum_assured,premium,term,product_type
+1,25,M,50000,200,20,Term
+2,30,F,100000,450,25,Term
+3,35,M,75000,380,15,Term
+4,40,F,200000,850,20,WholeLife
+5,45,M,150000,720,10,Term
+6,50,F,250000,1100,15,Endowment
+7,28,M,80000,350,30,Term
+8,33,F,120000,550,20,Term
+9,38,M,90000,420,25,WholeLife
+10,42,F,180000,780,15,Term
