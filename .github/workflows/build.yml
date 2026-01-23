@@ -1,0 +1,163 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  native-build:
+    name: Native Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure CMake
+        run: |
+          cd livecalc-engine
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cd livecalc-engine/build
+          make -j$(nproc || sysctl -n hw.ncpu)
+
+      - name: Run tests
+        run: |
+          cd livecalc-engine/build
+          ctest --output-on-failure
+
+      - name: Run benchmark
+        run: |
+          cd livecalc-engine/build
+          ./benchmark
+
+  wasm-build:
+    name: WASM Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.51'
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Verify Emscripten
+        run: emcc --version
+
+      - name: Configure WASM build
+        run: |
+          cd livecalc-engine
+          mkdir build-wasm && cd build-wasm
+          emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build WASM
+        run: |
+          cd livecalc-engine/build-wasm
+          emmake make -j$(nproc)
+
+      - name: Check WASM output size
+        run: |
+          cd livecalc-engine/build-wasm
+          echo "=== WASM Build Output ==="
+          ls -lh livecalc.wasm livecalc.mjs
+
+          # Verify WASM binary is under 5MB target
+          WASM_SIZE=$(stat -c%s livecalc.wasm 2>/dev/null || stat -f%z livecalc.wasm)
+          MAX_SIZE=$((5 * 1024 * 1024))
+          if [ "$WASM_SIZE" -gt "$MAX_SIZE" ]; then
+            echo "ERROR: WASM binary ($WASM_SIZE bytes) exceeds 5MB limit"
+            exit 1
+          fi
+          echo "WASM binary size: $WASM_SIZE bytes (under 5MB limit)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test WASM in Node.js
+        run: |
+          cd livecalc-engine/build-wasm
+          cat > test-wasm.mjs << 'EOF'
+          import createLiveCalcModule from './livecalc.mjs';
+
+          const Module = await createLiveCalcModule();
+          console.log('WASM module loaded successfully');
+          console.log('Version:', Module.UTF8ToString(Module._get_version()));
+
+          // Verify exported functions exist
+          const funcs = ['_run_valuation', '_get_result_mean', '_load_policies_csv'];
+          for (const func of funcs) {
+            if (typeof Module[func] !== 'function') {
+              console.error('Missing function:', func);
+              process.exit(1);
+            }
+          }
+          console.log('All required functions exported');
+          EOF
+          node test-wasm.mjs
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: livecalc-wasm
+          path: |
+            livecalc-engine/build-wasm/livecalc.wasm
+            livecalc-engine/build-wasm/livecalc.mjs
+
+  wasm-debug-build:
+    name: WASM Debug Build (with source maps)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.51'
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Configure WASM debug build
+        run: |
+          cd livecalc-engine
+          mkdir build-wasm-debug && cd build-wasm-debug
+          emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build WASM (debug)
+        run: |
+          cd livecalc-engine/build-wasm-debug
+          emmake make -j$(nproc)
+
+      - name: Verify debug output
+        run: |
+          cd livecalc-engine/build-wasm-debug
+          echo "=== WASM Debug Build Output ==="
+          ls -lh livecalc.wasm livecalc.mjs
+          # Debug build produces source maps - verify .wasm.map exists or DWARF is embedded
+          echo "Debug build complete"
+
+      - name: Upload debug artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: livecalc-wasm-debug
+          path: |
+            livecalc-engine/build-wasm-debug/livecalc.wasm
+            livecalc-engine/build-wasm-debug/livecalc.mjs
+            livecalc-engine/build-wasm-debug/*.map

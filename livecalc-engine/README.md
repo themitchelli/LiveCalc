@@ -4,12 +4,47 @@ A C++ projection engine for actuarial calculations, designed to compile to WASM 
 
 ## Building
 
+### Native Build
+
 ```bash
 cd livecalc-engine
 mkdir build && cd build
 cmake ..
 make
 ```
+
+### WASM Build (Emscripten)
+
+The engine can be compiled to WebAssembly for browser and Node.js execution.
+
+**Prerequisites:**
+- Install Emscripten: `brew install emscripten` (macOS) or [follow official instructions](https://emscripten.org/docs/getting_started/downloads.html)
+
+**Release Build (optimized):**
+```bash
+cd livecalc-engine
+mkdir build-wasm && cd build-wasm
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+emmake make
+```
+
+**Debug Build (with source maps):**
+```bash
+mkdir build-wasm-debug && cd build-wasm-debug
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Debug
+emmake make
+```
+
+**Output:**
+- `livecalc.wasm` - WASM binary (~100KB release, ~3MB debug)
+- `livecalc.mjs` - ES6 JavaScript module (~18KB release)
+
+### Build Comparison
+
+| Build Type | WASM Size | JS Size | Source Maps |
+|------------|-----------|---------|-------------|
+| Release    | ~100 KB   | ~18 KB  | No          |
+| Debug      | ~3 MB     | ~77 KB  | Yes         |
 
 ## Running Tests
 
@@ -502,3 +537,95 @@ cd build
 ```
 
 The benchmark runs valuations at increasing scale and reports statistics and performance metrics.
+
+## WASM Usage (JavaScript/Node.js)
+
+The WASM module can be used from JavaScript in both browser and Node.js environments.
+
+### Loading the Module
+
+```javascript
+// ES6 module import
+import createLiveCalcModule from './livecalc.mjs';
+
+const Module = await createLiveCalcModule();
+console.log('Version:', Module.UTF8ToString(Module._get_version()));
+```
+
+### Loading Data
+
+```javascript
+// Helper to allocate strings in WASM memory
+function allocateString(Module, str) {
+    const len = Module.lengthBytesUTF8(str);
+    const ptr = Module._livecalc_malloc(len + 1);
+    Module.stringToUTF8(str, ptr, len + 1);
+    return { ptr, size: len };
+}
+
+// Load policies from CSV
+const policyCsv = `policy_id,age,gender,sum_assured,premium,term,product_type
+1,30,M,100000,500,20,Term
+2,40,F,150000,800,15,Term`;
+
+const policyData = allocateString(Module, policyCsv);
+const policyCount = Module._load_policies_csv(policyData.ptr, policyData.size);
+Module._livecalc_free(policyData.ptr);
+
+// Similarly load mortality, lapse, and expenses
+```
+
+### Running Valuation
+
+```javascript
+// Run valuation with generated scenarios
+const result = Module._run_valuation(
+    1000,           // number of scenarios
+    BigInt(42),     // seed (uint64_t requires BigInt)
+    0.04,           // initial interest rate
+    0.0,            // drift
+    0.015,          // volatility
+    0.0,            // min rate
+    0.20,           // max rate
+    1.0,            // mortality multiplier
+    1.0,            // lapse multiplier
+    1.0,            // expense multiplier
+    1               // store distribution (1 = true)
+);
+
+if (result === 0) {
+    console.log('Mean NPV:', Module._get_result_mean());
+    console.log('Std Dev:', Module._get_result_std_dev());
+    console.log('P95:', Module._get_result_p95());
+    console.log('CTE95:', Module._get_result_cte95());
+}
+```
+
+### JSON Results
+
+```javascript
+// Generate JSON result
+const jsonLen = Module._generate_result_json();
+const jsonPtr = Module._get_result_json_ptr();
+const jsonStr = Module.UTF8ToString(jsonPtr, jsonLen);
+const results = JSON.parse(jsonStr);
+```
+
+### Exported Functions
+
+| Function | Description |
+|----------|-------------|
+| `_load_policies_csv(ptr, size)` | Load policies from CSV string |
+| `_load_mortality_csv(ptr, size)` | Load mortality table from CSV |
+| `_load_lapse_csv(ptr, size)` | Load lapse table from CSV |
+| `_load_expenses_csv(ptr, size)` | Load expense assumptions from CSV |
+| `_run_valuation(...)` | Execute nested stochastic valuation |
+| `_get_result_mean()` | Get mean NPV from last valuation |
+| `_get_result_std_dev()` | Get standard deviation |
+| `_get_result_p50()` through `_get_result_p99()` | Get percentiles |
+| `_get_result_cte95()` | Get CTE at 95% |
+| `_generate_result_json()` | Generate JSON result string |
+| `_get_result_json_ptr()` | Get pointer to JSON string |
+| `_get_version()` | Get engine version |
+| `_livecalc_malloc(size)` | Allocate WASM memory |
+| `_livecalc_free(ptr)` | Free WASM memory |

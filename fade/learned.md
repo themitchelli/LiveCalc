@@ -63,3 +63,21 @@ Only add learnings that are:
 - **What:** When discounting cash flows, be explicit about timing: EOY (end of year) discounting applies the full year's discount factor to that year's cash flow. The cumulative discount factor for year n is the product 1/(1+r_1) × 1/(1+r_2) × ... × 1/(1+r_n)
 - **Why it matters:** Different timing conventions (BOY, mid-year, EOY) produce different NPVs. EOY is simplest but may understate NPV for products with BOY premium collection
 
+## 2026-01-23 - Emscripten ES6 modules require .mjs extension for Node.js
+**Source:** PRD-LC-002 US-001
+
+- **What:** When building with MODULARIZE=1 and EXPORT_ES6=1, the output JS file must have .mjs extension for Node.js to import it correctly without "Cannot use 'import.meta' outside a module" errors
+- **Why it matters:** Using .js extension causes Node.js to treat it as CommonJS, but ES6 features like import.meta fail. Set CMake SUFFIX to ".mjs" for proper ES6 module support
+
+## 2026-01-23 - uint64_t parameters require BigInt in JavaScript
+**Source:** PRD-LC-002 US-001
+
+- **What:** WASM functions with uint64_t parameters (like the seed in run_valuation) require BigInt in JavaScript: `Module._run_valuation(100, BigInt(42), ...)`
+- **Why it matters:** Passing a regular number to a uint64_t parameter causes "Cannot convert X to a BigInt" error. Document this in API usage examples
+
+## 2026-01-23 - Emscripten exceptions vs -fno-exceptions
+**Source:** PRD-LC-002 US-001
+
+- **What:** If C++ code uses try/catch or throw, cannot use -fno-exceptions flag in Emscripten. The core library uses exceptions for error handling (out of range, file not found, etc.)
+- **Why it matters:** Build will fail with "cannot use 'throw' with exceptions disabled" if -fno-exceptions is used on code that throws. Either refactor to return error codes or remove the flag
+

@@ -137,3 +137,21 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented CLI usage with examples)
 - Tests: 11 new tests added (132 total), covering help display, argument validation, file path validation, full valuation execution, JSON output to file, seed reproducibility, multipliers effect, scenario generation parameters, validation errors
 
+## 2026-01-23 23:15 - US-001: Emscripten Build Configuration (PRD-LC-002) - COMPLETE
+
+- Configured CMakeLists.txt to support both native and Emscripten builds via toolchain file detection
+- Created WASM exports file (src/wasm/exports.cpp) with C-compatible interface for JavaScript interop
+- Exported functions: load_policies_csv, load_mortality_csv, load_lapse_csv, load_expenses_csv, run_valuation, get_result_* accessors, generate_result_json
+- Build produces livecalc.mjs (ES6 module) + livecalc.wasm
+- Release build optimized with -O3 and -flto flags (100KB WASM, 18KB JS)
+- Debug build includes source maps for development (3.3MB WASM, 77KB JS)
+- WASM binary well under 5MB target requirement
+- Created CI workflow (.github/workflows/build.yml) for native builds (Ubuntu, macOS) and WASM builds
+- CI validates WASM binary size < 5MB and tests module loading in Node.js
+- Files changed:
+  - livecalc-engine/CMakeLists.txt (Emscripten toolchain support, WASM target configuration)
+  - livecalc-engine/src/wasm/exports.cpp (new - C interface for WASM)
+  - livecalc-engine/README.md (WASM build instructions, JavaScript usage examples)
+  - .github/workflows/build.yml (new - CI for native and WASM builds)
+- Tests: WASM module loads and executes valuation successfully in Node.js
+

@@ -1,0 +1,270 @@
+{
+  "id": "PRD-LC-002",
+  "title": "WASM Compilation and Web Worker Threading",
+  "type": "feature",
+  "priority": "critical",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Compile the C++ projection engine to WebAssembly using Emscripten, and implement parallel execution using Web Workers with SharedArrayBuffer. This enables the same engine to run in browsers and server-side (Node.js, Wasmtime).",
+  "problem": [
+    "C++ engine from PRD-LC-001 only runs as native binary",
+    "Cannot execute in browser for instant client-side feedback",
+    "Single-threaded execution doesn't utilize multi-core CPUs",
+    "Need same binary to run client-side (free) and server-side (AKS)"
+  ],
+  "solution": [
+    "Configure Emscripten build to produce WASM binary",
+    "Create JavaScript wrapper for easy API access",
+    "Implement Web Worker pool for parallel scenario execution",
+    "Use SharedArrayBuffer for zero-copy data sharing between workers",
+    "Benchmark to validate performance targets"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-001",
+      "title": "C++ Projection Engine Core",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "compiler": "Emscripten (emcc) 3.1.x",
+    "wasmFeatures": ["threads", "bulk-memory", "simd128"],
+    "jsRuntime": ["Browser (Chrome, Firefox, Safari)", "Node.js 18+", "Wasmtime 14+"],
+    "browserRequirements": {
+      "SharedArrayBuffer": "Requires COOP/COEP headers",
+      "WebWorkers": "Standard, widely supported"
+    },
+    "performanceTargets": {
+      "10K_policies_1K_scenarios_wasm_single": "<15 seconds",
+      "10K_policies_1K_scenarios_wasm_8threads": "<3 seconds",
+      "100K_policies_1K_scenarios_wasm_8threads": "<30 seconds",
+      "cold_start": "<500ms"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Emscripten Build Configuration",
+      "story": "As a developer, I need CMake configuration for Emscripten so the C++ code compiles to WASM",
+      "acceptanceCriteria": [
+        "CMakeLists.txt supports both native and Emscripten builds via toolchain file",
+        "Emscripten build produces: livecalc.js + livecalc.wasm",
+        "Exported functions accessible via Module.cwrap() or Module.ccall()",
+        "Build optimized with -O3 and -flto flags",
+        "WASM binary size < 5MB (ideally < 2MB)",
+        "Build instructions documented in README",
+        "CI builds both native and WASM targets",
+        "Separate debug build with source maps for development"
+      ],
+      "technicalNotes": {
+        "cmakeToolchain": "emcmake cmake ..",
+        "exportedFunctions": ["_run_valuation", "_load_policies", "_load_assumptions", "_get_results", "_malloc", "_free"],
+        "linkFlags": "-s WASM=1 -s EXPORTED_RUNTIME_METHODS=['cwrap','ccall','getValue','setValue'] -s ALLOW_MEMORY_GROWTH=1 -s MAXIMUM_MEMORY=4GB -s PTHREAD_POOL_SIZE=navigator.hardwareConcurrency"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "JavaScript API Wrapper",
+      "story": "As a developer, I need a JavaScript wrapper so the WASM engine can be called cleanly from JS/TS",
+      "acceptanceCriteria": [
+        "LiveCalcEngine class wraps WASM module initialization",
+        "async initialize() method loads and compiles WASM",
+        "loadPolicies(policies: Policy[]) method transfers policy data to WASM memory",
+        "loadAssumptions(mortality, lapse, expenses) method transfers assumption data",
+        "runValuation(nScenarios, seed) method executes and returns results",
+        "Results returned as JavaScript object (not raw memory pointers)",
+        "dispose() method frees allocated memory",
+        "TypeScript type definitions (.d.ts) included",
+        "Works in both Node.js and browser environments",
+        "Error handling with meaningful messages (not just 'WASM trap')"
+      ],
+      "technicalNotes": {
+        "classSignature": "class LiveCalcEngine { async initialize(): Promise<void>; loadPolicies(policies: Policy[]): void; loadAssumptions(mortality: number[][], lapse: number[], expenses: Expenses): void; runValuation(nScenarios: number, seed: number): ValuationResult; dispose(): void; }",
+        "memoryManagement": "Use WASM linear memory with explicit malloc/free calls"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Web Worker Pool Implementation",
+      "story": "As a developer, I need a Web Worker pool so projections can run in parallel across CPU cores",
+      "acceptanceCriteria": [
+        "WorkerPool class manages N workers (default: navigator.hardwareConcurrency or 4)",
+        "Each worker loads its own WASM instance",
+        "Work distributed by scenario chunks (scenarios 1-125 to worker 1, 126-250 to worker 2, etc.)",
+        "Workers report progress as percentage complete",
+        "Results aggregated from all workers into single ValuationResult",
+        "Graceful handling of worker errors (retry once, then fail with details)",
+        "Workers can be terminated mid-execution (cancel support)",
+        "Works in Node.js (using worker_threads) and browser (Web Workers)",
+        "Linear scaling validated: 8 workers ~7x faster than 1 worker",
+        "Unit tests validate parallel execution produces identical results to single-threaded"
+      ],
+      "technicalNotes": {
+        "browserWorker": "new Worker('livecalc-worker.js')",
+        "nodeWorker": "new Worker(require.resolve('./livecalc-worker.js'))",
+        "messageProtocol": {
+          "init": "{ type: 'init', wasmUrl: string, scenarioRange: [start, end] }",
+          "progress": "{ type: 'progress', percent: number }",
+          "result": "{ type: 'result', scenarioNpvs: number[] }",
+          "error": "{ type: 'error', message: string }"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "SharedArrayBuffer for Zero-Copy Data Sharing",
+      "story": "As a developer, I need SharedArrayBuffer support so policy data doesn't need to be copied to each worker",
+      "acceptanceCriteria": [
+        "Policy data stored in SharedArrayBuffer (SAB)",
+        "All workers read from same SAB (zero-copy for policies)",
+        "Assumption data stored in SharedArrayBuffer",
+        "Results written to worker-specific sections of SharedArrayBuffer",
+        "Main thread aggregates results from shared buffer after all workers complete",
+        "Atomics used for synchronization where needed",
+        "Fallback mode for environments without SAB (copy data via postMessage)",
+        "Memory usage reduced by ~Nx vs copying (where N = worker count)",
+        "Documentation of COOP/COEP header requirements for browsers"
+      ],
+      "technicalNotes": {
+        "headers": "Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Embedder-Policy: require-corp",
+        "bufferLayout": {
+          "policies": "offset 0, size = policyCount * 32 bytes",
+          "assumptions": "offset after policies, size ~4KB",
+          "results": "offset after assumptions, size = scenarioCount * 8 bytes per worker"
+        },
+        "fallbackDetection": "typeof SharedArrayBuffer !== 'undefined' && crossOriginIsolated"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Performance Benchmarking Suite",
+      "story": "As a developer, I need benchmarks so we can validate performance targets and detect regressions",
+      "acceptanceCriteria": [
+        "Benchmark script runs standard configurations automatically",
+        "Configurations tested: 1K/10K/100K policies × 100/1K/10K scenarios",
+        "Reports: execution time, memory usage, policies/second, scenarios/second",
+        "Compares: native C++ vs WASM single-thread vs WASM multi-thread",
+        "Results logged to JSON file for tracking over time",
+        "Performance targets enforced (fail if regression >10%)",
+        "CI runs benchmarks on every PR",
+        "Benchmark results displayed in PR comment"
+      ],
+      "technicalNotes": {
+        "targetMatrix": [
+          { "policies": 10000, "scenarios": 1000, "threads": 1, "maxTime": 15000 },
+          { "policies": 10000, "scenarios": 1000, "threads": 8, "maxTime": 3000 },
+          { "policies": 100000, "scenarios": 1000, "threads": 8, "maxTime": 30000 }
+        ],
+        "outputFormat": {
+          "timestamp": "ISO8601",
+          "commit": "git SHA",
+          "results": [{ "config": {}, "nativeMs": 0, "wasmSingleMs": 0, "wasmMultiMs": 0, "memoryMb": 0 }]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Node.js and Wasmtime Compatibility",
+      "story": "As a developer, I need the WASM binary to run in Node.js and Wasmtime so we can use it server-side on AKS",
+      "acceptanceCriteria": [
+        "Same .wasm binary runs in Node.js 18+ without modification",
+        "Same .wasm binary runs in Wasmtime 14+ without modification",
+        "Node.js wrapper uses worker_threads for parallelism",
+        "Wasmtime can be invoked via CLI for simple execution",
+        "Performance within 20% of native C++ (Wasmtime is near-native)",
+        "Memory limits configurable for server environments",
+        "Documented deployment examples for both runtimes"
+      ],
+      "technicalNotes": {
+        "nodeUsage": "import { LiveCalcEngine } from 'livecalc'; const engine = new LiveCalcEngine(); await engine.initialize();",
+        "wasmtimeUsage": "wasmtime run --wasm-features=threads livecalc.wasm -- --input policies.bin --output results.json"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/cmake/Emscripten.cmake",
+    "livecalc-engine/src/wasm/exports.cpp",
+    "livecalc-engine/src/wasm/memory.hpp",
+    "livecalc-engine/src/wasm/memory.cpp",
+    "livecalc-engine/js/src/index.ts",
+    "livecalc-engine/js/src/engine.ts",
+    "livecalc-engine/js/src/worker-pool.ts",
+    "livecalc-engine/js/src/worker.ts",
+    "livecalc-engine/js/src/shared-buffer.ts",
+    "livecalc-engine/js/src/types.ts",
+    "livecalc-engine/js/src/fallback.ts",
+    "livecalc-engine/js/package.json",
+    "livecalc-engine/js/tsconfig.json",
+    "livecalc-engine/js/rollup.config.js",
+    "livecalc-engine/benchmarks/run-benchmarks.ts",
+    "livecalc-engine/benchmarks/benchmark-config.json",
+    "livecalc-engine/tests/wasm/test-browser.html",
+    "livecalc-engine/tests/wasm/test-node.ts",
+    "livecalc-engine/tests/wasm/test-worker-pool.ts",
+    "livecalc-engine/.github/workflows/benchmark.yml"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-engine/CMakeLists.txt",
+      "changes": "Add Emscripten toolchain detection and WASM-specific build options"
+    },
+    {
+      "file": "livecalc-engine/README.md",
+      "changes": "Add WASM build instructions, browser usage examples, Node.js examples"
+    }
+  ],
+  "securityConsiderations": [
+    "WASM binary contains no secrets (just projection math)",
+    "SharedArrayBuffer requires COOP/COEP headers (document for VS Code extension)",
+    "No network calls from WASM (all data passed in via JS)",
+    "Memory isolation between workers via SAB offset management"
+  ],
+  "browserCompatibility": {
+    "chrome": "92+ (SharedArrayBuffer re-enabled)",
+    "firefox": "79+ (SharedArrayBuffer with headers)",
+    "safari": "15.2+ (SharedArrayBuffer support)",
+    "edge": "92+ (Chromium-based)",
+    "nodeJs": "18+ (worker_threads stable)",
+    "wasmtime": "14+ (threads proposal)"
+  },
+  "definitionOfDone": [
+    "Emscripten build produces livecalc.js + livecalc.wasm < 5MB",
+    "JavaScript API wrapper with full TypeScript types",
+    "Worker pool achieves ~7x speedup with 8 workers vs single-threaded",
+    "SharedArrayBuffer implementation with fallback for non-SAB environments",
+    "All performance targets met (10K × 1K < 3 seconds with 8 threads)",
+    "Benchmarks run in CI with regression detection",
+    "Works in Chrome, Firefox, Safari, Node.js, and Wasmtime",
+    "Unit tests pass for single-threaded and multi-threaded execution",
+    "Documentation covers build, usage, and deployment"
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "SharedArrayBuffer browser restrictions",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Fallback to postMessage-based data transfer (slower but works)"
+    },
+    {
+      "risk": "WASM thread support varies by runtime",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Test all target runtimes early, single-threaded fallback"
+    },
+    {
+      "risk": "Memory growth issues with large policy sets",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "ALLOW_MEMORY_GROWTH flag, chunked processing for very large sets"
+    }
+  ]
+}
