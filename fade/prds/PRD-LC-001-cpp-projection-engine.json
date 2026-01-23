@@ -108,7 +108,7 @@
         "signature": "ProjectionResult project_policy(const Policy&, const MortalityTable&, const LapseTable&, const ExpenseAssumptions&, const Scenario&)",
         "returnType": "struct ProjectionResult { double npv; std::vector<double> cashflows; }"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

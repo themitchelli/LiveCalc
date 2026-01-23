@@ -228,3 +228,83 @@ scenario_id,year,rate
 | 10,000 | ~4 MB |
 
 The engine supports 10,000+ scenarios for nested stochastic valuation.
+
+## Single Policy Projection
+
+The `project_policy()` function projects a single policy under a single economic scenario, returning the Net Present Value (NPV) of cash flows.
+
+### Basic Usage
+
+```cpp
+#include "projection.hpp"
+
+// Load data
+PolicySet policies = PolicySet::load_from_csv("policies.csv");
+MortalityTable mortality = MortalityTable::load_from_csv("mortality.csv");
+LapseTable lapse = LapseTable::load_from_csv("lapse.csv");
+ExpenseAssumptions expenses = ExpenseAssumptions::load_from_csv("expenses.csv");
+Scenario scenario = ...;  // From ScenarioSet or loaded from CSV
+
+// Project single policy
+ProjectionResult result = project_policy(
+    policies.get(0),
+    mortality,
+    lapse,
+    expenses,
+    scenario
+);
+
+double npv = result.npv;  // Net present value
+```
+
+### Detailed Cash Flows
+
+To get year-by-year cash flow breakdowns:
+
+```cpp
+ProjectionConfig config;
+config.detailed_cashflows = true;
+
+ProjectionResult result = project_policy(policy, mortality, lapse, expenses, scenario, config);
+
+for (const auto& cf : result.cashflows) {
+    std::cout << "Year " << (int)cf.year << ": "
+              << "Lives=" << cf.lives_boy << ", "
+              << "Premium=" << cf.premium_income << ", "
+              << "Deaths=" << cf.death_benefit << ", "
+              << "Expenses=" << cf.expenses << ", "
+              << "Net CF=" << cf.net_cashflow << ", "
+              << "Discounted=" << cf.discounted_cashflow << std::endl;
+}
+```
+
+### Projection Logic
+
+Each policy year:
+1. **Premium income**: Collect premium from lives in-force at beginning of year
+2. **Death decrements**: Apply mortality (qx × lives × sum_assured)
+3. **Lapse decrements**: Apply lapse rates to survivors (currently surrender value = 0 for term products)
+4. **Expenses**: First year includes acquisition costs; all years include maintenance and % of premium
+5. **Discounting**: Apply scenario discount factors (cumulative product of 1/(1+r))
+
+**Sign convention**: Positive = cash inflow to company, Negative = cash outflow
+
+### Assumption Multipliers
+
+Apply stress factors to assumptions:
+
+```cpp
+ProjectionConfig config;
+config.mortality_multiplier = 1.10;  // 10% increase in mortality
+config.lapse_multiplier = 0.80;      // 20% decrease in lapses
+config.expense_multiplier = 1.15;    // 15% increase in expenses
+
+ProjectionResult stressed = project_policy(policy, mortality, lapse, expenses, scenario, config);
+```
+
+### Edge Case Handling
+
+- **Age > 120**: Uses age 120 mortality rates (capped at MAX_AGE)
+- **Term > 50**: Projects limited to min(policy.term, MAX_YEAR=50)
+- **Zero term**: Returns NPV = 0
+- **All lives depleted**: Projection stops early if lives < 1e-10

@@ -22,6 +22,7 @@ set(LIB_SOURCES
     src/policy.cpp
     src/assumptions.cpp
     src/scenario.cpp
+    src/projection.cpp
     src/io/csv_reader.cpp
 )
 
@@ -38,6 +39,7 @@ add_executable(tests
     tests/test_policy.cpp
     tests/test_assumptions.cpp
     tests/test_scenario.cpp
+    tests/test_projection.cpp
 )
 target_link_libraries(tests PRIVATE livecalc_core Catch2::Catch2WithMain)
 

@@ -76,3 +76,24 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented economic scenarios)
 - Tests: 31 new tests added (75 total), covering boundary years (1/50), discount factors, GBM generation, seed reproducibility, distribution validation, CSV loading, serialization round-trips
 
+## 2026-01-23 20:34 - US-004: Single Policy Projection - COMPLETE
+
+- Implemented project_policy() function that projects a single policy under a single scenario
+- Created ProjectionResult struct with NPV and optional detailed cash flow vector
+- Created YearlyCashFlow struct with year-by-year breakdown (lives, premium, deaths, lapses, expenses, discounting)
+- Created ProjectionConfig struct with detailed_cashflows flag and multipliers for mortality/lapse/expenses
+- Projection logic:
+  - Starts with 1.0 lives at beginning of year 1
+  - Applies mortality decrements (qx × lives × sum_assured)
+  - Applies lapse decrements on survivors (currently 0 surrender value for term products)
+  - Calculates expenses (first year includes acquisition, all years include maintenance + % premium + claim expense)
+  - Discounts cash flows using cumulative scenario discount factors
+- Edge case handling: age capping at 120, term capping at 50, zero-term returns 0, early exit when lives depleted
+- Hand-calculated validation test verifies results within 0.01% tolerance
+- Files changed:
+  - livecalc-engine/src/projection.hpp, projection.cpp (new)
+  - livecalc-engine/tests/test_projection.cpp (new)
+  - livecalc-engine/CMakeLists.txt (added new sources)
+  - livecalc-engine/README.md (documented projection module)
+- Tests: 21 new tests added (96 total), covering edge cases (age 0/120, term 1/50), hand-calculated validation, multipliers, gender-specific mortality, variable interest rates, NPV consistency
+

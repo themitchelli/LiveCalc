@@ -51,3 +51,15 @@ Only add learnings that are:
 - **What:** When loading CSVs that support multiple formats (wide vs long), checking specific column names (e.g., "year") in the header is more robust than relying on column count alone
 - **Why it matters:** Enables flexible data input without requiring users to specify format explicitly
 
+## 2026-01-23 - Decrement ordering in actuarial projections
+**Source:** PRD-LC-001 US-004
+
+- **What:** In multi-decrement projection models, apply decrements sequentially: (1) deaths during the year, (2) lapses applied to survivors. Lapses can't occur on people who died.
+- **Why it matters:** Applying decrements in the wrong order or simultaneously (e.g., lapse on full lives_boy) overstates decrements and produces incorrect cash flows
+
+## 2026-01-23 - Discount factor timing convention
+**Source:** PRD-LC-001 US-004
+
+- **What:** When discounting cash flows, be explicit about timing: EOY (end of year) discounting applies the full year's discount factor to that year's cash flow. The cumulative discount factor for year n is the product 1/(1+r_1) × 1/(1+r_2) × ... × 1/(1+r_n)
+- **Why it matters:** Different timing conventions (BOY, mid-year, EOY) produce different NPVs. EOY is simplest but may understate NPV for products with BOY premium collection
+
