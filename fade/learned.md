@@ -33,3 +33,9 @@ Only add learnings that are:
 - **What:** macOS with Xcode Command Line Tools has clang++ but not cmake. Use `brew install cmake` to add it.
 - **Why it matters:** Don't assume cmake is available; check and install via Homebrew if needed for C++ projects
 
+## 2026-01-23 - Probability-based rates need upper bound capping
+**Source:** PRD-LC-001 US-002
+
+- **What:** When applying multipliers to mortality/lapse rates, cap results at 1.0 since probabilities can't exceed 100%
+- **Why it matters:** Stress testing with multipliers (e.g., 2x mortality on 80% base rate) would otherwise produce invalid probabilities >1.0
+

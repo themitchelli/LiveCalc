@@ -41,3 +41,21 @@ For blocked stories, use:
   - livecalc-engine/README.md
 - Tests: 12 tests passed (struct fields, equality, serialization round-trip, 100K capacity, CSV loading, memory footprint)
 
+## 2026-01-23 21:15 - US-002: Assumption Tables - COMPLETE
+
+- Implemented MortalityTable class with qx rates by age (0-120) and gender
+- Implemented LapseTable class with lapse rates by policy year (1-50)
+- Implemented ExpenseAssumptions struct with per-policy acquisition, maintenance, percent-of-premium, and claim expenses
+- All tables support CSV loading and binary serialization for WASM deployment
+- Added assumption multiplier support to stress-test results (with automatic 1.0 capping for probabilities)
+- Documented memory footprint: MortalityTable 1,936 bytes, LapseTable 400 bytes, ExpenseAssumptions 32 bytes
+- Files changed:
+  - livecalc-engine/src/assumptions.hpp, assumptions.cpp (new)
+  - livecalc-engine/tests/test_assumptions.cpp (new)
+  - livecalc-engine/data/sample_mortality.csv (new)
+  - livecalc-engine/data/sample_lapse.csv (new)
+  - livecalc-engine/data/sample_expenses.csv (new)
+  - livecalc-engine/CMakeLists.txt (added new sources)
+  - livecalc-engine/README.md (documented assumption tables)
+- Tests: 32 new tests added (44 total), covering boundary lookups (age 0/120, year 1/50), multipliers, CSV loading, serialization round-trips
+

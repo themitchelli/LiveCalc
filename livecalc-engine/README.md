@@ -80,3 +80,79 @@ For WASM deployment, policies can be serialized to a compact binary format:
 - Followed by N × 24 bytes of policy data
 
 Use `PolicySet::serialize()` and `PolicySet::deserialize()` for binary I/O.
+
+## Assumption Tables
+
+### Mortality Table
+
+Stores qx (probability of death within one year) by age (0-120) and gender.
+
+```csv
+age,male_qx,female_qx
+0,0.00450,0.00380
+30,0.00091,0.00038
+60,0.01828,0.01172
+120,1.00000,1.00000
+```
+
+**Memory:** 1,936 bytes (121 ages × 2 genders × 8 bytes)
+
+Usage:
+```cpp
+MortalityTable mortality = MortalityTable::load_from_csv("mortality.csv");
+double qx = mortality.get_qx(45, Gender::Male);           // Base rate
+double adjusted = mortality.get_qx(45, Gender::Male, 1.1); // With 1.1x multiplier
+```
+
+### Lapse Table
+
+Stores lapse rates (probability of voluntary surrender) by policy year (1-50).
+
+```csv
+year,lapse_rate
+1,0.15
+2,0.12
+5,0.06
+10,0.03
+```
+
+**Memory:** 400 bytes (50 years × 8 bytes)
+
+Usage:
+```cpp
+LapseTable lapse = LapseTable::load_from_csv("lapse.csv");
+double rate = lapse.get_rate(5);           // Base rate for year 5
+double adjusted = lapse.get_rate(5, 1.5);  // With 1.5x multiplier
+```
+
+### Expense Assumptions
+
+Stores expense parameters for projection calculations.
+
+```csv
+name,value
+per_policy_acquisition,500
+per_policy_maintenance,50
+percent_of_premium,0.05
+claim_expense,100
+```
+
+**Memory:** 32 bytes (4 doubles)
+
+Usage:
+```cpp
+ExpenseAssumptions expenses = ExpenseAssumptions::load_from_csv("expenses.csv");
+double first_year = expenses.first_year_expense(1000.0);  // Premium of 1000
+double renewal = expenses.renewal_expense(1000.0);
+double adjusted = expenses.first_year_expense(1000.0, 1.2);  // With 1.2x multiplier
+```
+
+### Assumption Multipliers
+
+All assumption tables support multipliers to stress-test results:
+
+- Mortality multiplier (e.g., 1.1 = 10% higher mortality)
+- Lapse multiplier (e.g., 0.8 = 20% lower lapses)
+- Expense multiplier (e.g., 1.2 = 20% higher expenses)
+
+Multiplied rates are automatically capped at 1.0 for probability values.

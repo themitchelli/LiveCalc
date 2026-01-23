@@ -1,0 +1,5 @@
+name,value
+per_policy_acquisition,500
+per_policy_maintenance,50
+percent_of_premium,0.05
+claim_expense,100

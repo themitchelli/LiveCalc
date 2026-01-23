@@ -68,7 +68,7 @@
         "mortalitySize": "~2KB (121 ages × 2 genders × 8 bytes)",
         "lapseSize": "~400 bytes (50 years × 8 bytes)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
