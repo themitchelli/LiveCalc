@@ -85,6 +85,36 @@ export {
 } from './node-worker-pool.js';
 export type { NodeWorkerPoolConfig } from './node-worker-pool.js';
 
+// SharedArrayBuffer worker pool (zero-copy data sharing)
+export {
+  SABWorkerPool,
+  NodeSABWorkerPool,
+  createSABWorkerPool,
+} from './sab-worker-pool.js';
+export type { SABWorkerPoolConfig } from './sab-worker-pool.js';
+
+// SharedArrayBuffer utilities
+export {
+  SharedBufferManager,
+  SharedBufferReader,
+  isSharedArrayBufferAvailable,
+  calculateBufferSize,
+} from './shared-buffer.js';
+export type {
+  SharedBufferAllocation,
+  SharedBufferConfig,
+} from './shared-buffer.js';
+
+// Auto-selecting worker pool with fallback
+export {
+  createAutoWorkerPool,
+  wouldUseSharedArrayBuffer,
+} from './fallback.js';
+export type {
+  AutoWorkerPoolConfig,
+  UnifiedWorkerPool,
+} from './fallback.js';
+
 // Types
 export type {
   // Core data types

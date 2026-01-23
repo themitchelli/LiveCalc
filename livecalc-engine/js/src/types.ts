@@ -283,12 +283,42 @@ export interface WorkerRunValuationMessage {
 }
 
 /**
+ * Message from main thread to worker: Attach SharedArrayBuffer
+ */
+export interface WorkerAttachSabMessage {
+  type: 'attach-sab';
+  /** The SharedArrayBuffer containing all data */
+  buffer: SharedArrayBuffer;
+  /** Worker identifier */
+  workerId: number;
+  /** Maximum scenarios this worker can store */
+  maxScenariosPerWorker: number;
+}
+
+/**
+ * Message from main thread to worker: Run valuation using SharedArrayBuffer data
+ */
+export interface WorkerRunValuationSabMessage {
+  type: 'run-valuation-sab';
+  numScenarios: number;
+  seed: number;
+  scenarioParams: ScenarioParams;
+  mortalityMultiplier: number;
+  lapseMultiplier: number;
+  expenseMultiplier: number;
+  /** This worker's ID (for writing results to correct offset) */
+  workerId: number;
+}
+
+/**
  * Union of all worker input messages
  */
 export type WorkerMessage =
   | WorkerInitMessage
   | WorkerLoadDataMessage
-  | WorkerRunValuationMessage;
+  | WorkerRunValuationMessage
+  | WorkerAttachSabMessage
+  | WorkerRunValuationSabMessage;
 
 /**
  * Response from worker: Initialization complete
@@ -325,6 +355,24 @@ export interface WorkerResultResponse {
 }
 
 /**
+ * Response from worker: SharedArrayBuffer attached successfully
+ */
+export interface WorkerSabAttachedResponse {
+  type: 'sab-attached';
+}
+
+/**
+ * Response from worker: Valuation complete (results in SharedArrayBuffer)
+ */
+export interface WorkerResultSabResponse {
+  type: 'result-sab';
+  /** Number of scenarios computed (results are in shared buffer) */
+  scenarioCount: number;
+  /** Execution time for this worker in milliseconds */
+  executionTimeMs: number;
+}
+
+/**
  * Response from worker: Error
  */
 export interface WorkerErrorResponse {
@@ -341,7 +389,9 @@ export type WorkerResponse =
   | WorkerLoadCompleteResponse
   | WorkerProgressResponse
   | WorkerResultResponse
-  | WorkerErrorResponse;
+  | WorkerErrorResponse
+  | WorkerSabAttachedResponse
+  | WorkerResultSabResponse;
 
 /**
  * Callback for progress updates during parallel valuation

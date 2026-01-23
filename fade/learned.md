@@ -81,3 +81,21 @@ Only add learnings that are:
 - **What:** If C++ code uses try/catch or throw, cannot use -fno-exceptions flag in Emscripten. The core library uses exceptions for error handling (out of range, file not found, etc.)
 - **Why it matters:** Build will fail with "cannot use 'throw' with exceptions disabled" if -fno-exceptions is used on code that throws. Either refactor to return error codes or remove the flag
 
+## 2026-01-23 - SharedArrayBuffer requires crossOriginIsolated headers
+**Source:** PRD-LC-002 US-004
+
+- **What:** In browsers, SharedArrayBuffer is only available when the page is cross-origin isolated. This requires setting two HTTP headers: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`
+- **Why it matters:** Code that assumes SAB is available will fail silently or throw in non-isolated contexts. Always check `crossOriginIsolated` or use try/catch when creating SharedArrayBuffer
+
+## 2026-01-23 - SharedArrayBuffer memory savings depend on data volume
+**Source:** PRD-LC-002 US-004
+
+- **What:** SharedArrayBuffer provides memory savings by sharing data across workers instead of copying. However, the results buffer must be per-worker (each worker writes to its own section). With small data and many workers, the fixed overhead (header, assumptions, results areas) can exceed the copy-mode memory
+- **Why it matters:** SAB mode shows significant savings only with large policy counts. For small policy sets, standard WorkerPool may be more memory-efficient. The createAutoWorkerPool fallback handles this gracefully
+
+## 2026-01-23 - Worker message postMessage cannot transfer SharedArrayBuffer
+**Source:** PRD-LC-002 US-004
+
+- **What:** While SharedArrayBuffer can be passed to workers via postMessage, it is not "transferred" (moved) but rather shared. The same buffer is accessible from both main thread and workers simultaneously. This is different from Transferable objects (like ArrayBuffer) which are moved and become unusable in the sender
+- **Why it matters:** Design the buffer layout with concurrent access in mind. Use separate sections for different workers' results to avoid write conflicts. Atomics can be used for synchronization when needed
+

@@ -215,3 +215,46 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented parallel execution with Worker Pool)
 - Tests: 63 tests pass (30 engine + 13 integration + 20 worker pool)
 
+## 2026-01-23 23:45 - US-004: SharedArrayBuffer for Zero-Copy Data Sharing (PRD-LC-002) - COMPLETE
+
+- Implemented SharedBufferManager class for allocating and managing SharedArrayBuffer
+- Created SharedBufferReader for read-only access to shared data from workers
+- Memory layout:
+  - Header (32 bytes): magic number, version, offsets, counts
+  - Policies section: 32 bytes per policy (matches C++ struct alignment)
+  - Assumptions section: mortality (1936 bytes) + lapse (400 bytes) + expenses (32 bytes)
+  - Results section: per-worker areas for scenario NPVs
+- Implemented SABWorkerPool class with zero-copy data sharing:
+  - Data written once to SharedArrayBuffer by main thread
+  - All workers read from same SAB (no data copying)
+  - Results written directly to worker-specific sections of SAB
+  - Main thread aggregates results from shared buffer
+- Implemented fallback mode via createAutoWorkerPool():
+  - Detects SAB availability (including crossOriginIsolated check)
+  - Falls back to standard WorkerPool with postMessage data transfer
+  - Unified interface (UnifiedWorkerPool) works with both modes
+- Added new worker message types:
+  - attach-sab: Attach SharedArrayBuffer to worker
+  - run-valuation-sab: Run valuation using SAB data
+  - sab-attached: Confirmation of SAB attachment
+  - result-sab: Results written to SAB (no data in message)
+- Memory savings (theoretical for 10K policies, 8 workers):
+  - Without SAB: ~25.6 MB (data copied to each worker)
+  - With SAB: ~3.2 MB (shared by all workers)
+  - Savings: ~87.5% reduction
+- Documented COOP/COEP header requirements for browsers:
+  - Cross-Origin-Opener-Policy: same-origin
+  - Cross-Origin-Embedder-Policy: require-corp
+- Files changed:
+  - livecalc-engine/js/src/shared-buffer.ts (new - SharedBufferManager and SharedBufferReader)
+  - livecalc-engine/js/src/sab-worker-pool.ts (new - SABWorkerPool class)
+  - livecalc-engine/js/src/fallback.ts (new - createAutoWorkerPool with fallback)
+  - livecalc-engine/js/src/types.ts (added SAB worker message types)
+  - livecalc-engine/js/src/worker.ts (added SAB message handlers)
+  - livecalc-engine/js/src/index.ts (added SAB exports)
+  - livecalc-engine/js/package.json (added keywords)
+  - livecalc-engine/js/tests/shared-buffer.test.ts (new - 36 tests)
+  - livecalc-engine/js/tests/sab-worker-pool.test.ts (new - 22 tests)
+  - livecalc-engine/README.md (documented SAB mode and COOP/COEP headers)
+- Tests: 121 tests pass (30 engine + 13 integration + 20 worker pool + 36 shared buffer + 22 SAB worker pool)
+

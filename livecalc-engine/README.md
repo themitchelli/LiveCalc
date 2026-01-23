@@ -796,6 +796,182 @@ Linear scaling validates ~7x speedup with 8 workers vs single-threaded.
 
 ---
 
+## SharedArrayBuffer Zero-Copy Mode
+
+For memory-efficient parallel execution, use `SABWorkerPool` to share data between workers without copying.
+
+### Memory Savings
+
+With N workers and P policies:
+- **Without SAB**: N × P × 32 bytes (data copied to each worker)
+- **With SAB**: P × 32 bytes (shared by all workers)
+
+For 100K policies and 8 workers:
+- Without SAB: ~25.6 MB
+- With SAB: ~3.2 MB
+- **Savings: ~87.5% reduction**
+
+### Browser Requirements (COOP/COEP Headers)
+
+SharedArrayBuffer requires cross-origin isolation. Your server must set these headers:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+Example for Express.js:
+```javascript
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+```
+
+Example for nginx:
+```nginx
+add_header Cross-Origin-Opener-Policy same-origin;
+add_header Cross-Origin-Embedder-Policy require-corp;
+```
+
+You can verify isolation is enabled:
+```javascript
+console.log('Cross-origin isolated:', crossOriginIsolated);
+```
+
+### SABWorkerPool Usage
+
+```typescript
+import { SABWorkerPool, DEFAULT_SCENARIO_PARAMS } from '@livecalc/engine';
+
+const pool = new SABWorkerPool({
+  numWorkers: 8,
+  workerScript: '/livecalc-worker.js',
+  wasmPath: '/livecalc.mjs',
+  maxPolicies: 100000,   // Pre-allocate space
+  maxScenarios: 10000,
+});
+
+await pool.initialize();
+
+// Data is written to SharedArrayBuffer, shared by all workers
+await pool.loadDataFromCsv(policiesCsv, mortalityCsv, lapseCsv, expensesCsv);
+
+// Results are written directly to SharedArrayBuffer
+const result = await pool.runValuation(
+  { numScenarios: 10000, seed: 42, scenarioParams: DEFAULT_SCENARIO_PARAMS },
+  (progress) => console.log(`${progress}% complete`)
+);
+
+// Check memory savings
+console.log('Memory savings:', pool.getMemorySavings());
+
+pool.terminate();
+```
+
+### Auto-Selecting with Fallback
+
+For environments that may or may not support SharedArrayBuffer:
+
+```typescript
+import { createAutoWorkerPool } from '@livecalc/engine';
+
+// Automatically uses SAB if available, falls back to copying otherwise
+const pool = createAutoWorkerPool({
+  numWorkers: 8,
+  workerScript: '/livecalc-worker.js',
+  wasmPath: '/livecalc.mjs',
+});
+
+console.log('Using SharedArrayBuffer:', pool.usesSharedArrayBuffer);
+
+await pool.initialize();
+// ... same API as WorkerPool or SABWorkerPool
+```
+
+### Checking SAB Availability
+
+```typescript
+import { isSharedArrayBufferAvailable, wouldUseSharedArrayBuffer } from '@livecalc/engine';
+
+// Check if SAB is available in current environment
+console.log('SAB available:', isSharedArrayBufferAvailable());
+
+// Check if auto-selector would use SAB
+console.log('Would use SAB:', wouldUseSharedArrayBuffer());
+```
+
+### SABWorkerPool API Reference
+
+#### Configuration
+
+```typescript
+interface SABWorkerPoolConfig {
+  numWorkers?: number;      // Default: navigator.hardwareConcurrency or 4
+  workerScript: string;     // Path to worker script
+  wasmPath: string;         // Path to WASM module
+  maxPolicies?: number;     // Default: 100000
+  maxScenarios?: number;    // Default: 10000
+}
+```
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `initialize()` | Initialize workers and allocate SharedArrayBuffer |
+| `loadDataFromCsv(...)` | Load CSV data into shared buffer |
+| `loadData(policies, mortality, lapse, expenses)` | Load objects into shared buffer |
+| `runValuation(config, onProgress?)` | Run parallel valuation |
+| `getMemorySavings()` | Get memory usage comparison |
+| `cancel()` | Cancel running valuation |
+| `terminate()` | Stop all workers and free buffer |
+
+#### Properties
+
+| Property | Description |
+|----------|-------------|
+| `workerCount` | Number of workers |
+| `isInitialized` | Whether workers are ready |
+| `isReady` | Whether data is loaded |
+| `usesSharedArrayBuffer` | Always true for SABWorkerPool |
+
+### Unified Interface
+
+The `UnifiedWorkerPool` interface provides a common API for both standard and SAB modes:
+
+```typescript
+import { createAutoWorkerPool, UnifiedWorkerPool } from '@livecalc/engine';
+
+function runValuation(pool: UnifiedWorkerPool) {
+  // Works with both WorkerPool and SABWorkerPool
+  return pool.runValuation({
+    numScenarios: 1000,
+    seed: 42,
+    scenarioParams: DEFAULT_SCENARIO_PARAMS,
+  });
+}
+```
+
+### Node.js Usage
+
+```typescript
+import { NodeSABWorkerPool, createSABWorkerPool } from '@livecalc/engine';
+
+// Explicit Node.js SAB pool
+const pool = new NodeSABWorkerPool({
+  numWorkers: 8,
+  workerScript: './dist/node-worker.mjs',
+  wasmPath: './wasm/livecalc.mjs',
+});
+
+// Or auto-detecting
+const pool2 = createSABWorkerPool({...});  // Uses NodeSABWorkerPool in Node.js
+```
+
+---
+
 ## WASM Low-Level Usage (JavaScript/Node.js)
 
 For advanced use cases, the WASM module can be used directly without the wrapper.

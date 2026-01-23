@@ -139,7 +139,7 @@
         },
         "fallbackDetection": "typeof SharedArrayBuffer !== 'undefined' && crossOriginIsolated"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

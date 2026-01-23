@@ -41,7 +41,9 @@
     "projection",
     "valuation",
     "web-worker",
-    "parallel"
+    "parallel",
+    "shared-array-buffer",
+    "zero-copy"
   ],
   "author": "",
   "license": "MIT",
