@@ -241,3 +241,109 @@ export enum LiveCalcError {
   SUCCESS = 0,
   ERROR = -1,
 }
+
+// ==========================================================================
+// Worker Message Protocol
+// ==========================================================================
+
+/**
+ * Message from main thread to worker: Initialize WASM
+ */
+export interface WorkerInitMessage {
+  type: 'init';
+  /** Path to the WASM module (.mjs file) */
+  wasmPath: string;
+  /** Worker identifier */
+  workerId: number;
+}
+
+/**
+ * Message from main thread to worker: Load data
+ */
+export interface WorkerLoadDataMessage {
+  type: 'load-data';
+  policiesCsv: string;
+  mortalityCsv: string;
+  lapseCsv: string;
+  expensesCsv: string;
+}
+
+/**
+ * Message from main thread to worker: Run valuation
+ */
+export interface WorkerRunValuationMessage {
+  type: 'run-valuation';
+  numScenarios: number;
+  seed: number;
+  scenarioParams: ScenarioParams;
+  mortalityMultiplier: number;
+  lapseMultiplier: number;
+  expenseMultiplier: number;
+  storeDistribution: boolean;
+}
+
+/**
+ * Union of all worker input messages
+ */
+export type WorkerMessage =
+  | WorkerInitMessage
+  | WorkerLoadDataMessage
+  | WorkerRunValuationMessage;
+
+/**
+ * Response from worker: Initialization complete
+ */
+export interface WorkerInitCompleteResponse {
+  type: 'init-complete';
+}
+
+/**
+ * Response from worker: Data loading complete
+ */
+export interface WorkerLoadCompleteResponse {
+  type: 'load-complete';
+}
+
+/**
+ * Response from worker: Progress update
+ */
+export interface WorkerProgressResponse {
+  type: 'progress';
+  /** Progress percentage (0-100) */
+  percent: number;
+}
+
+/**
+ * Response from worker: Valuation result
+ */
+export interface WorkerResultResponse {
+  type: 'result';
+  /** Individual scenario NPVs for this worker's chunk */
+  scenarioNpvs: number[];
+  /** Execution time for this worker in milliseconds */
+  executionTimeMs: number;
+}
+
+/**
+ * Response from worker: Error
+ */
+export interface WorkerErrorResponse {
+  type: 'error';
+  /** Error message */
+  message: string;
+}
+
+/**
+ * Union of all worker output messages
+ */
+export type WorkerResponse =
+  | WorkerInitCompleteResponse
+  | WorkerLoadCompleteResponse
+  | WorkerProgressResponse
+  | WorkerResultResponse
+  | WorkerErrorResponse;
+
+/**
+ * Callback for progress updates during parallel valuation
+ */
+export type WorkerProgressCallback = (percent: number) => void;

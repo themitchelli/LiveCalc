@@ -185,3 +185,33 @@ For blocked stories, use:
   - livecalc-engine/README.md (added JavaScript API wrapper documentation)
 - Tests: 43 tests pass (30 unit tests + 13 integration tests)
 
+## 2026-01-23 23:30 - US-003: Web Worker Pool Implementation (PRD-LC-002) - COMPLETE
+
+- Implemented WorkerPool class managing N workers (default: navigator.hardwareConcurrency or 4)
+- Created worker script (worker.ts) that loads WASM and processes scenario chunks
+- Implemented work distribution by scenario chunks (scenarios 1-125 to worker 1, etc.)
+- Implemented progress reporting from workers (0-100% callback)
+- Implemented result aggregation into single ValuationResult with statistics calculation
+- Implemented error handling with retry logic (retry once on failure)
+- Implemented cancel support for mid-execution termination
+- Created Node.js-compatible worker pool (NodeWorkerPool) using worker_threads
+- Created auto-detecting createWorkerPool() factory function
+- Worker message protocol:
+  - init: Load WASM module in worker
+  - load-data: Transfer policy and assumption data
+  - run-valuation: Execute scenario chunk
+  - progress: Report completion percentage
+  - result: Return scenario NPVs
+  - error: Report failures
+- Files changed:
+  - livecalc-engine/js/src/worker-pool.ts (new - WorkerPool class)
+  - livecalc-engine/js/src/worker.ts (new - worker script for browser/Node.js)
+  - livecalc-engine/js/src/node-worker-pool.ts (new - Node.js worker_threads support)
+  - livecalc-engine/js/src/node-worker.ts (new - Node.js worker entry point)
+  - livecalc-engine/js/src/types.ts (added worker message types)
+  - livecalc-engine/js/src/index.ts (added WorkerPool exports)
+  - livecalc-engine/js/package.json (added worker build scripts)
+  - livecalc-engine/js/tests/worker-pool.test.ts (new - 20 unit tests)
+  - livecalc-engine/README.md (documented parallel execution with Worker Pool)
+- Tests: 63 tests pass (30 engine + 13 integration + 20 worker pool)
+

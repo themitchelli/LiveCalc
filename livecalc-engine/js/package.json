@@ -1,7 +1,7 @@
 {
   "name": "@livecalc/engine",
   "version": "1.0.0",
-  "description": "JavaScript wrapper for LiveCalc WASM projection engine",
+  "description": "JavaScript wrapper for LiveCalc WASM projection engine with Web Worker support",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -10,6 +10,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.mjs",
+      "require": "./dist/worker.js"
+    },
+    "./node-worker": {
+      "types": "./dist/node-worker.d.ts",
+      "import": "./dist/node-worker.mjs",
+      "require": "./dist/node-worker.js"
     }
   },
   "files": [
@@ -17,7 +27,7 @@
     "wasm"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "tsup src/index.ts src/worker.ts src/node-worker.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -29,7 +39,9 @@
     "wasm",
     "actuarial",
     "projection",
-    "valuation"
+    "valuation",
+    "web-worker",
+    "parallel"
   ],
   "author": "",
   "license": "MIT",
