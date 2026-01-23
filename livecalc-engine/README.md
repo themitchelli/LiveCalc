@@ -1063,3 +1063,114 @@ const results = JSON.parse(jsonStr);
 | `_get_version()` | Get engine version |
 | `_livecalc_malloc(size)` | Allocate WASM memory |
 | `_livecalc_free(ptr)` | Free WASM memory |
+
+---
+
+## Performance Benchmarking Suite
+
+A comprehensive benchmarking suite validates performance targets and detects regressions.
+
+### Running Benchmarks
+
+```bash
+# Install dependencies
+cd livecalc-engine/benchmarks
+npm install
+
+# Run all benchmarks
+npm run benchmark
+
+# Quick benchmarks (skip native)
+npm run benchmark:quick
+
+# CI mode (exits with error on failures)
+npm run benchmark:ci
+```
+
+### Benchmark Configurations
+
+| Name | Policies | Scenarios | Description |
+|------|----------|-----------|-------------|
+| small | 1,000 | 100 | Quick testing |
+| medium | 1,000 | 1,000 | Medium scale |
+| target-single | 10,000 | 1,000 | Single-thread target |
+| target-multi | 10,000 | 1,000 | Multi-thread target (8 workers) |
+| large | 100,000 | 1,000 | Large scale stress test |
+| scenario-heavy | 1,000 | 10,000 | Many scenarios |
+
+### Performance Targets
+
+| Configuration | Target | Description |
+|--------------|--------|-------------|
+| 10K × 1K (single) | <15 sec | Single-threaded WASM |
+| 10K × 1K (8 threads) | <3 sec | Multi-threaded WASM |
+| 100K × 1K (8 threads) | <30 sec | Large scale multi-threaded |
+| Cold start | <500 ms | WASM module initialization |
+
+### CLI Options
+
+```bash
+npx tsx run-benchmarks.ts [options]
+
+Options:
+  -c, --config <path>    Path to benchmark config
+  -o, --output <path>    Path for JSON output
+  -b, --baseline <path>  Path to baseline for regression detection
+  --no-native            Skip native C++ benchmarks
+  --no-single            Skip single-threaded benchmarks
+  --no-multi             Skip multi-threaded benchmarks
+  --ci                   CI mode: exit 1 on failures/regressions
+```
+
+### JSON Output Format
+
+```json
+{
+  "timestamp": "2026-01-23T12:00:00.000Z",
+  "commit": "abc1234",
+  "branch": "main",
+  "nodeVersion": "v20.10.0",
+  "platform": "darwin",
+  "cpuCount": 8,
+  "cpuModel": "Apple M2",
+  "results": [
+    {
+      "config": { "name": "target-multi", "policies": 10000, "scenarios": 1000 },
+      "nativeMs": null,
+      "wasmSingleMs": 2500,
+      "wasmMultiMs": 450,
+      "wasmWorkers": 8,
+      "memoryMb": 15.2,
+      "projectionsPerSecond": 22222222,
+      "meanNpv": -125000.50,
+      "stdDev": 8500.25
+    }
+  ],
+  "summary": {
+    "targetsChecked": 4,
+    "targetsPassed": 4,
+    "targetsFailed": [],
+    "regressions": []
+  }
+}
+```
+
+### Regression Detection
+
+Compare against a baseline to detect performance regressions:
+
+```bash
+# Run with baseline comparison
+npx tsx run-benchmarks.ts --baseline results/baseline.json --ci
+
+# Output warns if any config is >10% slower than baseline
+```
+
+### CI Integration
+
+Benchmarks run automatically on every PR via GitHub Actions:
+- Results posted as PR comment
+- Baseline stored from main branch
+- Warnings on target failures or regressions
+
+See `.github/workflows/benchmark.yml` for configuration

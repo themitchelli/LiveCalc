@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "description": "Performance benchmark configuration for LiveCalc engine",
+  "configurations": [
+    {
+      "name": "small",
+      "policies": 1000,
+      "scenarios": 100,
+      "description": "Small scale for quick testing"
+    },
+    {
+      "name": "medium",
+      "policies": 1000,
+      "scenarios": 1000,
+      "description": "Medium scale benchmark"
+    },
+    {
+      "name": "target-single",
+      "policies": 10000,
+      "scenarios": 1000,
+      "description": "Target scale for single-threaded WASM"
+    },
+    {
+      "name": "target-multi",
+      "policies": 10000,
+      "scenarios": 1000,
+      "description": "Target scale for multi-threaded WASM (8 workers)"
+    },
+    {
+      "name": "large",
+      "policies": 100000,
+      "scenarios": 1000,
+      "description": "Large scale stress test"
+    },
+    {
+      "name": "scenario-heavy",
+      "policies": 1000,
+      "scenarios": 10000,
+      "description": "Many scenarios for distribution analysis"
+    }
+  ],
+  "performanceTargets": {
+    "10K_policies_1K_scenarios_wasm_single": {
+      "maxTimeMs": 15000,
+      "description": "Single-threaded WASM target"
+    },
+    "10K_policies_1K_scenarios_wasm_8threads": {
+      "maxTimeMs": 3000,
+      "description": "8-thread WASM target"
+    },
+    "100K_policies_1K_scenarios_wasm_8threads": {
+      "maxTimeMs": 30000,
+      "description": "Large scale 8-thread target"
+    },
+    "cold_start": {
+      "maxTimeMs": 500,
+      "description": "WASM module initialization"
+    }
+  },
+  "regressionThreshold": 0.10,
+  "defaultSeed": 42,
+  "defaultWorkers": 8,
+  "scenarioParams": {
+    "initialRate": 0.04,
+    "drift": 0.0,
+    "volatility": 0.015,
+    "minRate": 0.0,
+    "maxRate": 0.15
+  }
+}

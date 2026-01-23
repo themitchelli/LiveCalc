@@ -167,7 +167,7 @@
           "results": [{ "config": {}, "nativeMs": 0, "wasmSingleMs": 0, "wasmMultiMs": 0, "memoryMb": 0 }]
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

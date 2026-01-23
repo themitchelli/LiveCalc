@@ -1,0 +1,174 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: livecalc-engine/js/package-lock.json
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.51'
+          actions-cache-folder: 'emsdk-cache'
+
+      - name: Build WASM (Release)
+        run: |
+          cd livecalc-engine
+          mkdir -p build-wasm && cd build-wasm
+          emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+          emmake make -j$(nproc)
+
+      - name: Build JS wrapper
+        run: |
+          cd livecalc-engine/js
+          npm ci
+          npm run build
+
+      - name: Install benchmark dependencies
+        run: |
+          cd livecalc-engine/benchmarks
+          npm install
+
+      - name: Download baseline (if exists)
+        id: baseline
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: benchmark.yml
+          branch: main
+          name: benchmark-baseline
+          path: livecalc-engine/benchmarks/baseline
+
+      - name: Run benchmarks
+        id: benchmark
+        run: |
+          cd livecalc-engine/benchmarks
+
+          # Set baseline path if downloaded
+          BASELINE_ARG=""
+          if [ -f baseline/benchmark-latest.json ]; then
+            BASELINE_ARG="--baseline baseline/benchmark-latest.json"
+          fi
+
+          # Run benchmarks (non-CI mode for now to get full results)
+          npx tsx run-benchmarks.ts \
+            --no-native \
+            --output results/benchmark-latest.json \
+            $BASELINE_ARG \
+            2>&1 | tee benchmark-output.txt
+
+          # Check for failures
+          if grep -q "FAIL" benchmark-output.txt; then
+            echo "has_failures=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_failures=false" >> $GITHUB_OUTPUT
+          fi
+
+          if grep -q "REGRESSION:" benchmark-output.txt; then
+            echo "has_regressions=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_regressions=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            livecalc-engine/benchmarks/results/
+            livecalc-engine/benchmarks/benchmark-output.txt
+
+      - name: Update baseline (main branch only)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: livecalc-engine/benchmarks/results/benchmark-latest.json
+
+      - name: Create PR comment with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read results
+            const resultsPath = 'livecalc-engine/benchmarks/results/benchmark-latest.json';
+            if (!fs.existsSync(resultsPath)) {
+              console.log('No results file found');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+
+            // Format comment
+            let comment = '## Performance Benchmark Results\n\n';
+            comment += `**Commit:** ${results.commit}\n`;
+            comment += `**Node:** ${results.nodeVersion}\n`;
+            comment += `**Platform:** ${results.platform} (${results.cpuCount} cores)\n\n`;
+
+            comment += '### Results\n\n';
+            comment += '| Configuration | Policies | Scenarios | Single (ms) | Multi (ms) | Speedup | Throughput |\n';
+            comment += '|---------------|----------|-----------|-------------|------------|---------|------------|\n';
+
+            for (const r of results.results) {
+              const speedup = r.wasmSingleMs && r.wasmMultiMs
+                ? (r.wasmSingleMs / r.wasmMultiMs).toFixed(1) + 'x'
+                : '-';
+              const throughput = r.projectionsPerSecond > 1e6
+                ? (r.projectionsPerSecond / 1e6).toFixed(1) + 'M/s'
+                : (r.projectionsPerSecond / 1e3).toFixed(0) + 'K/s';
+
+              comment += `| ${r.config.name} | ${r.config.policies.toLocaleString()} | ${r.config.scenarios.toLocaleString()} | ${r.wasmSingleMs?.toFixed(0) ?? '-'} | ${r.wasmMultiMs?.toFixed(0) ?? '-'} | ${speedup} | ${throughput} |\n`;
+            }
+
+            comment += '\n### Target Validation\n\n';
+            comment += `**Passed:** ${results.summary.targetsPassed}/${results.summary.targetsChecked}\n`;
+
+            if (results.summary.targetsFailed.length > 0) {
+              comment += `\n**Failed Targets:**\n`;
+              for (const f of results.summary.targetsFailed) {
+                comment += `- ❌ ${f}\n`;
+              }
+            }
+
+            if (results.summary.regressions.length > 0) {
+              comment += `\n### ⚠️ Regressions Detected\n\n`;
+              for (const r of results.summary.regressions) {
+                comment += `- ${r}\n`;
+              }
+            }
+
+            comment += '\n---\n*Generated by LiveCalc Benchmark Suite*';
+
+            // Post comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+
+      - name: Check for failures
+        if: steps.benchmark.outputs.has_failures == 'true' || steps.benchmark.outputs.has_regressions == 'true'
+        run: |
+          echo "::warning::Performance targets failed or regressions detected"
+          echo "Check the benchmark results artifact for details"
+          # Uncomment to fail the build on performance issues:
+          # exit 1

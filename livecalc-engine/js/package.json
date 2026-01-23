@@ -32,7 +32,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "benchmark": "cd ../benchmarks && npm run benchmark",
+    "benchmark:quick": "cd ../benchmarks && npm run benchmark:quick",
+    "benchmark:ci": "cd ../benchmarks && npm run benchmark:ci"
   },
   "keywords": [
     "livecalc",

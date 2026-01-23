@@ -258,3 +258,47 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented SAB mode and COOP/COEP headers)
 - Tests: 121 tests pass (30 engine + 13 integration + 20 worker pool + 36 shared buffer + 22 SAB worker pool)
 
+## 2026-01-23 - US-005: Performance Benchmarking Suite (PRD-LC-002) - COMPLETE
+
+- Created comprehensive benchmarking suite with configurable test configurations
+- Implemented run-benchmarks.ts TypeScript script with:
+  - Dynamic WASM module loading without build dependencies
+  - Single-threaded WASM benchmark using direct module calls
+  - Multi-threaded benchmark using worker_threads for parallel execution
+  - Native C++ benchmark runner (parses output from existing benchmark binary)
+  - Memory usage tracking
+  - Throughput calculation (projections/second)
+- Benchmark configurations cover multiple scales:
+  - small: 1K policies × 100 scenarios
+  - medium: 1K × 1K scenarios
+  - target-single: 10K × 1K (single-thread target)
+  - target-multi: 10K × 1K with 8 workers (multi-thread target)
+  - large: 100K × 1K (stress test)
+  - scenario-heavy: 1K × 10K scenarios
+- Performance target validation:
+  - 10K×1K single-thread: <15 seconds
+  - 10K×1K 8-thread: <3 seconds
+  - 100K×1K 8-thread: <30 seconds
+  - Cold start: <500ms
+- Regression detection compares against baseline JSON file
+- JSON output includes:
+  - Timestamp, git commit, branch
+  - Node.js version, platform, CPU info
+  - Results per configuration (times, throughput, memory)
+  - Summary with pass/fail counts and regression list
+- CI workflow (.github/workflows/benchmark.yml):
+  - Runs on every PR to main/master
+  - Downloads baseline from previous main branch run
+  - Posts formatted results as PR comment
+  - Stores baseline for future comparisons
+- CLI options: --config, --output, --baseline, --no-native, --no-single, --no-multi, --ci
+- Files changed:
+  - livecalc-engine/benchmarks/benchmark-config.json (new - configuration)
+  - livecalc-engine/benchmarks/run-benchmarks.ts (new - benchmark script)
+  - livecalc-engine/benchmarks/package.json (new - npm package)
+  - livecalc-engine/benchmarks/tsconfig.json (new - TypeScript config)
+  - livecalc-engine/js/package.json (added benchmark scripts)
+  - .github/workflows/benchmark.yml (new - CI workflow)
+  - livecalc-engine/README.md (documented benchmark suite)
+- Benchmark script is self-contained and uses worker_threads for parallel execution
+
