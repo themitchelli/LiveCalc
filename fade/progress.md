@@ -59,3 +59,20 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented assumption tables)
 - Tests: 32 new tests added (44 total), covering boundary lookups (age 0/120, year 1/50), multipliers, CSV loading, serialization round-trips
 
+## 2026-01-23 22:00 - US-003: Economic Scenario Structure - COMPLETE
+
+- Implemented Scenario class with interest rates by year (1-50) and discount factor calculation
+- Implemented ScenarioSet container supporting 10,000+ scenarios for nested stochastic valuation
+- Implemented Geometric Brownian Motion scenario generator with configurable parameters (initial rate, drift, volatility, min/max bounds)
+- Added seed-based reproducibility for deterministic scenario generation
+- Implemented CSV loading in both wide (one row per scenario) and long (one row per year) formats
+- Implemented binary serialization/deserialization for WASM deployment
+- Documented memory footprint: 400 bytes per scenario (50 years × 8 bytes)
+- Files changed:
+  - livecalc-engine/src/scenario.hpp, scenario.cpp (new)
+  - livecalc-engine/tests/test_scenario.cpp (new)
+  - livecalc-engine/data/sample_scenarios.csv (new)
+  - livecalc-engine/CMakeLists.txt (added new sources)
+  - livecalc-engine/README.md (documented economic scenarios)
+- Tests: 31 new tests added (75 total), covering boundary years (1/50), discount factors, GBM generation, seed reproducibility, distribution validation, CSV loading, serialization round-trips
+

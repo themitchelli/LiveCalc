@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(Catch2)
 set(LIB_SOURCES
     src/policy.cpp
     src/assumptions.cpp
+    src/scenario.cpp
     src/io/csv_reader.cpp
 )
 
@@ -36,6 +37,7 @@ target_link_libraries(livecalc-engine PRIVATE livecalc_core)
 add_executable(tests
     tests/test_policy.cpp
     tests/test_assumptions.cpp
+    tests/test_scenario.cpp
 )
 target_link_libraries(tests PRIVATE livecalc_core Catch2::Catch2WithMain)
 

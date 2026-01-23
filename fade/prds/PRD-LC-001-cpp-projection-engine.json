@@ -86,7 +86,7 @@
         "generator": "Geometric Brownian Motion with configurable drift and volatility",
         "parameters": "initial_rate, drift, volatility, seed"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

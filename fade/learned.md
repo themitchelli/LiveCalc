@@ -39,3 +39,15 @@ Only add learnings that are:
 - **What:** When applying multipliers to mortality/lapse rates, cap results at 1.0 since probabilities can't exceed 100%
 - **Why it matters:** Stress testing with multipliers (e.g., 2x mortality on 80% base rate) would otherwise produce invalid probabilities >1.0
 
+## 2026-01-23 - GBM discretization for interest rate simulation
+**Source:** PRD-LC-001 US-003
+
+- **What:** For Geometric Brownian Motion with annual time steps: S(t+1) = S(t) * exp((mu - 0.5*sigma^2) + sigma*Z) where Z~N(0,1)
+- **Why it matters:** The -0.5*sigma^2 drift correction is necessary for the discrete approximation to preserve the expected drift; omitting it leads to upward bias
+
+## 2026-01-23 - CSV format detection using column names
+**Source:** PRD-LC-001 US-003
+
+- **What:** When loading CSVs that support multiple formats (wide vs long), checking specific column names (e.g., "year") in the header is more robust than relying on column count alone
+- **Why it matters:** Enables flexible data input without requiring users to specify format explicitly
+

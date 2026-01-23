@@ -156,3 +156,75 @@ All assumption tables support multipliers to stress-test results:
 - Expense multiplier (e.g., 1.2 = 20% higher expenses)
 
 Multiplied rates are automatically capped at 1.0 for probability values.
+
+## Economic Scenarios
+
+### Scenario Structure
+
+A Scenario contains interest rates for years 1-50, used to discount cash flows in projections.
+
+```cpp
+Scenario scenario;
+scenario.set_rate(1, 0.03);  // 3% rate for year 1
+scenario.set_rate(2, 0.035); // 3.5% rate for year 2
+
+double rate = scenario.get_rate(5);           // Get rate for year 5
+double df = scenario.get_discount_factor(10); // Cumulative discount to year 10
+```
+
+**Memory:** 400 bytes per scenario (50 years × 8 bytes)
+
+### Scenario Generation
+
+ScenarioSet generates multiple scenarios using Geometric Brownian Motion (GBM):
+
+```cpp
+ScenarioGeneratorParams params;
+params.initial_rate = 0.03;   // Starting rate (3%)
+params.drift = 0.0;           // Annual drift (0% = no trend)
+params.volatility = 0.01;     // Annual volatility (1%)
+params.min_rate = 0.0;        // Floor (0%)
+params.max_rate = 0.20;       // Ceiling (20%)
+
+// Generate 1000 scenarios with seed 42 for reproducibility
+ScenarioSet scenarios = ScenarioSet::generate(1000, params, 42);
+```
+
+### Seed-Based Reproducibility
+
+Using the same seed produces identical scenarios:
+
+```cpp
+auto set1 = ScenarioSet::generate(100, params, 12345);
+auto set2 = ScenarioSet::generate(100, params, 12345);
+// set1 and set2 are identical
+```
+
+### CSV Loading
+
+Scenarios can be loaded from CSV in two formats:
+
+**Wide format** (one row per scenario):
+```csv
+scenario_id,year_1,year_2,year_3,...,year_50
+1,0.030,0.031,0.032,...,0.040
+2,0.025,0.024,0.023,...,0.020
+```
+
+**Long format** (one row per year):
+```csv
+scenario_id,year,rate
+1,1,0.030
+1,2,0.031
+2,1,0.025
+2,2,0.024
+```
+
+### Memory Requirements
+
+| Scenarios | Memory |
+|-----------|--------|
+| 1,000 | ~400 KB |
+| 10,000 | ~4 MB |
+
+The engine supports 10,000+ scenarios for nested stochastic valuation.
