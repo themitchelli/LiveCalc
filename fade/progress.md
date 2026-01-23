@@ -155,3 +155,33 @@ For blocked stories, use:
   - .github/workflows/build.yml (new - CI for native and WASM builds)
 - Tests: WASM module loads and executes valuation successfully in Node.js
 
+## 2026-01-23 23:22 - US-002: JavaScript API Wrapper (PRD-LC-002) - COMPLETE
+
+- Created @livecalc/engine TypeScript package with clean API for WASM engine
+- Implemented LiveCalcEngine class with async initialization, data loading, and valuation execution
+- Created comprehensive TypeScript type definitions for all data structures (Policy, MortalityTable, LapseTable, ExpenseAssumptions, ValuationConfig, ValuationResult)
+- LiveCalcEngine methods:
+  - `initialize(createModule)` - Initialize WASM module
+  - `loadPoliciesFromCsv(csv)` / `loadPolicies(policies)` - Load policy data
+  - `loadMortalityFromCsv(csv)` / `loadMortality(mortality)` - Load mortality table
+  - `loadLapseFromCsv(csv)` / `loadLapse(lapse)` - Load lapse rates
+  - `loadExpensesFromCsv(csv)` / `loadExpenses(expenses)` - Load expense assumptions
+  - `runValuation(config)` - Run nested stochastic valuation
+  - `getResultJson()` - Get result as JSON string
+  - `dispose()` - Free resources
+- Added HEAPU8 and HEAPF64 to WASM module exports for direct memory access
+- Error handling with meaningful messages and error codes (LiveCalcError class)
+- Works in both Node.js and browser environments (ES6 modules)
+- Files changed:
+  - livecalc-engine/js/package.json (new - npm package configuration)
+  - livecalc-engine/js/tsconfig.json (new - TypeScript configuration)
+  - livecalc-engine/js/vitest.config.ts (new - test configuration)
+  - livecalc-engine/js/src/index.ts (new - module exports)
+  - livecalc-engine/js/src/engine.ts (new - LiveCalcEngine class)
+  - livecalc-engine/js/src/types.ts (new - TypeScript type definitions)
+  - livecalc-engine/js/tests/engine.test.ts (new - 30 unit tests with mocks)
+  - livecalc-engine/js/tests/integration.test.ts (new - 13 integration tests with real WASM)
+  - livecalc-engine/CMakeLists.txt (added HEAPU8, HEAPF64 exports)
+  - livecalc-engine/README.md (added JavaScript API wrapper documentation)
+- Tests: 43 tests pass (30 unit tests + 13 integration tests)
+

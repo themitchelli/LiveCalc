@@ -85,7 +85,7 @@
         "classSignature": "class LiveCalcEngine { async initialize(): Promise<void>; loadPolicies(policies: Policy[]): void; loadAssumptions(mortality: number[][], lapse: number[], expenses: Expenses): void; runValuation(nScenarios: number, seed: number): ValuationResult; dispose(): void; }",
         "memoryManagement": "Use WASM linear memory with explicit malloc/free calls"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

@@ -139,7 +139,7 @@ else()
     string(REPLACE ";" "," EXPORTED_FUNCTIONS_STR "${EXPORTED_FUNCTIONS}")
 
     # Exported runtime methods for JavaScript access
-    set(EXPORTED_RUNTIME_METHODS "'cwrap','ccall','getValue','setValue','UTF8ToString','stringToUTF8','lengthBytesUTF8'")
+    set(EXPORTED_RUNTIME_METHODS "'cwrap','ccall','getValue','setValue','UTF8ToString','stringToUTF8','lengthBytesUTF8','HEAPU8','HEAPF64'")
 
     # Common WASM link flags
     set(WASM_COMMON_FLAGS

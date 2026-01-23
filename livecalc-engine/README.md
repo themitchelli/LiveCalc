@@ -538,9 +538,145 @@ cd build
 
 The benchmark runs valuations at increasing scale and reports statistics and performance metrics.
 
-## WASM Usage (JavaScript/Node.js)
+## JavaScript API Wrapper (@livecalc/engine)
 
-The WASM module can be used from JavaScript in both browser and Node.js environments.
+A TypeScript/JavaScript wrapper provides a clean API for the WASM engine.
+
+### Installation
+
+```bash
+cd livecalc-engine/js
+npm install
+npm run build
+```
+
+### Basic Usage
+
+```typescript
+import { LiveCalcEngine, DEFAULT_SCENARIO_PARAMS } from '@livecalc/engine';
+import createModule from './livecalc.mjs'; // WASM module
+
+async function main() {
+  const engine = new LiveCalcEngine();
+  await engine.initialize(createModule);
+
+  // Load data from CSV files
+  engine.loadPoliciesFromCsv(policiesCsv);
+  engine.loadMortalityFromCsv(mortalityCsv);
+  engine.loadLapseFromCsv(lapseCsv);
+  engine.loadExpensesFromCsv(expensesCsv);
+
+  // Run valuation
+  const result = engine.runValuation({
+    numScenarios: 1000,
+    seed: 42,
+    scenarioParams: DEFAULT_SCENARIO_PARAMS,
+    storeDistribution: true,
+  });
+
+  console.log('Mean NPV:', result.statistics.meanNpv);
+  console.log('Std Dev:', result.statistics.stdDev);
+  console.log('CTE 95:', result.statistics.cte95);
+  console.log('P95:', result.statistics.percentiles.p95);
+
+  // Clean up
+  engine.dispose();
+}
+```
+
+### Loading Data from Objects
+
+```typescript
+// Load policies as array
+engine.loadPolicies([
+  { policyId: 1, age: 30, gender: 'M', sumAssured: 100000, premium: 500, term: 20, productType: 'TERM' },
+  { policyId: 2, age: 35, gender: 'F', sumAssured: 150000, premium: 750, term: 25, productType: 'TERM' },
+]);
+
+// Load expenses as object
+engine.loadExpenses({
+  perPolicyAcquisition: 500,
+  perPolicyMaintenance: 50,
+  percentOfPremium: 0.05,
+  claimExpense: 100,
+});
+```
+
+### Stress Testing with Multipliers
+
+```typescript
+const stressedResult = engine.runValuation({
+  numScenarios: 1000,
+  seed: 42,
+  scenarioParams: {
+    initialRate: 0.04,
+    drift: 0.0,
+    volatility: 0.02,
+    minRate: 0.0,
+    maxRate: 0.15,
+  },
+  mortalityMultiplier: 1.2,  // 20% increase in mortality
+  lapseMultiplier: 0.8,      // 20% decrease in lapses
+  expenseMultiplier: 1.1,    // 10% increase in expenses
+  storeDistribution: true,
+});
+```
+
+### API Reference
+
+#### LiveCalcEngine
+
+| Method | Description |
+|--------|-------------|
+| `initialize(createModule)` | Initialize WASM module |
+| `loadPoliciesFromCsv(csv)` | Load policies from CSV string |
+| `loadPolicies(policies)` | Load policies from array |
+| `loadMortalityFromCsv(csv)` | Load mortality table from CSV |
+| `loadLapseFromCsv(csv)` | Load lapse rates from CSV |
+| `loadExpensesFromCsv(csv)` | Load expense assumptions from CSV |
+| `loadExpenses(expenses)` | Load expense assumptions from object |
+| `runValuation(config)` | Run nested stochastic valuation |
+| `getResultJson()` | Get last result as JSON string |
+| `getVersion()` | Get engine version |
+| `getPolicyCount()` | Get number of loaded policies |
+| `clearPolicies()` | Clear loaded policies |
+| `dispose()` | Free resources and reset |
+
+#### Properties
+
+| Property | Description |
+|----------|-------------|
+| `isInitialized` | Whether WASM module is loaded |
+| `isReady` | Whether all required data is loaded |
+
+#### ValuationResult
+
+```typescript
+interface ValuationResult {
+  statistics: {
+    meanNpv: number;
+    stdDev: number;
+    percentiles: { p50, p75, p90, p95, p99: number };
+    cte95: number;
+  };
+  executionTimeMs: number;
+  scenarioCount: number;  // Only populated if storeDistribution: true
+  distribution?: number[]; // Individual scenario NPVs
+}
+```
+
+### Running Tests
+
+```bash
+cd livecalc-engine/js
+npm test
+```
+
+---
+
+## WASM Low-Level Usage (JavaScript/Node.js)
+
+For advanced use cases, the WASM module can be used directly without the wrapper.
 
 ### Loading the Module
 
