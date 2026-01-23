@@ -25,6 +25,7 @@ set(LIB_SOURCES
     src/projection.cpp
     src/valuation.cpp
     src/io/csv_reader.cpp
+    src/io/json_writer.cpp
 )
 
 # Main library
@@ -53,3 +54,12 @@ catch_discover_tests(tests)
 # Benchmark executable (not part of regular tests)
 add_executable(benchmark tests/benchmark_valuation.cpp)
 target_link_libraries(benchmark PRIVATE livecalc_core)
+
+# CLI integration tests (requires the main executable to be built first)
+add_executable(cli_tests tests/test_cli.cpp)
+target_link_libraries(cli_tests PRIVATE Catch2::Catch2WithMain)
+add_dependencies(cli_tests livecalc-engine)
+set_target_properties(cli_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+catch_discover_tests(cli_tests WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")

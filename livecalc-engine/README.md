@@ -24,10 +24,91 @@ Or run the test executable directly:
 ./tests
 ```
 
-## Usage
+## Command Line Usage
+
+The CLI runs nested stochastic valuation with configurable inputs and outputs JSON results.
+
+### Basic Example
 
 ```bash
-./livecalc-engine
+./livecalc-engine \
+    --policies data/sample_policies.csv \
+    --mortality data/sample_mortality.csv \
+    --lapse data/sample_lapse.csv \
+    --expenses data/sample_expenses.csv \
+    --scenarios 1000 --seed 42 \
+    --output results.json
+```
+
+### Required Options
+
+| Option | Description |
+|--------|-------------|
+| `--policies <path>` | CSV file containing policy data |
+| `--mortality <path>` | CSV file containing mortality table |
+| `--lapse <path>` | CSV file containing lapse table |
+| `--expenses <path>` | CSV file containing expense assumptions |
+
+### Scenario Generation Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--scenarios <count>` | 1000 | Number of scenarios to generate |
+| `--seed <value>` | 42 | Random seed for reproducibility |
+| `--initial-rate <rate>` | 0.04 | Initial interest rate (4%) |
+| `--drift <value>` | 0.0 | Annual drift |
+| `--volatility <value>` | 0.015 | Annual volatility (1.5%) |
+| `--min-rate <rate>` | 0.0 | Minimum interest rate floor |
+| `--max-rate <rate>` | 0.20 | Maximum interest rate ceiling |
+
+### Stress Testing Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--mortality-mult <m>` | 1.0 | Mortality rate multiplier |
+| `--lapse-mult <m>` | 1.0 | Lapse rate multiplier |
+| `--expense-mult <m>` | 1.0 | Expense multiplier |
+
+### Output Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output <path>` | stdout | JSON output file path |
+| `--help` | - | Show help message |
+
+### JSON Output Format
+
+```json
+{
+  "statistics": {
+    "mean_npv": -2555.365327,
+    "std_dev": 114.232369,
+    "percentiles": {
+      "p50": -2569.348541,
+      "p75": -2472.041076,
+      "p90": -2429.522587,
+      "p95": -2386.039451,
+      "p99": -2351.252942
+    },
+    "cte_95": -2737.136681
+  },
+  "execution_time_ms": 2.5,
+  "scenario_count": 1000,
+  "distribution": [...]
+}
+```
+
+### Example: Stress Test with Higher Mortality
+
+```bash
+./livecalc-engine \
+    --policies data/sample_policies.csv \
+    --mortality data/sample_mortality.csv \
+    --lapse data/sample_lapse.csv \
+    --expenses data/sample_expenses.csv \
+    --scenarios 1000 --seed 42 \
+    --mortality-mult 1.2 \
+    --output stressed_results.json
 ```
 
 ## Memory Footprint

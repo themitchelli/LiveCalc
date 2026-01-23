@@ -146,7 +146,7 @@
       "technicalNotes": {
         "example": "./livecalc-engine --policies data/policies.csv --mortality data/mortality.csv --lapse data/lapse.csv --expenses data/expenses.json --scenarios 1000 --seed 42 --output results.json"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

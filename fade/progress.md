@@ -119,3 +119,21 @@ For blocked stories, use:
   - livecalc-engine/README.md (documented valuation module)
 - Tests: 25 new tests added (121 total), covering edge cases (empty scenarios/policies), aggregation correctness, statistics validation, CTE calculation, multipliers, seed reproducibility, scale tests (1K×100, 100×100)
 
+## 2026-01-23 - US-006: Command Line Interface - COMPLETE
+
+- Implemented full CLI argument parsing with required and optional flags
+- Created JSON output writer for ValuationResult with statistics and distribution
+- Added comprehensive input validation with clear error messages
+- CLI supports all required flags: --policies, --mortality, --lapse, --expenses, --scenarios, --seed, --output
+- CLI supports scenario generation parameters: --initial-rate, --drift, --volatility, --min-rate, --max-rate
+- CLI supports stress testing multipliers: --mortality-mult, --lapse-mult, --expense-mult
+- JSON output includes statistics (mean, std_dev, percentiles, cte_95), execution_time_ms, scenario_count, distribution
+- Execution time printed to stderr for visibility
+- Files changed:
+  - livecalc-engine/src/main.cpp (full CLI implementation)
+  - livecalc-engine/src/io/json_writer.hpp, json_writer.cpp (new)
+  - livecalc-engine/tests/test_cli.cpp (new - 11 integration tests)
+  - livecalc-engine/CMakeLists.txt (added json_writer.cpp, cli_tests target)
+  - livecalc-engine/README.md (documented CLI usage with examples)
+- Tests: 11 new tests added (132 total), covering help display, argument validation, file path validation, full valuation execution, JSON output to file, seed reproducibility, multipliers effect, scenario generation parameters, validation errors
+
