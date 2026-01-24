@@ -181,7 +181,7 @@
           "percentage": "((current - previous) / |previous|) * 100"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

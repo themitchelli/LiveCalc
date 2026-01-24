@@ -7,10 +7,12 @@ import { getEngineManager } from './engine/livecalc-engine';
 import { disposeDataCache } from './data/cache';
 import { disposeDataValidator } from './data/data-validator';
 import { ResultsPanel } from './ui/results-panel';
+import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
 let resultsPanel: ResultsPanel | undefined;
+let comparisonManager: ComparisonManager | undefined;
 
 /**
  * Extension activation
@@ -46,8 +48,12 @@ export function activate(context: vscode.ExtensionContext): void {
   resultsPanel = ResultsPanel.getInstance(context.extensionUri);
   context.subscriptions.push(resultsPanel);
 
+  // Create comparison manager (with workspace state persistence)
+  comparisonManager = ComparisonManager.getInstance(context);
+  context.subscriptions.push(comparisonManager);
+
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -117,11 +123,13 @@ export function deactivate(): void {
   // Cleanup data loader components
   disposeDataCache();
   disposeDataValidator();
+  disposeComparisonManager();
 
   // Cleanup is handled via context.subscriptions
   statusBar = undefined;
   configLoader = undefined;
   resultsPanel = undefined;
+  comparisonManager = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }

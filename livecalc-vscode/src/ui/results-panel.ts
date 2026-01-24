@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ResultsState, PanelState } from './results-state';
+import { ResultsState, PanelState, ComparisonState, StatisticDelta } from './results-state';
+import { ComparisonInfo } from './comparison';
 import { logger } from '../logging/logger';
 
 /**
@@ -21,7 +22,9 @@ export type WebviewMessage =
   | { type: 'setResults'; results: ResultsState }
   | { type: 'clearComparison' }
   | { type: 'pinComparison' }
-  | { type: 'setSettings'; settings: DisplaySettings };
+  | { type: 'setSettings'; settings: DisplaySettings }
+  | { type: 'setComparison'; comparison: ComparisonState | null; info: ComparisonInfo | null }
+  | { type: 'setComparisonBaseline'; distribution: number[] | null };
 
 /**
  * Message types from webview to extension
@@ -34,6 +37,7 @@ export type ExtensionMessage =
   | { type: 'clearComparison' }
   | { type: 'pinComparison' }
   | { type: 'toggleChartType' }
+  | { type: 'toggleChartOverlay' }
   | { type: 'ready' };
 
 /**
@@ -119,6 +123,20 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public clearComparison(): void {
     this.postMessage({ type: 'clearComparison' });
+  }
+
+  /**
+   * Set comparison state with deltas and info
+   */
+  public setComparison(comparison: ComparisonState | null, info: ComparisonInfo | null): void {
+    this.postMessage({ type: 'setComparison', comparison, info });
+  }
+
+  /**
+   * Set comparison baseline distribution for chart overlay
+   */
+  public setComparisonBaseline(distribution: number[] | null): void {
+    this.postMessage({ type: 'setComparisonBaseline', distribution });
   }
 
   /**
@@ -316,8 +334,19 @@ export class ResultsPanel implements vscode.Disposable {
       <div class="toolbar">
         <div class="toolbar-left">
           <span class="results-title">Valuation Results</span>
+          <span id="comparison-badge" class="comparison-badge hidden" title="Comparing to baseline">
+            vs baseline
+          </span>
         </div>
         <div class="toolbar-right">
+          <button id="pin-comparison-btn" class="btn btn-small btn-secondary hidden" title="Pin current results as comparison baseline">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L12 12"/>
+              <path d="M17 7L12 12L7 7"/>
+              <rect x="4" y="14" width="16" height="8" rx="1"/>
+            </svg>
+            Pin Baseline
+          </button>
           <div class="export-dropdown">
             <button id="export-btn" class="btn btn-icon" title="Export results">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -406,6 +435,9 @@ export class ResultsPanel implements vscode.Disposable {
         <div class="chart-header">
           <h3>Distribution</h3>
           <div class="chart-controls">
+            <button id="toggle-chart-overlay" class="btn btn-small hidden" title="Toggle baseline overlay">
+              Show Overlay
+            </button>
             <button id="toggle-chart-type" class="btn btn-small" title="Toggle histogram/density">
               Histogram
             </button>

@@ -12,6 +12,9 @@ const vscode = acquireVsCodeApi();
 let currentState = { type: 'empty' };
 let previousResults = null;
 let comparisonBaseline = null;
+let comparisonInfo = null; // Info about pinned/previous baseline
+let baselineDistribution = null; // Distribution data for chart overlay
+let showChartOverlay = false; // Whether to show baseline overlay on chart
 let chart = null;
 let chartType = 'histogram'; // 'histogram' or 'density'
 let histogramBinData = { bins: [], binWidth: 0 }; // Store bin data for tooltips
@@ -50,6 +53,9 @@ function init() {
   elements.comparisonActions = document.getElementById('comparison-actions');
   elements.clearComparisonBtn = document.getElementById('clear-comparison-btn');
   elements.assumptionsList = document.getElementById('assumptions-list');
+  elements.pinComparisonBtn = document.getElementById('pin-comparison-btn');
+  elements.comparisonBadge = document.getElementById('comparison-badge');
+  elements.toggleChartOverlay = document.getElementById('toggle-chart-overlay');
 
   // Setup event listeners
   setupEventListeners();
@@ -115,9 +121,27 @@ function setupEventListeners() {
   // Clear comparison
   elements.clearComparisonBtn?.addEventListener('click', () => {
     comparisonBaseline = null;
+    comparisonInfo = null;
+    baselineDistribution = null;
+    showChartOverlay = false;
     saveState();
     hideComparison();
     vscode.postMessage({ type: 'clearComparison' });
+  });
+
+  // Pin comparison
+  elements.pinComparisonBtn?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'pinComparison' });
+  });
+
+  // Toggle chart overlay
+  elements.toggleChartOverlay?.addEventListener('click', () => {
+    showChartOverlay = !showChartOverlay;
+    elements.toggleChartOverlay.textContent = showChartOverlay ? 'Hide Overlay' : 'Show Overlay';
+    if (currentState.type === 'results') {
+      updateChart(currentState.results.distribution, currentState.results.statistics);
+    }
+    vscode.postMessage({ type: 'toggleChartOverlay' });
   });
 
   // Handle messages from extension
@@ -153,6 +177,30 @@ function handleMessage(message) {
       if (currentState.type === 'results') {
         comparisonBaseline = currentState.results;
         saveState();
+      }
+      break;
+    case 'setComparison':
+      // Receive comparison state from extension (with persistence)
+      if (message.comparison) {
+        comparisonBaseline = message.comparison.baseline;
+      }
+      comparisonInfo = message.info;
+      if (comparisonInfo) {
+        baselineDistribution = comparisonInfo.baselineDistribution;
+        updateComparisonUI();
+        if (currentState.type === 'results') {
+          showComparison(currentState.results.statistics, comparisonBaseline.statistics);
+        }
+      } else {
+        hideComparison();
+      }
+      break;
+    case 'setComparisonBaseline':
+      // Receive baseline distribution for chart overlay
+      baselineDistribution = message.distribution;
+      updateComparisonUI();
+      if (currentState.type === 'results') {
+        updateChart(currentState.results.distribution, currentState.results.statistics);
       }
       break;
     case 'setSettings':
@@ -308,10 +356,50 @@ function setStatValue(elementId, value) {
 }
 
 /**
+ * Update comparison UI elements (badge, buttons)
+ */
+function updateComparisonUI() {
+  const hasBaseline = comparisonBaseline !== null || comparisonInfo !== null;
+  const isPinned = comparisonInfo?.isPinned || false;
+
+  // Update comparison badge
+  if (elements.comparisonBadge) {
+    if (hasBaseline) {
+      const badgeText = isPinned ? 'vs pinned' : 'vs previous';
+      elements.comparisonBadge.textContent = badgeText;
+      elements.comparisonBadge.classList.remove('hidden');
+      elements.comparisonBadge.classList.toggle('pinned', isPinned);
+    } else {
+      elements.comparisonBadge.classList.add('hidden');
+    }
+  }
+
+  // Update pin button visibility (show when we have results but no pinned baseline)
+  if (elements.pinComparisonBtn) {
+    if (currentState.type === 'results' && !isPinned) {
+      elements.pinComparisonBtn.classList.remove('hidden');
+    } else {
+      elements.pinComparisonBtn.classList.add('hidden');
+    }
+  }
+
+  // Update chart overlay toggle visibility
+  if (elements.toggleChartOverlay) {
+    if (hasBaseline && baselineDistribution && baselineDistribution.length > 0) {
+      elements.toggleChartOverlay.classList.remove('hidden');
+    } else {
+      elements.toggleChartOverlay.classList.add('hidden');
+      showChartOverlay = false;
+    }
+  }
+}
+
+/**
  * Show comparison deltas
  */
 function showComparison(current, baseline) {
   elements.comparisonActions?.classList.remove('hidden');
+  updateComparisonUI();
 
   const pairs = [
     ['delta-mean', current.mean, baseline.mean],
@@ -341,6 +429,13 @@ function showComparison(current, baseline) {
 function hideComparison() {
   elements.comparisonActions?.classList.add('hidden');
 
+  // Hide comparison badge
+  elements.comparisonBadge?.classList.add('hidden');
+
+  // Hide chart overlay toggle
+  elements.toggleChartOverlay?.classList.add('hidden');
+  showChartOverlay = false;
+
   const deltaIds = [
     'delta-mean',
     'delta-stddev',
@@ -356,6 +451,9 @@ function hideComparison() {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
+
+  // Update comparison UI
+  updateComparisonUI();
 }
 
 /**
@@ -541,11 +639,19 @@ function initChart() {
       labels: [],
       datasets: [
         {
-          label: 'Frequency',
+          label: 'Current',
           data: [],
           backgroundColor: 'rgba(14, 99, 156, 0.7)',
           borderColor: 'rgba(14, 99, 156, 1)',
           borderWidth: 1,
+        },
+        {
+          label: 'Baseline',
+          data: [],
+          backgroundColor: 'rgba(136, 136, 136, 0.4)',
+          borderColor: 'rgba(136, 136, 136, 0.8)',
+          borderWidth: 1,
+          hidden: true,
         },
       ],
     },
@@ -555,7 +661,13 @@ function initChart() {
       animation: false, // Disable animation for fast updates
       plugins: {
         legend: {
-          display: false,
+          display: true,
+          labels: {
+            filter: (item) => {
+              // Only show legend when overlay is enabled and dataset is visible
+              return !item.hidden;
+            },
+          },
         },
         tooltip: {
           callbacks: {
@@ -656,15 +768,32 @@ function updateHistogramChart(distribution, stats) {
   // Update chart type to bar
   chart.config.type = 'bar';
 
-  // Update chart data
+  // Update chart data for current distribution
   chart.data.labels = bins.map((b) => formatCurrency(b, false));
   chart.data.datasets[0].data = counts;
+  chart.data.datasets[0].label = 'Current';
   chart.data.datasets[0].backgroundColor = 'rgba(14, 99, 156, 0.7)';
   chart.data.datasets[0].borderColor = 'rgba(14, 99, 156, 1)';
   chart.data.datasets[0].borderWidth = 1;
   chart.data.datasets[0].pointRadius = 0;
   chart.data.datasets[0].fill = false;
   chart.data.datasets[0].tension = 0;
+  chart.data.datasets[0].hidden = false;
+
+  // Update baseline dataset (overlay)
+  if (showChartOverlay && baselineDistribution && baselineDistribution.length > 0) {
+    // Calculate histogram for baseline using same bins
+    const baselineCounts = calculateHistogramWithBins(baselineDistribution, bins, binWidth);
+    chart.data.datasets[1].data = baselineCounts;
+    chart.data.datasets[1].label = 'Baseline';
+    chart.data.datasets[1].backgroundColor = 'rgba(136, 136, 136, 0.4)';
+    chart.data.datasets[1].borderColor = 'rgba(136, 136, 136, 0.8)';
+    chart.data.datasets[1].borderWidth = 1;
+    chart.data.datasets[1].hidden = false;
+  } else {
+    chart.data.datasets[1].data = [];
+    chart.data.datasets[1].hidden = true;
+  }
 
   // Update Y-axis title for histogram
   chart.options.scales.y.title.text = 'Frequency';
@@ -764,6 +893,28 @@ function calculateHistogram(data, binCount) {
 }
 
 /**
+ * Calculate histogram counts using existing bins (for overlay comparison)
+ */
+function calculateHistogramWithBins(data, bins, binWidth) {
+  if (bins.length === 0 || !data || data.length === 0) {
+    return new Array(bins.length).fill(0);
+  }
+
+  const counts = new Array(bins.length).fill(0);
+  const min = bins[0] - binWidth / 2;
+
+  for (const value of data) {
+    const binIndex = Math.floor((value - min) / binWidth);
+    if (binIndex >= 0 && binIndex < bins.length) {
+      counts[binIndex]++;
+    }
+    // Values outside the bin range are ignored (or could be clamped to edges)
+  }
+
+  return counts;
+}
+
+/**
  * Find bin index for a value
  */
 function findBinIndex(value, bins, binWidth) {
@@ -792,8 +943,28 @@ function updateDensityChart(distribution, stats) {
   chart.config.type = 'line';
   chart.data.labels = xValues.map((x) => formatCurrency(x, false));
   chart.data.datasets[0].data = densityValues;
+  chart.data.datasets[0].label = 'Current';
   chart.data.datasets[0].backgroundColor = 'rgba(14, 99, 156, 0.3)';
   chart.data.datasets[0].borderColor = 'rgba(14, 99, 156, 1)';
+  chart.data.datasets[0].hidden = false;
+
+  // Update baseline dataset (overlay)
+  if (showChartOverlay && baselineDistribution && baselineDistribution.length > 0) {
+    // Calculate KDE for baseline using same x-values for comparison
+    const baselineKDE = calculateKDEWithXValues(baselineDistribution, xValues);
+    chart.data.datasets[1].data = baselineKDE;
+    chart.data.datasets[1].label = 'Baseline';
+    chart.data.datasets[1].backgroundColor = 'rgba(136, 136, 136, 0.2)';
+    chart.data.datasets[1].borderColor = 'rgba(136, 136, 136, 0.8)';
+    chart.data.datasets[1].borderWidth = 2;
+    chart.data.datasets[1].pointRadius = 0;
+    chart.data.datasets[1].fill = true;
+    chart.data.datasets[1].tension = 0.4;
+    chart.data.datasets[1].hidden = false;
+  } else {
+    chart.data.datasets[1].data = [];
+    chart.data.datasets[1].hidden = true;
+  }
 
   // Update Y-axis title for density
   chart.options.scales.y.title.text = 'Density';
@@ -926,6 +1097,40 @@ function calculateKDE(data, numPoints) {
   }
 
   return { xValues, densityValues, bandwidth };
+}
+
+/**
+ * Calculate KDE for given x-values (for overlay comparison)
+ */
+function calculateKDEWithXValues(data, xValues) {
+  if (!data || data.length === 0 || !xValues || xValues.length === 0) {
+    return new Array(xValues.length).fill(0);
+  }
+
+  const n = data.length;
+
+  // Calculate standard deviation using population formula
+  const mean = data.reduce((a, b) => a + b, 0) / n;
+  const variance = data.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+  const stdDev = Math.sqrt(variance);
+
+  // Scott's rule for bandwidth
+  const bandwidth = 1.06 * stdDev * Math.pow(n, -0.2);
+
+  const densityValues = [];
+  const factor = 1 / (n * bandwidth * Math.sqrt(2 * Math.PI));
+
+  for (const x of xValues) {
+    let density = 0;
+    for (const xi of data) {
+      const u = (x - xi) / bandwidth;
+      density += Math.exp(-0.5 * u * u);
+    }
+    density *= factor;
+    densityValues.push(density);
+  }
+
+  return densityValues;
 }
 
 /**

@@ -845,3 +845,52 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (added assumption display styles)
 - Tests: Extension compiles, type-checks, and packages successfully
 
+## 2026-01-24 12:00 - US-006: Results Comparison (PRD-LC-004) - COMPLETE
+
+- Implemented comprehensive results comparison feature for tracking changes across runs
+- Created ComparisonManager class (src/ui/comparison.ts):
+  - Persists comparison state using VS Code workspaceState
+  - Stores previousResults (auto-comparison) and pinnedBaseline (manual pin)
+  - Loads/saves JSON-serialized ResultsState with Date conversion
+  - calculateComparison() computes deltas between current and baseline
+  - getComparisonInfo() returns metadata about baseline (isPinned, runId, timestamp, distribution)
+- Enhanced results-panel.ts with comparison UI elements:
+  - Comparison badge in toolbar showing "vs pinned" or "vs previous"
+  - "Pin Baseline" button to lock current results as comparison reference
+  - "Show Overlay" button to toggle baseline distribution on chart
+  - New message types: setComparison, setComparisonBaseline
+- Enhanced main.js webview with full comparison support:
+  - showComparison() displays delta values for all statistics
+  - updateComparisonUI() manages badge, pin button, overlay toggle visibility
+  - Chart overlay support via second dataset (both histogram and density modes)
+  - calculateHistogramWithBins() maps baseline to current bin structure
+  - calculateKDEWithXValues() computes density for same x-values as current
+  - Legend shows "Current" and "Baseline" when overlay enabled
+- Updated run.ts to integrate comparison:
+  - Records results after each run for future comparison
+  - Calculates and sends comparison data to panel
+  - Message handlers for pinComparison, clearComparison, toggleChartOverlay
+- Added CSS styles for comparison elements:
+  - .comparison-badge with .pinned variant (green)
+  - .btn svg styling for icon alignment
+- All acceptance criteria verified:
+  - Previous run results cached in memory (workspaceState) ✓
+  - Delta values shown for each statistic (current vs previous) ✓
+  - Delta formatted as absolute and percentage change ✓
+  - Positive changes styled green, negative styled red ✓
+  - Neutral styling for changes < 0.1% ✓
+  - 'Clear Comparison' button to reset baseline ✓
+  - Option to pin a specific run as comparison baseline ✓
+  - Distribution chart overlay option (current vs previous) ✓
+  - Comparison persists until manually cleared or extension reloads ✓
+- Files changed:
+  - livecalc-vscode/src/ui/comparison.ts (new - ComparisonManager class)
+  - livecalc-vscode/src/ui/results-panel.ts (comparison UI, new messages)
+  - livecalc-vscode/src/ui/results-state.ts (re-export ComparisonState, StatisticDelta)
+  - livecalc-vscode/src/commands/run.ts (integrate ComparisonManager)
+  - livecalc-vscode/src/commands/index.ts (pass ComparisonManager)
+  - livecalc-vscode/src/extension.ts (create/dispose ComparisonManager)
+  - livecalc-vscode/media/results/main.js (comparison display, chart overlay)
+  - livecalc-vscode/media/results/styles.css (comparison badge styles)
+- Tests: Extension compiles, type-checks, and packages successfully (277.98KB)
+

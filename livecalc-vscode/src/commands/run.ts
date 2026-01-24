@@ -4,8 +4,9 @@ import { logger } from '../logging/logger';
 import { StatusBar } from '../ui/status-bar';
 import { Notifications } from '../ui/notifications';
 import { ConfigLoader } from '../config/config-loader';
-import { ResultsPanel } from '../ui/results-panel';
+import { ResultsPanel, ExtensionMessage } from '../ui/results-panel';
 import { createResultsState } from '../ui/results-state';
+import { ComparisonManager } from '../ui/comparison';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
 
@@ -16,7 +17,8 @@ import { loadData, DataLoadError } from '../data/data-loader';
 export async function runCommand(
   statusBar: StatusBar,
   configLoader: ConfigLoader,
-  resultsPanel: ResultsPanel
+  resultsPanel: ResultsPanel,
+  comparisonManager: ComparisonManager
 ): Promise<void> {
   logger.separator();
   logger.milestone('Run command invoked');
@@ -177,7 +179,23 @@ export async function runCommand(
           resultsState.warnings = data.warnings.map((w) => w.message);
         }
 
+        // Send results to panel
         resultsPanel.setResults(resultsState);
+
+        // Handle comparison
+        const comparison = comparisonManager.calculateComparison(resultsState);
+        const comparisonInfo = comparisonManager.getComparisonInfo();
+
+        if (comparison && comparisonInfo) {
+          resultsPanel.setComparison(comparison, comparisonInfo);
+          logger.debug(
+            `Comparison to ${comparisonInfo.isPinned ? 'pinned' : 'previous'} baseline: ` +
+              `Mean delta ${comparison.deltas.mean.percentage.toFixed(1)}%`
+          );
+        }
+
+        // Record this result for future comparison
+        await comparisonManager.recordResult(resultsState);
       } catch (error) {
         const elapsed = Date.now() - startTime;
 
@@ -222,9 +240,44 @@ export function registerRunCommand(
   context: vscode.ExtensionContext,
   statusBar: StatusBar,
   configLoader: ConfigLoader,
-  resultsPanel: ResultsPanel
+  resultsPanel: ResultsPanel,
+  comparisonManager: ComparisonManager
 ): vscode.Disposable {
+  // Set up message handler for comparison actions from webview
+  resultsPanel.onMessage((message: ExtensionMessage) => {
+    switch (message.type) {
+      case 'pinComparison':
+        // Pin current results as baseline
+        const state = resultsPanel.getState();
+        if (state.type === 'results') {
+          comparisonManager.pinBaseline(state.results).then(() => {
+            // Send updated comparison info to webview
+            const comparison = comparisonManager.calculateComparison(state.results);
+            const info = comparisonManager.getComparisonInfo();
+            resultsPanel.setComparison(comparison, info);
+            logger.info('Results pinned as comparison baseline');
+          });
+        }
+        break;
+      case 'clearComparison':
+        // Clear comparison state
+        comparisonManager.clearComparison().then(() => {
+          resultsPanel.setComparison(null, null);
+          resultsPanel.setComparisonBaseline(null);
+          logger.info('Comparison cleared');
+        });
+        break;
+      case 'toggleChartOverlay':
+        // Send baseline distribution for chart overlay
+        const compInfo = comparisonManager.getComparisonInfo();
+        if (compInfo) {
+          resultsPanel.setComparisonBaseline(compInfo.baselineDistribution);
+        }
+        break;
+    }
+  });
+
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel)
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager)
   );
 }

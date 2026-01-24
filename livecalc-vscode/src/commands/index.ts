@@ -4,6 +4,7 @@ import { registerInitializeCommand } from './initialize';
 import { StatusBar } from '../ui/status-bar';
 import { ConfigLoader } from '../config/config-loader';
 import { ResultsPanel } from '../ui/results-panel';
+import { ComparisonManager } from '../ui/comparison';
 import { logger } from '../logging/logger';
 
 /**
@@ -13,10 +14,11 @@ export function registerCommands(
   context: vscode.ExtensionContext,
   statusBar: StatusBar,
   configLoader: ConfigLoader,
-  resultsPanel: ResultsPanel
+  resultsPanel: ResultsPanel,
+  comparisonManager: ComparisonManager
 ): void {
   // Register run command
-  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel));
+  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager));
 
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));

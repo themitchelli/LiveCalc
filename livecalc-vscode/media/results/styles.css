@@ -222,6 +222,11 @@ kbd {
   background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
 }
 
+.btn svg {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 /* Results state */
 #results-state {
   display: flex;
@@ -251,6 +256,21 @@ kbd {
 .results-title {
   font-weight: 500;
   font-size: 14px;
+}
+
+/* Comparison badge */
+.comparison-badge {
+  background-color: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.comparison-badge.pinned {
+  background-color: var(--vscode-charts-green, #89d185);
+  color: #000;
 }
 
 .toolbar-right {
