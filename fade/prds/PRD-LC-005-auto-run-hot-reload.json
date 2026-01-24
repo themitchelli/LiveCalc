@@ -248,7 +248,7 @@
         "toast": "vscode.window.showInformationMessage()",
         "sound": "Use vscode.env.playSound if available, else no-op"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

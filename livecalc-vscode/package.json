@@ -224,6 +224,23 @@
           "type": "boolean",
           "default": true,
           "description": "Cache policy and assumption data between runs. When enabled, only changed files are reloaded."
+        },
+        "livecalc.notifyOnAutoRun": {
+          "type": "string",
+          "enum": ["none", "statusBar", "toast", "sound"],
+          "default": "statusBar",
+          "enumDescriptions": [
+            "No notification - results panel updates silently",
+            "Status bar shows completion time briefly",
+            "VS Code notification toast on completion",
+            "System notification sound (if available) plus toast"
+          ],
+          "description": "How to notify when auto-run completes"
+        },
+        "livecalc.notifyOnError": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show toast notification on errors regardless of notifyOnAutoRun setting"
         }
       }
     },

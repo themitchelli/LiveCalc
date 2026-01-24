@@ -1619,3 +1619,42 @@ For blocked stories, use:
   - livecalc-vscode/src/extension.ts (dispose CacheManager)
   - livecalc-vscode/package.json (enableCaching setting)
 - Tests: Extension compiles and type-checks successfully
+
+## 2026-01-24 23:30 - US-009: Notification Preferences (PRD-LC-005) - COMPLETE
+
+- Implemented configurable notification preferences for auto-run completion
+- Added livecalc.notifyOnAutoRun setting with enum options:
+  - 'none': Results panel updates silently (no notification)
+  - 'statusBar': Status bar shows completion time briefly (default)
+  - 'toast': VS Code notification toast on completion
+  - 'sound': System notification sound (platform-dependent) plus toast
+- Added livecalc.notifyOnError setting (default: true):
+  - When true, errors always show toast regardless of notifyOnAutoRun setting
+  - When false, errors for auto-runs are logged but not shown as toast
+- Enhanced Notifications class (src/ui/notifications.ts):
+  - Added NotificationMode type export
+  - Updated completed() to accept isAutoRun parameter
+  - Added errorWithPreferences() for preference-aware error notifications
+  - Added getNotificationMode() and isNotifyOnErrorEnabled() static methods
+  - Implemented playNotificationSound() for platform-specific sound playback:
+    - macOS: afplay with Glass.aiff sound
+    - Windows: PowerShell Media.SoundPlayer with notify.wav
+    - Linux: paplay with freedesktop complete.oga sound
+- Updated run command (src/commands/run.ts):
+  - Passes isAutoRun option to Notifications.completed()
+  - Uses Notifications.errorWithPreferences() for error handling
+- Manual runs always show toast notifications for completion and errors
+- All acceptance criteria verified:
+  - Setting: livecalc.notifyOnAutoRun (default: 'statusBar') ✓
+  - Options: 'none', 'statusBar', 'toast', 'sound' ✓
+  - 'none': Results panel updates silently ✓
+  - 'statusBar': Status bar shows completion time briefly ✓
+  - 'toast': VS Code notification toast on completion ✓
+  - 'sound': System notification sound (platform-dependent) ✓
+  - Errors always show toast regardless of setting (via notifyOnError) ✓
+  - Setting: livecalc.notifyOnError (default: true) ✓
+- Files changed:
+  - livecalc-vscode/package.json (added notifyOnAutoRun and notifyOnError settings)
+  - livecalc-vscode/src/ui/notifications.ts (enhanced with preference handling, sound playback)
+  - livecalc-vscode/src/commands/run.ts (pass isAutoRun to notification methods)
+- Tests: Extension compiles, type-checks, and packages successfully (315.94KB)

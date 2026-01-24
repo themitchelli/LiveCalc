@@ -201,7 +201,7 @@ export async function runCommand(
 
         const elapsed = Date.now() - startTime;
         statusBar.setCompleted(elapsed, data.policyCount, result.scenarioCount);
-        Notifications.completed(elapsed, data.policyCount, result.scenarioCount);
+        await Notifications.completed(elapsed, data.policyCount, result.scenarioCount, options.isAutoRun ?? false);
 
         // Log performance metrics
         logger.logPerformanceMetrics({
@@ -319,7 +319,7 @@ export async function runCommand(
         logger.error(`Valuation failed after ${elapsed}ms`, error instanceof Error ? error : undefined);
         statusBar.setError(structuredError.message);
         resultsPanel.setStructuredError(structuredError);
-        await Notifications.error(structuredError.message);
+        await Notifications.errorWithPreferences(structuredError.message, options.isAutoRun ?? false);
       }
     }
   );
