@@ -2005,3 +2005,38 @@ For blocked stories, use:
   - livecalc-vscode/src/ui/export.ts (enhanced exports with metadata)
   - livecalc-vscode/src/auto-run/run-history.ts (assumption version tracking)
 - Tests: Extension compiles (npm run compile), type-checks (npx tsc --noEmit), and packages (334.6KB) successfully
+
+## 2026-01-24 - US-007: Connection Status Indicator (PRD-LC-006) - COMPLETE
+
+- Enhanced AMStatusBar with proper color coding for connection states
+- Updated STATUS_COLORS in status-bar.ts:
+  - Connected: green color using 'testing.iconPassed' ThemeColor for consistent green across themes
+  - Disconnected: default/undefined (gray in most themes) for muted appearance
+  - Error: red using 'statusBarItem.errorForeground'
+  - Offline: yellow/amber using 'statusBarItem.warningForeground'
+- Verified existing implementation covers all acceptance criteria:
+  - Status bar shows four states: Connected, Disconnected, Error, Offline
+  - Each state has appropriate icon (cloud variants)
+  - Connected state shows user email and tenant name in tooltip
+  - Disconnected state tooltip shows "Click to login"
+  - Offline state tooltip shows "Using cached assumption data"
+  - Click opens quick actions menu with context-appropriate options
+  - Quick actions include: Login, Logout, Clear Cache, Open AM in Browser, Settings, Retry Connection
+  - Connection checked on extension activation via AuthManager.initialize()
+  - Connection rechecked every 5 minutes via CONNECTION_CHECK_INTERVAL_MS timer
+  - Technical notes confirm VS Code doesn't expose network change events, periodic check is correct approach
+- All acceptance criteria verified:
+  - Status bar item shows AM connection state ✓
+  - States: Connected, Disconnected, Error, Offline (cached) ✓
+  - Connected: green cloud icon, tooltip shows user and tenant ✓
+  - Disconnected: gray cloud icon, tooltip shows 'Click to login' ✓
+  - Error: red cloud icon, tooltip shows error message ✓
+  - Offline: yellow cloud icon, tooltip shows 'Using cached data' ✓
+  - Click on status bar item shows quick actions menu ✓
+  - Quick actions: Login, Logout, Clear Cache, Open AM in Browser ✓
+  - Connection checked on extension activation ✓
+  - Connection rechecked periodically (every 5 minutes) ✓
+  - Connection rechecked on network change event (via periodic check per technical notes) ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/status-bar.ts (updated STATUS_COLORS for proper color coding)
+- Tests: Extension compiles, type-checks, and packages successfully (334.61KB)

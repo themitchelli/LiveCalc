@@ -242,7 +242,7 @@
         "quickPick": "vscode.window.showQuickPick() for actions",
         "networkChange": "VS Code doesn't expose this; use periodic check"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

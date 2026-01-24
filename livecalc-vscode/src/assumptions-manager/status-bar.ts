@@ -20,12 +20,16 @@ const STATUS_ICONS: Record<AMConnectionState, string> = {
 
 /**
  * Status bar colors for each connection state
+ * - Connected: green (testing.iconPassed gives a consistent green across themes)
+ * - Disconnected: gray/muted (default)
+ * - Error: red (errorForeground)
+ * - Offline: yellow/amber (warningForeground)
  */
 const STATUS_COLORS: Record<AMConnectionState, vscode.ThemeColor | undefined> = {
-  connected: undefined, // Default color (theme-appropriate)
-  disconnected: new vscode.ThemeColor('statusBarItem.warningForeground'),
+  connected: new vscode.ThemeColor('testing.iconPassed'), // Green checkmark color
+  disconnected: undefined, // Default/muted color (gray in most themes)
   error: new vscode.ThemeColor('statusBarItem.errorForeground'),
-  offline: new vscode.ThemeColor('statusBarItem.warningForeground'),
+  offline: new vscode.ThemeColor('statusBarItem.warningForeground'), // Yellow/amber
 };
 
 /**
