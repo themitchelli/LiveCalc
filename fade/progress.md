@@ -372,3 +372,26 @@ For blocked stories, use:
   - livecalc-vscode/README.md, CHANGELOG.md, LICENSE (new)
 - Tests: Extension builds and packages without errors
 
+## 2026-01-24 00:10 - US-002: MGA Syntax Highlighting (PRD-LC-003) - COMPLETE
+
+- All syntax highlighting was implemented as part of US-001 (Extension Scaffold)
+- Verified all acceptance criteria are satisfied by existing implementation:
+  - .mga file extension associated with 'MGA' language (package.json)
+  - Keywords highlighted: PRODUCT, PROJECTION, ASSUMPTIONS, FOR, IF, ELSE, THEN, END, RETURN, IN
+  - Data types highlighted: TERM, PREMIUM, SUM_ASSURED, AGE, GENDER, MORTALITY, LAPSE, EXPENSES, DISCOUNT
+  - Built-in functions highlighted: SUM, NPV, LOOKUP, MIN, MAX, ABS
+  - Comments highlighted: // single line and /* multi-line */
+  - Numbers highlighted: integers, decimals, scientific notation
+  - Strings highlighted: single and double quotes with escape sequences
+  - Assumption references highlighted: assumptions://name:version
+  - Local file references highlighted: local://path/to/file.csv
+  - Operators highlighted: +, -, *, /, =, <, >, <=, >=, ==, !=, ..
+  - Uses semantic token types (standard TextMate scopes) for theme compatibility
+  - Sample .mga file included: samples/simple-term-life/model.mga
+  - Language configuration for brackets, comments, auto-closing, folding, indentation
+- Files verified:
+  - livecalc-vscode/syntaxes/mga.tmLanguage.json (comprehensive grammar)
+  - livecalc-vscode/language-configuration.json (editor support)
+  - livecalc-vscode/samples/simple-term-life/model.mga (sample file)
+- Tests: Syntax highlighting verified against sample file
+
