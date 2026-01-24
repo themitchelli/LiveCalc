@@ -3,6 +3,7 @@ import { logger } from './logging/logger';
 import { StatusBar } from './ui/status-bar';
 import { ConfigLoader } from './config/config-loader';
 import { registerCommands } from './commands';
+import { getEngineManager } from './engine/livecalc-engine';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
@@ -22,6 +23,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Create config loader
   configLoader = new ConfigLoader(context);
   context.subscriptions.push(configLoader);
+
+  // Initialize engine manager with extension path (lazy initialization)
+  const engineManager = getEngineManager();
+  engineManager.setExtensionPath(context.extensionPath);
+  context.subscriptions.push(engineManager);
 
   // Register commands
   registerCommands(context, statusBar, configLoader);

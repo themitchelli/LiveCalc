@@ -1,8 +1,11 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { logger } from '../logging/logger';
 import { StatusBar } from '../ui/status-bar';
 import { Notifications } from '../ui/notifications';
 import { ConfigLoader } from '../config/config-loader';
+import { getEngineManager, EngineError } from '../engine/livecalc-engine';
+import { loadData, DataLoadError } from '../data/data-loader';
 
 /**
  * Run command handler
@@ -29,6 +32,9 @@ export async function runCommand(
     return;
   }
 
+  // Get config directory for resolving relative paths
+  const configDir = path.dirname(configPath);
+
   // Execute with progress
   await vscode.window.withProgress(
     {
@@ -43,38 +49,84 @@ export async function runCommand(
         statusBar.setRunning();
         progress.report({ message: 'Initializing engine...' });
 
-        // TODO: In US-004 and US-006, this will load data and run the WASM engine
-        // For now, simulate execution for scaffold validation
-        logger.info('Would load data and run valuation here');
-        logger.debug(`Config: ${JSON.stringify(config, null, 2)}`);
+        // Get engine manager
+        const engineManager = getEngineManager();
 
-        // Simulate progress updates
-        for (let i = 0; i <= 100; i += 20) {
-          if (token.isCancellationRequested) {
-            logger.info('Execution cancelled by user');
-            statusBar.setReady();
-            return;
-          }
+        // Initialize engine (lazy - only initializes once)
+        await engineManager.initialize();
 
-          progress.report({
-            message: `Running valuation... ${i}%`,
-            increment: 20,
-          });
-          statusBar.setProgress(i);
-
-          // Simulate work (remove in actual implementation)
-          await new Promise((resolve) => setTimeout(resolve, 100));
+        if (token.isCancellationRequested) {
+          logger.info('Execution cancelled by user');
+          statusBar.setReady();
+          return;
         }
+
+        progress.report({ message: 'Loading data files...' });
+
+        // Load data files
+        const data = await loadData(config, configDir);
+
+        if (token.isCancellationRequested) {
+          logger.info('Execution cancelled by user');
+          statusBar.setReady();
+          return;
+        }
+
+        progress.report({ message: 'Running valuation...' });
+
+        // Create progress callback
+        const progressCallback = (percent: number) => {
+          progress.report({
+            message: `Running valuation... ${percent}%`,
+          });
+          statusBar.setProgress(percent);
+        };
+
+        // Run valuation
+        const result = await engineManager.runValuation(
+          config,
+          data.policiesCsv,
+          data.mortalityCsv,
+          data.lapseCsv,
+          data.expensesCsv,
+          progressCallback,
+          token
+        );
 
         const elapsed = Date.now() - startTime;
         statusBar.setCompleted(elapsed);
-        Notifications.completed(elapsed);
+        Notifications.completed(elapsed, undefined, result.scenarioCount);
         logger.info(`Valuation completed in ${elapsed}ms`);
+        logger.info(
+          `Results: Mean NPV = ${result.mean.toFixed(2)}, ` +
+            `StdDev = ${result.stdDev.toFixed(2)}, ` +
+            `CTE95 = ${result.cte95.toFixed(2)}`
+        );
 
         // TODO: Open results panel (PRD-LC-004)
       } catch (error) {
         const elapsed = Date.now() - startTime;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Handle cancellation
+        if (error instanceof EngineError && error.code === 'CANCELLED') {
+          logger.info('Execution cancelled by user');
+          statusBar.setReady();
+          return;
+        }
+
+        // Log and display error
+        let errorMessage: string;
+        if (error instanceof DataLoadError) {
+          errorMessage = `Data loading failed: ${error.message}`;
+          if (error.filePath) {
+            errorMessage += ` (${error.filePath})`;
+          }
+        } else if (error instanceof EngineError) {
+          errorMessage = `Engine error: ${error.message}`;
+        } else {
+          errorMessage = error instanceof Error ? error.message : String(error);
+        }
+
         logger.error(`Valuation failed after ${elapsed}ms`, error instanceof Error ? error : undefined);
         statusBar.setError(errorMessage);
         await Notifications.error(errorMessage);

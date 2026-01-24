@@ -426,3 +426,38 @@ For blocked stories, use:
   - livecalc-vscode/schemas/livecalc.config.schema.json (added extends, policies)
 - Tests: Extension compiles and packages successfully (16.32KB)
 
+## 2026-01-24 00:30 - US-004: WASM Engine Integration (PRD-LC-003) - COMPLETE
+
+- Integrated WASM engine into VS Code extension for native projection execution
+- Updated esbuild.js to copy WASM files (livecalc.wasm, livecalc.mjs) to dist/wasm/
+- Also copies worker files (node-worker.mjs, chunk files) for future parallel execution
+- Created LiveCalcEngineManager singleton class (src/engine/livecalc-engine.ts):
+  - Lazy initialization on first run command
+  - Manages engine lifecycle (Uninitialized → Initializing → Ready → Running → Disposed)
+  - Handles WASM module loading via dynamic import
+  - Supports cancellation via CancellationToken
+  - Progress reporting via callback (5%, 15%, 25%, 35%, 40%, 45%, 100%)
+  - Memory cleanup after each run (clearPolicies())
+  - EngineError class with error codes for meaningful error messages
+- Created DataLoader module (src/data/data-loader.ts):
+  - Loads policy and assumption CSV files from config paths
+  - Supports local:// prefix for relative paths
+  - Supports JSON expense files (converts to CSV format for engine)
+  - Includes sample data generators for testing
+- Updated run command to use real engine:
+  - Loads config and validates
+  - Loads all data files
+  - Runs valuation with progress updates
+  - Displays results (Mean NPV, StdDev, CTE95) in logs
+  - Proper error handling for data load and engine errors
+- Added @livecalc/engine as local dependency
+- Extension package includes WASM files (84.47KB total, well under 10MB limit)
+- Files changed:
+  - livecalc-vscode/esbuild.js (WASM and worker file copying)
+  - livecalc-vscode/package.json (added @livecalc/engine dependency, --no-dependencies for packaging)
+  - livecalc-vscode/src/engine/livecalc-engine.ts (new - engine manager)
+  - livecalc-vscode/src/data/data-loader.ts (new - data loading pipeline)
+  - livecalc-vscode/src/commands/run.ts (integrated real engine)
+  - livecalc-vscode/src/extension.ts (initialize engine manager)
+- Tests: Extension builds, type-checks, and packages successfully
+

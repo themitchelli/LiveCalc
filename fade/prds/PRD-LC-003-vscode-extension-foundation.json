@@ -179,7 +179,7 @@
         "memoryLimit": "Respect VS Code extension memory limits (~512MB)",
         "workerCount": "Math.min(navigator.hardwareConcurrency || 4, 8)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

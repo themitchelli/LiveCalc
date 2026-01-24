@@ -137,16 +137,16 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "vscode:prepublish": "node esbuild.js --production",
+    "esbuild-base": "node esbuild.js",
+    "esbuild": "node esbuild.js",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "compile": "npm run esbuild",
     "watch": "npm run esbuild-watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "package": "vsce package"
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -160,6 +160,7 @@
     "typescript": "^5.3.2"
   },
   "dependencies": {
+    "@livecalc/engine": "file:../livecalc-engine/js",
     "fast-csv": "^4.3.6"
   },
   "overrides": {
