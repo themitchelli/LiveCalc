@@ -15,22 +15,32 @@ export async function runCommand(
   statusBar: StatusBar,
   configLoader: ConfigLoader
 ): Promise<void> {
-  logger.info('Run command invoked');
+  logger.separator();
+  logger.milestone('Run command invoked');
 
   // Find config file
+  logger.startTimer('Config discovery');
   const configPath = await configLoader.findConfigFile();
   if (!configPath) {
     logger.warn('No livecalc.config.json found');
     await Notifications.noConfigFile();
     return;
   }
+  logger.endTimer('Config discovery');
+  logger.info(`Config found: ${configPath}`);
 
   // Load and validate config
+  logger.startTimer('Config loading');
   const config = await configLoader.loadConfig(configPath);
   if (!config) {
     logger.error('Failed to load config file');
     return;
   }
+  logger.endTimer('Config loading');
+  logger.debug(`Scenarios: ${config.scenarios.count}, Seed: ${config.scenarios.seed}`);
+
+  // Update status bar with config path
+  statusBar.setConfigPath(configPath);
 
   // Get config directory for resolving relative paths
   const configDir = path.dirname(configPath);
@@ -62,12 +72,16 @@ export async function runCommand(
         }
 
         progress.report({ message: 'Loading data files...' });
+        logger.milestone('Loading data files');
+        logger.startTimer('Data loading');
 
         // Load data files with validation
         const data = await loadData(config, configDir, { reportValidation: true });
 
+        logger.endTimer('Data loading', 'info');
+
         // Log cache statistics
-        if (data.cacheStats.hits > 0) {
+        if (data.cacheStats.hits > 0 || data.cacheStats.misses > 0) {
           logger.debug(
             `Data cache: ${data.cacheStats.hits} hits, ${data.cacheStats.misses} misses`
           );
@@ -78,6 +92,8 @@ export async function runCommand(
           logger.warn(`Data loaded with ${data.warnings.length} warnings - check Problems panel`);
         }
 
+        logger.info(`Loaded ${data.policyCount} policies`);
+
         if (token.isCancellationRequested) {
           logger.info('Execution cancelled by user');
           statusBar.setReady();
@@ -85,6 +101,8 @@ export async function runCommand(
         }
 
         progress.report({ message: `Running valuation (${data.policyCount} policies)...` });
+        logger.milestone('Running valuation');
+        logger.startTimer('Valuation execution');
 
         // Create progress callback
         const progressCallback = (percent: number) => {
@@ -105,15 +123,26 @@ export async function runCommand(
           token
         );
 
+        logger.endTimer('Valuation execution', 'info');
+
         const elapsed = Date.now() - startTime;
-        statusBar.setCompleted(elapsed);
+        statusBar.setCompleted(elapsed, data.policyCount, result.scenarioCount);
         Notifications.completed(elapsed, data.policyCount, result.scenarioCount);
-        logger.info(`Valuation completed in ${elapsed}ms (${data.policyCount} policies, ${result.scenarioCount} scenarios)`);
+
+        // Log performance metrics
+        logger.logPerformanceMetrics({
+          policyCount: data.policyCount,
+          scenarioCount: result.scenarioCount,
+          executionTimeMs: result.executionTimeMs,
+        });
+
+        // Log results summary
         logger.info(
           `Results: Mean NPV = ${result.mean.toFixed(2)}, ` +
             `StdDev = ${result.stdDev.toFixed(2)}, ` +
             `CTE95 = ${result.cte95.toFixed(2)}`
         );
+        logger.milestone('Run complete');
 
         // TODO: Open results panel (PRD-LC-004)
       } catch (error) {

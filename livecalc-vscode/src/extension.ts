@@ -29,6 +29,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // Initialize engine manager with extension path (lazy initialization)
   const engineManager = getEngineManager();
   engineManager.setExtensionPath(context.extensionPath);
+
+  // Update status bar when engine initializes
+  context.subscriptions.push(
+    engineManager.onDidInitialize(() => {
+      statusBar?.setEngineInitialized(true);
+      logger.debug('Engine initialization detected, status bar updated');
+    })
+  );
+
   context.subscriptions.push(engineManager);
 
   // Register commands

@@ -52,6 +52,16 @@
         "command": "livecalc.openResults",
         "title": "Open Results Panel",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.showOutput",
+        "title": "Show Output",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.clearOutput",
+        "title": "Clear Output",
+        "category": "LiveCalc"
       }
     ],
     "keybindings": [

@@ -253,7 +253,7 @@
         "alignment": "StatusBarAlignment.Right",
         "priority": 100
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
@@ -277,7 +277,7 @@
         "logFormat": "[timestamp] [level] message",
         "debugMode": "Extra logging when livecalc.logLevel = debug"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

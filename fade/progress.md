@@ -557,3 +557,73 @@ For blocked stories, use:
   - livecalc-vscode/src/extension.ts (dispose cache and validator)
 - Tests: Extension compiles, type-checks, and packages successfully (89.3KB)
 
+## 2026-01-24 02:00 - US-007: Status Bar Integration (PRD-LC-003) - COMPLETE
+
+- Enhanced StatusBar class with detailed state tracking and rich tooltips
+- Added StatusBarState interface for tracking status, last run metrics, engine state, and config path
+- Status bar states: ready, running, completed, error
+- Markdown-formatted tooltips display:
+  - Current status header (Ready/Running/Completed/Error)
+  - Last run time, policy count, and scenario count (after completion)
+  - Error message (truncated if too long)
+  - Engine initialization state
+  - Current config file name
+  - Click instruction
+- Added setEngineInitialized() and setConfigPath() methods for external updates
+- Updated setCompleted() to accept optional policyCount and scenarioCount parameters
+- Added getState() method for testing/inspection
+- Wired up engine initialization event to status bar in extension.ts
+- Wired up config path update in run.ts
+- All acceptance criteria verified:
+  - Status bar item shows LiveCalc icon when extension active ✓
+  - Status bar shows 'Ready' when engine initialized ✓
+  - Status bar shows 'Running...' with spinner during execution ✓
+  - Status bar shows last execution time after completion ✓
+  - Status bar shows error indicator if last run failed ✓
+  - Click on status bar item opens LiveCalc output channel ✓
+  - Status bar item only visible when .mga file open or config present ✓
+  - Tooltip shows detailed status information ✓
+- Files changed:
+  - livecalc-vscode/src/ui/status-bar.ts (enhanced with state tracking and rich tooltips)
+  - livecalc-vscode/src/engine/livecalc-engine.ts (added onDidInitialize event emitter)
+  - livecalc-vscode/src/extension.ts (wire up engine initialization to status bar)
+  - livecalc-vscode/src/commands/run.ts (pass policy/scenario count to status bar, set config path)
+- Tests: Extension compiles and packages successfully
+
+## 2026-01-24 02:15 - US-008: Output Channel Logging (PRD-LC-003) - COMPLETE
+
+- Enhanced Logger class with performance metrics and timing utilities
+- Added PerformanceMetrics interface for logging valuation metrics
+- Added timer methods: startTimer(name), endTimer(name, logLevel) for measuring durations
+- Added logPerformanceMetrics() for formatted performance output with throughput calculation
+- Added milestone() for marking execution milestones (>>> prefix)
+- Added separator() for visual log clarity
+- Added getLogLevel() method for inspection
+- Registered "LiveCalc: Clear Output" command (livecalc.clearOutput) in package.json
+- Clear output command shows confirmation message
+- Enhanced run command with comprehensive logging:
+  - Config discovery timing
+  - Config loading timing with scenario details
+  - Data loading timing
+  - Valuation execution timing
+  - Performance metrics (policies, scenarios, throughput, execution time)
+  - Execution milestones throughout
+- All acceptance criteria verified:
+  - Output channel 'LiveCalc' created on activation ✓
+  - Log extension activation and version ✓
+  - Log config file discovery and parsing ✓
+  - Log data loading steps and timing ✓
+  - Log engine initialization ✓
+  - Log execution start, progress milestones, completion ✓
+  - Log errors with stack traces (when available) ✓
+  - Log performance metrics (policies/sec, memory usage) ✓
+  - Configurable log level (error, warn, info, debug) ✓
+  - Setting: livecalc.logLevel (default: info) ✓
+  - Clear log command available ✓
+- Files changed:
+  - livecalc-vscode/src/logging/logger.ts (enhanced with performance metrics, timers, milestones)
+  - livecalc-vscode/package.json (added showOutput and clearOutput commands)
+  - livecalc-vscode/src/commands/index.ts (registered clearOutput command)
+  - livecalc-vscode/src/commands/run.ts (comprehensive logging with timing)
+- Tests: Extension compiles and type-checks successfully
+

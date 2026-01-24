@@ -63,6 +63,13 @@ export class LiveCalcEngineManager implements vscode.Disposable {
   private currentCancellation: vscode.CancellationToken | null = null;
   private aborted = false;
 
+  // Event emitters for lifecycle events
+  private readonly _onDidInitialize = new vscode.EventEmitter<void>();
+  public readonly onDidInitialize = this._onDidInitialize.event;
+
+  private readonly _onDidDispose = new vscode.EventEmitter<void>();
+  public readonly onDidDispose = this._onDidDispose.event;
+
   private constructor() {}
 
   /**
@@ -132,6 +139,7 @@ export class LiveCalcEngineManager implements vscode.Disposable {
       await this.initPromise;
       this.state = EngineState.Ready;
       logger.info('LiveCalc engine initialized successfully');
+      this._onDidInitialize.fire();
     } catch (error) {
       this.state = EngineState.Error;
       this.initPromise = null;
@@ -386,6 +394,10 @@ export class LiveCalcEngineManager implements vscode.Disposable {
     this.state = EngineState.Disposed;
     this.initPromise = null;
     LiveCalcEngineManager.instance = null;
+
+    this._onDidDispose.fire();
+    this._onDidInitialize.dispose();
+    this._onDidDispose.dispose();
 
     logger.info('LiveCalc engine disposed');
   }

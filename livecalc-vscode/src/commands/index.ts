@@ -46,5 +46,13 @@ export function registerCommands(
     })
   );
 
+  // Register clear output command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.clearOutput', () => {
+      logger.clear();
+      vscode.window.showInformationMessage('LiveCalc: Output channel cleared');
+    })
+  );
+
   logger.debug('All commands registered');
 }
