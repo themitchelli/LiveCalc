@@ -1,0 +1,462 @@
+{
+  "id": "PRD-LC-003",
+  "title": "VS Code Extension Foundation",
+  "type": "feature",
+  "priority": "critical",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Create the VS Code extension scaffold with MGA syntax highlighting, project structure recognition, run command, and WASM engine integration. This establishes the developer experience foundation for instant actuarial feedback.",
+  "problem": [
+    "Actuaries use separate tools for editing and execution (disconnected workflow)",
+    "No IDE understands actuarial model syntax",
+    "Running a model requires leaving the editor and submitting to external systems",
+    "No instant feedback loop for model development"
+  ],
+  "solution": [
+    "Build VS Code extension that integrates editing and execution",
+    "Add syntax highlighting for .mga model files",
+    "Embed WASM engine directly in extension for instant execution",
+    "Provide Run command with keyboard shortcut for rapid iteration"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-002",
+      "title": "WASM Compilation and Web Worker Threading",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "extensionType": "VS Code Extension (TypeScript)",
+    "activationEvents": ["onLanguage:mga", "workspaceContains:livecalc.config.json"],
+    "vsCodeApiVersion": "^1.85.0",
+    "bundler": "esbuild",
+    "testFramework": "@vscode/test-electron"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Extension Scaffold",
+      "story": "As a developer, I need the VS Code extension scaffold so we can build features on a solid foundation",
+      "acceptanceCriteria": [
+        "Extension created using yo code generator (TypeScript)",
+        "Extension ID: livecalc.livecalc-vscode",
+        "Display name: LiveCalc",
+        "Extension activates on .mga files or livecalc.config.json presence",
+        "Extension contributes commands: livecalc.run, livecalc.runCloud, livecalc.configure",
+        "Extension icon (128x128 PNG) with LiveCalc branding",
+        "Publisher account configured for marketplace",
+        "README.md with installation and quick start guide",
+        "CHANGELOG.md initialized",
+        ".vsix package builds successfully",
+        "Extension loads without errors in VS Code",
+        "Extension size < 10MB (including WASM)"
+      ],
+      "technicalNotes": {
+        "structure": {
+          "src/": "TypeScript source",
+          "src/extension.ts": "Entry point",
+          "src/commands/": "Command handlers",
+          "src/engine/": "WASM engine wrapper",
+          "src/ui/": "Webview panels",
+          "src/language/": "Language support",
+          "syntaxes/": "TextMate grammars",
+          "wasm/": "WASM binary and JS wrapper",
+          "media/": "Icons and images"
+        }
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "MGA Syntax Highlighting",
+      "story": "As an actuary, I want syntax highlighting for .mga files so the model code is readable and errors are visible",
+      "acceptanceCriteria": [
+        ".mga file extension associated with 'MGA' language",
+        "Keywords highlighted: PRODUCT, PROJECTION, ASSUMPTIONS, FOR, IF, ELSE, THEN, END, RETURN",
+        "Data types highlighted: TERM, PREMIUM, SUM_ASSURED, AGE, GENDER",
+        "Built-in functions highlighted: SUM, NPV, LOOKUP, MIN, MAX, ABS",
+        "Comments highlighted: // single line and /* multi-line */",
+        "Numbers highlighted (integers, decimals, scientific notation)",
+        "Strings highlighted (single and double quotes)",
+        "Assumption references highlighted: assumptions://name:version",
+        "Local file references highlighted: local://path/to/file.csv",
+        "Operators highlighted: +, -, *, /, =, <, >, <=, >=, ==, !=",
+        "Works with dark and light themes (uses semantic token types)",
+        "Sample .mga file included in extension for testing",
+        "Language configuration for brackets, comments, auto-closing"
+      ],
+      "technicalNotes": {
+        "grammarFile": "syntaxes/mga.tmLanguage.json",
+        "scopePrefix": "source.mga",
+        "tokenTypes": {
+          "keyword.control.mga": "FOR, IF, ELSE, END, RETURN",
+          "keyword.declaration.mga": "PRODUCT, PROJECTION, ASSUMPTIONS",
+          "entity.name.function.mga": "SUM, NPV, LOOKUP",
+          "variable.other.assumption.mga": "assumptions://...",
+          "constant.numeric.mga": "numbers",
+          "string.quoted.mga": "strings",
+          "comment.line.mga": "// comments",
+          "comment.block.mga": "/* comments */"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Project Configuration Schema",
+      "story": "As an actuary, I want a configuration file so the extension knows where to find my model, assumptions, and settings",
+      "acceptanceCriteria": [
+        "livecalc.config.json schema defined and documented",
+        "Config specifies model file path (required)",
+        "Config specifies assumption file paths (mortality, lapse, expenses)",
+        "Config specifies scenario settings (count, seed, interest rate parameters)",
+        "Config specifies output preferences (percentiles, show distribution)",
+        "Config specifies execution preferences (auto-run, timeout)",
+        "Extension auto-discovers config in workspace root",
+        "Extension searches parent directories if not in root",
+        "Command 'LiveCalc: Initialize Project' creates default config",
+        "JSON schema published for IntelliSense in config file",
+        "Validation errors shown in Problems panel if config invalid",
+        "Config file changes trigger re-validation",
+        "Support for config inheritance/includes (future)"
+      ],
+      "technicalNotes": {
+        "schemaUrl": "https://livecalc.dev/schemas/livecalc.config.schema.json",
+        "configExample": {
+          "$schema": "https://livecalc.dev/schemas/livecalc.config.schema.json",
+          "model": "model.mga",
+          "assumptions": {
+            "mortality": "assumptions://mortality-standard:v2.1",
+            "lapse": "local://assumptions/lapse.csv",
+            "expenses": "local://assumptions/expenses.json"
+          },
+          "scenarios": {
+            "count": 1000,
+            "seed": 42,
+            "interestRate": {
+              "initial": 0.04,
+              "drift": 0.001,
+              "volatility": 0.02
+            }
+          },
+          "execution": {
+            "autoRunOnSave": true,
+            "timeout": 300,
+            "maxPolicies": 100000
+          },
+          "output": {
+            "percentiles": [50, 75, 90, 95, 99],
+            "showDistribution": true,
+            "showCashflows": false
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "WASM Engine Integration",
+      "story": "As a developer, I need the WASM engine embedded in the extension so projections run without external dependencies",
+      "acceptanceCriteria": [
+        "WASM binary (livecalc.wasm) bundled in extension package",
+        "JavaScript wrapper (livecalc.js) bundled in extension",
+        "Engine initializes on extension activation (lazy load)",
+        "Engine runs in extension host process (not webview)",
+        "Worker pool created based on available CPU cores",
+        "Engine accepts policy data, assumptions, scenario config",
+        "Engine returns ValuationResult object",
+        "Engine reports progress during execution (0-100%)",
+        "Engine can be cancelled mid-execution",
+        "Memory cleaned up after each run",
+        "Engine errors surfaced with meaningful messages",
+        "Warm-up run on activation for faster first execution (optional)"
+      ],
+      "technicalNotes": {
+        "engineWrapper": "src/engine/livecalc-engine.ts",
+        "initialization": "Lazy load on first run command, ~500ms init time",
+        "memoryLimit": "Respect VS Code extension memory limits (~512MB)",
+        "workerCount": "Math.min(navigator.hardwareConcurrency || 4, 8)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Run Command",
+      "story": "As an actuary, I want a keyboard shortcut to run my model so I get instant feedback on changes",
+      "acceptanceCriteria": [
+        "Command 'LiveCalc: Run' registered with ID livecalc.run",
+        "Keyboard shortcut: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows/Linux)",
+        "Command available via Command Palette",
+        "Command available via editor title bar (play icon)",
+        "Command available via right-click context menu in .mga files",
+        "Run disabled with message if no livecalc.config.json found",
+        "Run disabled with message if config validation fails",
+        "Progress notification shown during execution",
+        "Progress shows percentage complete",
+        "Cancel button in progress notification",
+        "Execution time shown on completion",
+        "Error notifications with actionable messages",
+        "Success notification with summary (e.g., 'Completed in 2.3s')",
+        "Results panel opens/updates on completion (see PRD-LC-004)"
+      ],
+      "technicalNotes": {
+        "commandHandler": "src/commands/run.ts",
+        "progressApi": "vscode.window.withProgress()",
+        "cancellation": "CancellationToken passed to engine",
+        "statusBar": "Show running indicator in status bar during execution"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Data Loading Pipeline",
+      "story": "As a developer, I need a data loading pipeline so the engine receives properly formatted input",
+      "acceptanceCriteria": [
+        "Load policies from CSV file (local://path.csv)",
+        "Load assumptions from CSV files (mortality, lapse)",
+        "Load assumptions from JSON files (expenses)",
+        "Support assumptions:// references (placeholder for PRD-LC-006)",
+        "Validate CSV structure (required columns, data types)",
+        "Validate assumption table dimensions (age range, year range)",
+        "Report specific validation errors (file, line, column)",
+        "Handle large files efficiently (streaming where possible)",
+        "Cache loaded data between runs if files unchanged",
+        "File watcher invalidates cache on change",
+        "Support relative and absolute paths",
+        "Resolve paths relative to config file location"
+      ],
+      "technicalNotes": {
+        "csvParser": "Use fast-csv or papaparse for CSV parsing",
+        "caching": "Hash file content, cache parsed data by hash",
+        "maxFileSize": "Warn if policy file > 100MB, fail if > 500MB"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Status Bar Integration",
+      "story": "As an actuary, I want status bar indicators so I can see LiveCalc state at a glance",
+      "acceptanceCriteria": [
+        "Status bar item shows LiveCalc icon when extension active",
+        "Status bar shows 'Ready' when engine initialized",
+        "Status bar shows 'Running...' with spinner during execution",
+        "Status bar shows last execution time after completion",
+        "Status bar shows error indicator if last run failed",
+        "Click on status bar item opens LiveCalc output channel",
+        "Status bar item only visible when .mga file open or config present",
+        "Tooltip shows detailed status information"
+      ],
+      "technicalNotes": {
+        "statusBarItem": "vscode.window.createStatusBarItem()",
+        "alignment": "StatusBarAlignment.Right",
+        "priority": 100
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Output Channel Logging",
+      "story": "As a developer, I need an output channel so I can debug issues and see detailed execution logs",
+      "acceptanceCriteria": [
+        "Output channel 'LiveCalc' created on activation",
+        "Log extension activation and version",
+        "Log config file discovery and parsing",
+        "Log data loading steps and timing",
+        "Log engine initialization",
+        "Log execution start, progress milestones, completion",
+        "Log errors with stack traces (when available)",
+        "Log performance metrics (policies/sec, memory usage)",
+        "Configurable log level (error, warn, info, debug)",
+        "Setting: livecalc.logLevel (default: info)",
+        "Clear log command available"
+      ],
+      "technicalNotes": {
+        "outputChannel": "vscode.window.createOutputChannel('LiveCalc')",
+        "logFormat": "[timestamp] [level] message",
+        "debugMode": "Extra logging when livecalc.logLevel = debug"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/package.json",
+    "livecalc-vscode/tsconfig.json",
+    "livecalc-vscode/.vscodeignore",
+    "livecalc-vscode/esbuild.js",
+    "livecalc-vscode/src/extension.ts",
+    "livecalc-vscode/src/commands/run.ts",
+    "livecalc-vscode/src/commands/initialize.ts",
+    "livecalc-vscode/src/engine/livecalc-engine.ts",
+    "livecalc-vscode/src/engine/worker-pool.ts",
+    "livecalc-vscode/src/config/config-loader.ts",
+    "livecalc-vscode/src/config/config-schema.ts",
+    "livecalc-vscode/src/config/config-validator.ts",
+    "livecalc-vscode/src/data/csv-loader.ts",
+    "livecalc-vscode/src/data/assumption-loader.ts",
+    "livecalc-vscode/src/data/policy-loader.ts",
+    "livecalc-vscode/src/data/cache.ts",
+    "livecalc-vscode/src/language/mga-language.ts",
+    "livecalc-vscode/src/ui/status-bar.ts",
+    "livecalc-vscode/src/ui/notifications.ts",
+    "livecalc-vscode/src/logging/logger.ts",
+    "livecalc-vscode/src/logging/output-channel.ts",
+    "livecalc-vscode/src/types/index.ts",
+    "livecalc-vscode/syntaxes/mga.tmLanguage.json",
+    "livecalc-vscode/language-configuration.json",
+    "livecalc-vscode/schemas/livecalc.config.schema.json",
+    "livecalc-vscode/wasm/livecalc.wasm",
+    "livecalc-vscode/wasm/livecalc.js",
+    "livecalc-vscode/media/icon.png",
+    "livecalc-vscode/media/icon-dark.svg",
+    "livecalc-vscode/media/icon-light.svg",
+    "livecalc-vscode/samples/simple-term-life/model.mga",
+    "livecalc-vscode/samples/simple-term-life/livecalc.config.json",
+    "livecalc-vscode/samples/simple-term-life/assumptions/mortality.csv",
+    "livecalc-vscode/samples/simple-term-life/assumptions/lapse.csv",
+    "livecalc-vscode/samples/simple-term-life/assumptions/expenses.json",
+    "livecalc-vscode/samples/simple-term-life/data/policies.csv",
+    "livecalc-vscode/test/suite/extension.test.ts",
+    "livecalc-vscode/test/suite/config.test.ts",
+    "livecalc-vscode/test/suite/data-loader.test.ts",
+    "livecalc-vscode/README.md",
+    "livecalc-vscode/CHANGELOG.md",
+    "livecalc-vscode/.github/workflows/ci.yml",
+    "livecalc-vscode/.github/workflows/publish.yml"
+  ],
+  "packageJsonContributions": {
+    "commands": [
+      {
+        "command": "livecalc.run",
+        "title": "Run",
+        "category": "LiveCalc",
+        "icon": "$(play)"
+      },
+      {
+        "command": "livecalc.runCloud",
+        "title": "Run in Cloud",
+        "category": "LiveCalc",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "livecalc.initialize",
+        "title": "Initialize Project",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.openResults",
+        "title": "Open Results Panel",
+        "category": "LiveCalc"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "livecalc.run",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorLangId == mga || resourceFilename == livecalc.config.json"
+      }
+    ],
+    "languages": [
+      {
+        "id": "mga",
+        "aliases": ["MGA", "mga"],
+        "extensions": [".mga"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mga",
+        "scopeName": "source.mga",
+        "path": "./syntaxes/mga.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "livecalc.config.json",
+        "url": "./schemas/livecalc.config.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "LiveCalc",
+      "properties": {
+        "livecalc.autoRunOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run valuation when files are saved"
+        },
+        "livecalc.logLevel": {
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug"],
+          "default": "info",
+          "description": "Logging level for LiveCalc output channel"
+        },
+        "livecalc.maxWorkers": {
+          "type": "number",
+          "default": 0,
+          "description": "Maximum worker threads (0 = auto-detect)"
+        },
+        "livecalc.timeout": {
+          "type": "number",
+          "default": 300,
+          "description": "Execution timeout in seconds"
+        }
+      }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "livecalc.run",
+          "when": "editorLangId == mga",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "livecalc.run",
+          "when": "editorLangId == mga",
+          "group": "1_run"
+        }
+      ]
+    }
+  },
+  "sampleMgaFile": {
+    "filename": "model.mga",
+    "content": "// Simple 20-year term life projection\n\nPRODUCT TermLife\n  TERM 20\n  SUM_ASSURED 100000\n  PREMIUM 1200\nEND\n\nASSUMPTIONS\n  MORTALITY assumptions://mortality-standard:v2.1\n  LAPSE local://assumptions/lapse.csv\n  EXPENSES {\n    PER_POLICY 50\n    PERCENT_PREMIUM 0.02\n  }\nEND\n\nPROJECTION\n  survival = 1.0\n  npv = 0.0\n  \n  FOR year IN 1..TERM\n    // Decrements\n    deaths = survival * MORTALITY[AGE + year]\n    lapses = survival * (1 - deaths) * LAPSE[year]\n    survival = survival - deaths - lapses\n    \n    // Cash flows\n    premium_cf = PREMIUM * survival\n    death_cf = SUM_ASSURED * deaths\n    expense_cf = EXPENSES.PER_POLICY + PREMIUM * EXPENSES.PERCENT_PREMIUM\n    \n    // Net and discount\n    net_cf = premium_cf - death_cf - expense_cf\n    npv = npv + net_cf * DISCOUNT[year]\n  END\n  \n  RETURN npv\nEND"
+  },
+  "definitionOfDone": [
+    "Extension installs from .vsix without errors",
+    "MGA syntax highlighting works for all token types",
+    "livecalc.config.json validated with IntelliSense",
+    "Cmd+Shift+R runs valuation and shows progress",
+    "Sample project runs successfully out of the box",
+    "Status bar shows execution state correctly",
+    "Output channel logs all execution steps",
+    "All 8 user stories pass acceptance criteria",
+    "Extension size < 10MB",
+    "README documents all features and usage"
+  ],
+  "estimatedSessions": "4-5 FADE sessions",
+  "risks": [
+    {
+      "risk": "WASM in VS Code extension host has limitations",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Test early, fall back to separate Node process if needed"
+    },
+    {
+      "risk": "Extension size too large with WASM bundle",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "WASM compression, lazy loading, or separate download"
+    },
+    {
+      "risk": "Memory limits in extension host",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Enforce policy/scenario limits, guide users to cloud for large runs"
+    }
+  ]
+}

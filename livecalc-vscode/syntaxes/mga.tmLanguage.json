@@ -1,0 +1,117 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MGA",
+  "scopeName": "source.mga",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.mga",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.mga",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.mga",
+          "match": "\\b(PRODUCT|ASSUMPTIONS|PROJECTION)\\b"
+        },
+        {
+          "name": "keyword.control.mga",
+          "match": "\\b(FOR|IF|ELSE|THEN|END|RETURN|IN)\\b"
+        },
+        {
+          "name": "variable.language.mga",
+          "match": "\\b(TERM|PREMIUM|SUM_ASSURED|AGE|GENDER|MORTALITY|LAPSE|EXPENSES|DISCOUNT)\\b"
+        },
+        {
+          "name": "entity.name.function.mga",
+          "match": "\\b(SUM|NPV|LOOKUP|MIN|MAX|ABS)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.mga",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.mga",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.mga",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.mga",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.assumption-reference.mga",
+          "match": "assumptions://[a-zA-Z0-9_\\-]+:[a-zA-Z0-9_\\.\\-]+"
+        },
+        {
+          "name": "string.other.local-reference.mga",
+          "match": "local://[a-zA-Z0-9_/\\-\\.]+"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.scientific.mga",
+          "match": "\\b[0-9]+\\.?[0-9]*[eE][+-]?[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.mga",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.mga",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.mga",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.assignment.mga",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.mga",
+          "match": "\\+|-|\\*|/"
+        },
+        {
+          "name": "keyword.operator.range.mga",
+          "match": "\\.\\."
+        }
+      ]
+    }
+  }
+}

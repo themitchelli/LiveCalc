@@ -336,3 +336,39 @@ For blocked stories, use:
   - livecalc-engine/README.md (comprehensive server deployment documentation)
 - Tests: 121 JS tests pass, benchmarks validate performance targets
 
+## 2026-01-24 00:05 - US-001: Extension Scaffold (PRD-LC-003) - COMPLETE
+
+- Created VS Code extension scaffold with TypeScript and esbuild bundler
+- Configured package.json with extension metadata, commands, keybindings, and language contributions
+- Extension ID: livecalc.livecalc-vscode, Display name: LiveCalc
+- Activation events: onLanguage:mga, workspaceContains:livecalc.config.json
+- Registered commands: livecalc.run, livecalc.runCloud, livecalc.initialize, livecalc.openResults
+- Created extension entry point with status bar integration and config file watching
+- Run command with progress notification, cancellation support, and status bar updates
+- Initialize Project command creates default livecalc.config.json and model.mga
+- Created placeholder 128x128 PNG icon
+- Implemented basic MGA syntax highlighting (TextMate grammar) and language configuration
+- Created JSON schema for livecalc.config.json with IntelliSense support
+- Sample project included with model, assumptions, and policies
+- Publisher: livecalc
+- Extension size: 14.78KB (well under 10MB limit, WASM not yet bundled)
+- .vsix package builds successfully
+- Files changed:
+  - livecalc-vscode/package.json (new - extension manifest)
+  - livecalc-vscode/tsconfig.json (new - TypeScript config)
+  - livecalc-vscode/esbuild.js (new - build script)
+  - livecalc-vscode/.vscodeignore (new)
+  - livecalc-vscode/src/extension.ts (new - entry point)
+  - livecalc-vscode/src/commands/run.ts, initialize.ts, index.ts (new)
+  - livecalc-vscode/src/config/config-loader.ts (new)
+  - livecalc-vscode/src/logging/logger.ts (new)
+  - livecalc-vscode/src/ui/status-bar.ts, notifications.ts (new)
+  - livecalc-vscode/src/types/index.ts (new)
+  - livecalc-vscode/syntaxes/mga.tmLanguage.json (new)
+  - livecalc-vscode/language-configuration.json (new)
+  - livecalc-vscode/schemas/livecalc.config.schema.json (new)
+  - livecalc-vscode/media/icon.png (new - placeholder)
+  - livecalc-vscode/samples/simple-term-life/* (new - sample project)
+  - livecalc-vscode/README.md, CHANGELOG.md, LICENSE (new)
+- Tests: Extension builds and packages without errors
+

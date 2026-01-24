@@ -1,0 +1,99 @@
+import * as vscode from 'vscode';
+import { logger } from './logging/logger';
+import { StatusBar } from './ui/status-bar';
+import { ConfigLoader } from './config/config-loader';
+import { registerCommands } from './commands';
+
+let statusBar: StatusBar | undefined;
+let configLoader: ConfigLoader | undefined;
+
+/**
+ * Extension activation
+ * Called when VS Code activates the extension
+ */
+export function activate(context: vscode.ExtensionContext): void {
+  const version = context.extension.packageJSON.version;
+  logger.info(`LiveCalc extension v${version} activating...`);
+
+  // Create status bar
+  statusBar = new StatusBar();
+  context.subscriptions.push(statusBar);
+
+  // Create config loader
+  configLoader = new ConfigLoader(context);
+  context.subscriptions.push(configLoader);
+
+  // Register commands
+  registerCommands(context, statusBar, configLoader);
+
+  // Show status bar when appropriate
+  updateStatusBarVisibility();
+
+  // Watch for editor changes to update status bar visibility
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      updateStatusBarVisibility();
+    })
+  );
+
+  // Watch for config changes to update log level
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('livecalc.logLevel')) {
+        logger.updateLogLevel();
+        logger.debug('Log level updated from configuration');
+      }
+    })
+  );
+
+  logger.info('LiveCalc extension activated successfully');
+}
+
+/**
+ * Update status bar visibility based on current context
+ */
+function updateStatusBarVisibility(): void {
+  if (!statusBar) {
+    return;
+  }
+
+  const editor = vscode.window.activeTextEditor;
+  const shouldShow =
+    editor?.document.languageId === 'mga' ||
+    editor?.document.fileName.endsWith('livecalc.config.json') ||
+    hasConfigInWorkspace();
+
+  if (shouldShow) {
+    statusBar.show();
+  } else {
+    statusBar.hide();
+  }
+}
+
+/**
+ * Check if workspace contains a livecalc.config.json
+ */
+function hasConfigInWorkspace(): boolean {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders) {
+    return false;
+  }
+
+  // Async check happens on first run command, for status bar
+  // we do a quick sync check based on cached state
+  return configLoader?.getConfigDirectory() !== null;
+}
+
+/**
+ * Extension deactivation
+ * Called when VS Code deactivates the extension
+ */
+export function deactivate(): void {
+  logger.info('LiveCalc extension deactivating...');
+
+  // Cleanup is handled via context.subscriptions
+  statusBar = undefined;
+  configLoader = undefined;
+
+  logger.info('LiveCalc extension deactivated');
+}

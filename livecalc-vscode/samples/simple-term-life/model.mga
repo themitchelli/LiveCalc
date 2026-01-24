@@ -1,0 +1,39 @@
+// Simple 20-year term life projection
+
+PRODUCT TermLife
+  TERM 20
+  SUM_ASSURED 100000
+  PREMIUM 1200
+END
+
+ASSUMPTIONS
+  MORTALITY assumptions://mortality-standard:v2.1
+  LAPSE local://assumptions/lapse.csv
+  EXPENSES {
+    PER_POLICY 50
+    PERCENT_PREMIUM 0.02
+  }
+END
+
+PROJECTION
+  survival = 1.0
+  npv = 0.0
+
+  FOR year IN 1..TERM
+    // Decrements
+    deaths = survival * MORTALITY[AGE + year]
+    lapses = survival * (1 - deaths) * LAPSE[year]
+    survival = survival - deaths - lapses
+
+    // Cash flows
+    premium_cf = PREMIUM * survival
+    death_cf = SUM_ASSURED * deaths
+    expense_cf = EXPENSES.PER_POLICY + PREMIUM * EXPENSES.PERCENT_PREMIUM
+
+    // Net and discount
+    net_cf = premium_cf - death_cf - expense_cf
+    npv = npv + net_cf * DISCOUNT[year]
+  END
+
+  RETURN npv
+END

@@ -1,0 +1,28 @@
+{
+  "$schema": "../../schemas/livecalc.config.schema.json",
+  "model": "model.mga",
+  "assumptions": {
+    "mortality": "local://assumptions/mortality.csv",
+    "lapse": "local://assumptions/lapse.csv",
+    "expenses": "local://assumptions/expenses.json"
+  },
+  "scenarios": {
+    "count": 1000,
+    "seed": 42,
+    "interestRate": {
+      "initial": 0.04,
+      "drift": 0.001,
+      "volatility": 0.02
+    }
+  },
+  "execution": {
+    "autoRunOnSave": true,
+    "timeout": 300,
+    "maxPolicies": 100000
+  },
+  "output": {
+    "percentiles": [50, 75, 90, 95, 99],
+    "showDistribution": true,
+    "showCashflows": false
+  }
+}

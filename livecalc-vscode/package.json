@@ -1,0 +1,168 @@
+{
+  "name": "livecalc-vscode",
+  "displayName": "LiveCalc",
+  "description": "Instant actuarial model feedback with embedded WASM engine",
+  "version": "0.1.0",
+  "publisher": "livecalc",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/livecalc/livecalc-vscode"
+  },
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "actuarial",
+    "insurance",
+    "projection",
+    "valuation",
+    "mga"
+  ],
+  "activationEvents": [
+    "onLanguage:mga",
+    "workspaceContains:livecalc.config.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "livecalc.run",
+        "title": "Run",
+        "category": "LiveCalc",
+        "icon": "$(play)"
+      },
+      {
+        "command": "livecalc.runCloud",
+        "title": "Run in Cloud",
+        "category": "LiveCalc",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "livecalc.initialize",
+        "title": "Initialize Project",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.openResults",
+        "title": "Open Results Panel",
+        "category": "LiveCalc"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "livecalc.run",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorLangId == mga || resourceFilename == livecalc.config.json"
+      }
+    ],
+    "languages": [
+      {
+        "id": "mga",
+        "aliases": [
+          "MGA",
+          "mga"
+        ],
+        "extensions": [
+          ".mga"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "mga",
+        "scopeName": "source.mga",
+        "path": "./syntaxes/mga.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "livecalc.config.json",
+        "url": "./schemas/livecalc.config.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "LiveCalc",
+      "properties": {
+        "livecalc.autoRunOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run valuation when files are saved"
+        },
+        "livecalc.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "default": "info",
+          "description": "Logging level for LiveCalc output channel"
+        },
+        "livecalc.maxWorkers": {
+          "type": "number",
+          "default": 0,
+          "description": "Maximum worker threads (0 = auto-detect)"
+        },
+        "livecalc.timeout": {
+          "type": "number",
+          "default": 300,
+          "description": "Execution timeout in seconds"
+        }
+      }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "livecalc.run",
+          "when": "editorLangId == mga",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "livecalc.run",
+          "when": "editorLangId == mga",
+          "group": "1_run"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "compile": "npm run esbuild",
+    "watch": "npm run esbuild-watch",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "2.15.0",
+    "esbuild": "^0.19.8",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "fast-csv": "^4.3.6"
+  },
+  "overrides": {
+    "undici": "5.28.4"
+  }
+}

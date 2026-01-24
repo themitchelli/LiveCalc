@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://livecalc.dev/schemas/livecalc.config.schema.json",
+  "title": "LiveCalc Configuration",
+  "description": "Configuration file for LiveCalc actuarial projection engine",
+  "type": "object",
+  "required": ["model", "assumptions", "scenarios"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema reference"
+    },
+    "model": {
+      "type": "string",
+      "description": "Path to the MGA model file",
+      "pattern": ".*\\.mga$"
+    },
+    "assumptions": {
+      "type": "object",
+      "description": "Assumption data sources",
+      "required": ["mortality", "lapse", "expenses"],
+      "properties": {
+        "mortality": {
+          "type": "string",
+          "description": "Mortality table source (assumptions:// or local://)"
+        },
+        "lapse": {
+          "type": "string",
+          "description": "Lapse rate source (assumptions:// or local://)"
+        },
+        "expenses": {
+          "type": "string",
+          "description": "Expense assumptions source (assumptions:// or local://)"
+        }
+      }
+    },
+    "scenarios": {
+      "type": "object",
+      "description": "Economic scenario configuration",
+      "required": ["count", "seed", "interestRate"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "description": "Number of scenarios to generate",
+          "minimum": 1,
+          "maximum": 100000,
+          "default": 1000
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Random seed for reproducibility"
+        },
+        "interestRate": {
+          "type": "object",
+          "description": "Interest rate scenario parameters",
+          "required": ["initial"],
+          "properties": {
+            "initial": {
+              "type": "number",
+              "description": "Initial interest rate",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "drift": {
+              "type": "number",
+              "description": "Annual drift (mu parameter)",
+              "default": 0.001
+            },
+            "volatility": {
+              "type": "number",
+              "description": "Annual volatility (sigma parameter)",
+              "minimum": 0,
+              "default": 0.02
+            },
+            "minRate": {
+              "type": "number",
+              "description": "Minimum interest rate floor",
+              "minimum": 0,
+              "default": 0.001
+            },
+            "maxRate": {
+              "type": "number",
+              "description": "Maximum interest rate cap",
+              "maximum": 1,
+              "default": 0.20
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "description": "Execution settings",
+      "properties": {
+        "autoRunOnSave": {
+          "type": "boolean",
+          "description": "Automatically run valuation when files are saved",
+          "default": true
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Execution timeout in seconds",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 300
+        },
+        "maxPolicies": {
+          "type": "integer",
+          "description": "Maximum number of policies to process",
+          "minimum": 1,
+          "default": 100000
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "description": "Output preferences",
+      "properties": {
+        "percentiles": {
+          "type": "array",
+          "description": "Percentiles to calculate and display",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "default": [50, 75, 90, 95, 99]
+        },
+        "showDistribution": {
+          "type": "boolean",
+          "description": "Show full scenario distribution in results",
+          "default": true
+        },
+        "showCashflows": {
+          "type": "boolean",
+          "description": "Show detailed cash flows (increases memory usage)",
+          "default": false
+        }
+      }
+    }
+  }
+}

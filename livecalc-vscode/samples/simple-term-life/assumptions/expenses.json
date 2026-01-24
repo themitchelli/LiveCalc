@@ -1,0 +1,6 @@
+{
+  "perPolicyAcquisition": 200,
+  "perPolicyMaintenance": 50,
+  "percentOfPremium": 0.02,
+  "perClaim": 100
+}
