@@ -5,7 +5,7 @@
 PACKAGE_JSON="/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-vscode/package.json"
 
 # Extract name and publisher from package.json
-NAME=$(grep -o '"name":\s*"[^"]*"' "$PACKAGE_JSON" | cut -d'"' -f4)
+NAME=$(grep -o '"name":\s*"[^"]*"' "$PACKAGE_JSON" | head -1 | cut -d'"' -f4)
 PUBLISHER=$(grep -o '"publisher":\s*"[^"]*"' "$PACKAGE_JSON" | cut -d'"' -f4)
 
 EXPECTED_ID="livecalc.livecalc-vscode"

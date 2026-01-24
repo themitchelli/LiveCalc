@@ -1,0 +1,17 @@
+# FADE Test Run
+[RUN_TIMESTAMP] 2026-01-24 18:29:00
+[RUN_DIR] /Users/stevemitchell/Documents/GitHub/LiveCalc/fade/tests
+
+[FAILURE] PRD-LC-003/test_us001_02_extension_id.sh
+[EXIT_CODE] 1
+[TIMESTAMP] 2026-01-24 18:29:01
+[EXPECTED] livecalc.livecalc-vscode
+[ACTUAL] livecalc.livecalc-vscode
+[OUTPUT]
+  FAIL: Extension ID mismatch
+  Expected: livecalc.livecalc-vscode
+  Actual: livecalc.livecalc-vscode
+  LiveCalc Assumptions
+
+---
+
