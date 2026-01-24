@@ -15,6 +15,12 @@ let comparisonBaseline = null;
 let chart = null;
 let chartType = 'histogram'; // 'histogram' or 'density'
 
+// Display settings (configurable from extension)
+let displaySettings = {
+  currency: 'GBP',
+  decimalPlaces: 0,
+};
+
 // DOM elements (cached on init)
 const elements = {};
 
@@ -37,6 +43,9 @@ function init() {
   elements.chartCanvas = document.getElementById('distribution-chart');
   elements.toggleChartType = document.getElementById('toggle-chart-type');
   elements.footerSummary = document.getElementById('footer-summary');
+  elements.statPolicies = document.getElementById('stat-policies');
+  elements.statScenarios = document.getElementById('stat-scenarios');
+  elements.statExecTime = document.getElementById('stat-exectime');
   elements.comparisonActions = document.getElementById('comparison-actions');
   elements.clearComparisonBtn = document.getElementById('clear-comparison-btn');
   elements.assumptionsList = document.getElementById('assumptions-list');
@@ -145,6 +154,13 @@ function handleMessage(message) {
         saveState();
       }
       break;
+    case 'setSettings':
+      displaySettings = message.settings;
+      // Re-render statistics if we have results
+      if (currentState.type === 'results') {
+        updateStatistics(currentState.results.statistics);
+      }
+      break;
   }
 }
 
@@ -224,6 +240,9 @@ function showResults(results) {
 
   // Update statistics
   updateStatistics(results.statistics);
+
+  // Update run info (policies, scenarios, execution time)
+  updateRunInfo(results.metadata, results.executionTimeMs);
 
   // Update chart
   updateChart(results.distribution, results.statistics);
@@ -417,6 +436,21 @@ function updateAssumptions(assumptions) {
       }
     });
   });
+}
+
+/**
+ * Update run info display (policies, scenarios, execution time)
+ */
+function updateRunInfo(metadata, executionTimeMs) {
+  if (elements.statPolicies) {
+    elements.statPolicies.textContent = metadata.policyCount.toLocaleString();
+  }
+  if (elements.statScenarios) {
+    elements.statScenarios.textContent = metadata.scenarioCount.toLocaleString();
+  }
+  if (elements.statExecTime) {
+    elements.statExecTime.textContent = formatDuration(executionTimeMs);
+  }
 }
 
 /**
@@ -632,26 +666,46 @@ function findBinIndex(value, bins, binWidth) {
 }
 
 /**
+ * Get currency symbol for configured currency
+ */
+function getCurrencySymbol() {
+  switch (displaySettings.currency) {
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '\u20AC';
+    case 'GBP':
+    default:
+      return '\u00A3';
+  }
+}
+
+/**
  * Format currency value
  */
 function formatCurrency(value, abbreviate = true) {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
+  const decimals = displaySettings.decimalPlaces;
 
   let formatted;
   let suffix = '';
 
   if (abbreviate && absValue >= 1000000000) {
+    // For billions, use 2 decimals for precision
     formatted = (absValue / 1000000000).toFixed(2);
     suffix = 'B';
   } else if (abbreviate && absValue >= 1000000) {
+    // For millions, use 2 decimals for precision
     formatted = (absValue / 1000000).toFixed(2);
     suffix = 'M';
   } else if (abbreviate && absValue >= 1000) {
+    // For thousands, use 1 decimal
     formatted = (absValue / 1000).toFixed(1);
     suffix = 'K';
   } else {
-    formatted = absValue.toFixed(0);
+    // For small numbers, use configured decimal places
+    formatted = absValue.toFixed(decimals);
   }
 
   // Add thousands separator
@@ -659,7 +713,8 @@ function formatCurrency(value, abbreviate = true) {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   formatted = parts.join('.');
 
-  return `${sign}\u00A3${formatted}${suffix}`;
+  const currencySymbol = getCurrencySymbol();
+  return `${sign}${currencySymbol}${formatted}${suffix}`;
 }
 
 /**

@@ -4,6 +4,14 @@ import { ResultsState, PanelState } from './results-state';
 import { logger } from '../logging/logger';
 
 /**
+ * Display settings for the webview
+ */
+export interface DisplaySettings {
+  currency: 'GBP' | 'USD' | 'EUR';
+  decimalPlaces: number;
+}
+
+/**
  * Message types for communication between extension and webview
  */
 export type WebviewMessage =
@@ -12,7 +20,8 @@ export type WebviewMessage =
   | { type: 'setError'; error: string; details?: string }
   | { type: 'setResults'; results: ResultsState }
   | { type: 'clearComparison' }
-  | { type: 'pinComparison' };
+  | { type: 'pinComparison' }
+  | { type: 'setSettings'; settings: DisplaySettings };
 
 /**
  * Message types from webview to extension
@@ -110,6 +119,13 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public clearComparison(): void {
     this.postMessage({ type: 'clearComparison' });
+  }
+
+  /**
+   * Set display settings
+   */
+  public setSettings(settings: DisplaySettings): void {
+    this.postMessage({ type: 'setSettings', settings });
   }
 
   /**
@@ -358,6 +374,22 @@ export class ResultsPanel implements vscode.Disposable {
           <div class="stat-card">
             <div class="stat-label">Min / Max</div>
             <div class="stat-value" id="stat-minmax">-</div>
+          </div>
+        </div>
+
+        <!-- Run Info Row -->
+        <div class="run-info-grid">
+          <div class="run-info-item">
+            <span class="run-info-label">Policies</span>
+            <span class="run-info-value" id="stat-policies">-</span>
+          </div>
+          <div class="run-info-item">
+            <span class="run-info-label">Scenarios</span>
+            <span class="run-info-value" id="stat-scenarios">-</span>
+          </div>
+          <div class="run-info-item">
+            <span class="run-info-label">Execution Time</span>
+            <span class="run-info-value" id="stat-exectime">-</span>
           </div>
         </div>
       </section>

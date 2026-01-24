@@ -712,3 +712,37 @@ For blocked stories, use:
   - livecalc-vscode/esbuild.js (copy media files to dist/)
 - Tests: Extension compiles, type-checks, and packages successfully (268.57KB)
 
+## 2026-01-24 08:30 - US-002: Summary Statistics Display (PRD-LC-004) - COMPLETE
+
+- Enhanced statistics display with all required metrics and configurable formatting
+- Added prominently displayed run info section showing:
+  - Number of policies processed
+  - Number of scenarios processed
+  - Execution time (formatted as seconds/minutes)
+- Added configurable currency setting (livecalc.currency: GBP, USD, EUR)
+- Added configurable decimal places setting (livecalc.decimalPlaces: 0-4)
+- Updated formatCurrency() to use configurable currency symbol and decimal places
+- Added run-info-grid CSS styles for policies/scenarios/time row
+- Added setSettings message type for extension→webview settings communication
+- Settings sent to webview on each run to support live configuration changes
+- All acceptance criteria verified:
+  - Mean NPV displayed as primary metric (large, prominent) ✓
+  - Standard deviation displayed ✓
+  - Percentiles displayed: P50, P75, P90, P95, P99 ✓
+  - CTE 95 (Conditional Tail Expectation) displayed ✓
+  - Min and Max scenario values displayed ✓
+  - Number of policies processed displayed ✓
+  - Number of scenarios processed displayed ✓
+  - Execution time displayed (e.g., '2.3 seconds') ✓
+  - All values formatted appropriately (currency symbol, thousands separators) ✓
+  - Configurable decimal places (default: 0 for large numbers, 2 for percentages) ✓
+  - Negative values shown in red ✓
+  - Statistics update without full page refresh ✓
+- Files changed:
+  - livecalc-vscode/package.json (added livecalc.currency and livecalc.decimalPlaces settings)
+  - livecalc-vscode/src/ui/results-panel.ts (added DisplaySettings type, setSettings message, run-info-grid HTML)
+  - livecalc-vscode/src/commands/run.ts (send settings to webview before run)
+  - livecalc-vscode/media/results/styles.css (added run-info-grid styles)
+  - livecalc-vscode/media/results/main.js (added settings handling, updateRunInfo function, configurable currency)
+- Tests: Extension compiles, type-checks, and packages successfully (269.8KB)
+

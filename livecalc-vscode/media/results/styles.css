@@ -380,6 +380,33 @@ kbd {
   color: var(--vscode-descriptionForeground, #808080);
 }
 
+/* Run info row */
+.run-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+
+.run-info-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.run-info-label {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground, #808080);
+}
+
+.run-info-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
 /* Chart section */
 .chart-section {
   padding: 0 16px 16px;

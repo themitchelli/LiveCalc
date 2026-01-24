@@ -50,6 +50,14 @@ export async function runCommand(
 
   // Show results panel with loading state
   resultsPanel.show();
+
+  // Send display settings from VS Code configuration
+  const vsConfig = vscode.workspace.getConfiguration('livecalc');
+  resultsPanel.setSettings({
+    currency: vsConfig.get<'GBP' | 'USD' | 'EUR'>('currency', 'GBP'),
+    decimalPlaces: vsConfig.get<number>('decimalPlaces', 0),
+  });
+
   resultsPanel.setLoading('Initializing...');
 
   // Execute with progress

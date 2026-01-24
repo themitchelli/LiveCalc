@@ -88,7 +88,7 @@
         },
         "layout": "CSS Grid, 2-3 columns depending on width"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

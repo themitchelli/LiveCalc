@@ -126,6 +126,19 @@
           "type": "number",
           "default": 300,
           "description": "Execution timeout in seconds"
+        },
+        "livecalc.currency": {
+          "type": "string",
+          "enum": ["GBP", "USD", "EUR"],
+          "default": "GBP",
+          "description": "Currency for displaying monetary values"
+        },
+        "livecalc.decimalPlaces": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Decimal places for large monetary values (abbreviations use 1-2)"
         }
       }
     },
