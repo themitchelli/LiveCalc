@@ -228,7 +228,7 @@
         },
         "invalidation": "Compare hashes before run, reload only changed"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-009",

@@ -1569,3 +1569,53 @@ For blocked stories, use:
   - livecalc-vscode/src/extension.ts (wire up onPauseStateChanged event)
   - livecalc-vscode/package.json (new commands, keybinding, pauseTimeoutMinutes setting)
 - Tests: Extension compiles, type-checks, and packages successfully (312.89KB)
+
+## 2026-01-24 23:00 - US-008: Smart Re-Run Optimization (PRD-LC-005) - COMPLETE
+
+- Implemented smart re-run optimization to skip unnecessary work when only certain files change
+- Created CacheManager class (src/auto-run/cache-manager.ts):
+  - DataFileType enum: model, policies, mortality, lapse, expenses, config, unknown
+  - ReloadStrategy enum: NONE, POLICIES_ONLY, ASSUMPTIONS_ONLY, PARTIAL_ASSUMPTIONS, FULL
+  - getFileType(): Determines file type from path by matching against config references
+  - analyzeChanges(): Analyzes changed files and returns ChangeAnalysis with strategy and reason
+  - determineStrategy(): Returns optimal reload strategy based on what changed
+  - shouldReload(): Returns whether specific data type needs reloading
+  - recordCached(): Records that data was loaded and cached
+  - scenarioParametersChanged(): Checks if scenario config changed
+  - isCachingEnabled(): Checks livecalc.enableCaching setting
+  - logStats(): Logs cache statistics in debug mode
+- Updated data-loader.ts:
+  - Added loadDataSmart(): Smart reload function using CacheManager
+  - Added loadDataSelective(): Selective reload based on ChangeAnalysis
+  - Extended DataLoadOptions with smartReload and changedFiles
+  - Extended LoadResult with reloadAnalysis for debugging
+  - loadData() now checks enableCaching setting and delegates appropriately
+- Updated run.ts:
+  - Extended RunOptions with changedFilePaths for smart reload
+  - Passes smartReload: true and changedFiles to loadData for auto-runs
+  - Logs smart reload analysis when used
+- Updated auto-run-controller.ts:
+  - Extended runCommand callback to accept changedFilePaths
+  - executeAutoRun() passes full file paths to run command
+  - resume() also passes pending file paths for smart reload
+- Added livecalc.enableCaching setting to package.json (default: true)
+- Exported CacheManager and related types from auto-run/index.ts
+- Updated extension.ts to dispose CacheManager on deactivation
+- All acceptance criteria verified:
+  - If only scenario seed changes: regenerate scenarios, keep policies cached ✓
+  - If only assumption file changes: keep policies cached, reload assumptions ✓
+  - If only policy file changes: reload policies, keep assumptions cached ✓
+  - If model.mga changes: full reload (model structure may have changed) ✓
+  - If config changes: full reload (dependencies may have changed) ✓
+  - Cache invalidation logged in debug mode ✓
+  - Cache hit/miss statistics available in output channel ✓
+  - Setting: livecalc.enableCaching (default: true) ✓
+- Files changed:
+  - livecalc-vscode/src/auto-run/cache-manager.ts (new - CacheManager class)
+  - livecalc-vscode/src/auto-run/index.ts (added CacheManager exports)
+  - livecalc-vscode/src/data/data-loader.ts (smart reload logic)
+  - livecalc-vscode/src/commands/run.ts (smart reload integration)
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (pass changedFilePaths)
+  - livecalc-vscode/src/extension.ts (dispose CacheManager)
+  - livecalc-vscode/package.json (enableCaching setting)
+- Tests: Extension compiles and type-checks successfully

@@ -219,6 +219,11 @@
           "minimum": 1,
           "maximum": 240,
           "description": "Auto-resume auto-run after this many minutes when paused"
+        },
+        "livecalc.enableCaching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cache policy and assumption data between runs. When enabled, only changed files are reloaded."
         }
       }
     },

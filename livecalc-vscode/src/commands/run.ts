@@ -36,6 +36,11 @@ export interface RunOptions {
    * Files that triggered the auto-run (only when isAutoRun is true)
    */
   triggerInfo?: TriggerFiles;
+  /**
+   * Absolute file paths that changed (for smart reload optimization)
+   * Used by auto-run to only reload changed data
+   */
+  changedFilePaths?: string[];
 }
 
 /**
@@ -128,9 +133,21 @@ export async function runCommand(
         logger.startTimer('Data loading');
 
         // Load data files with validation
-        const data = await loadData(config, configDir, { reportValidation: true });
+        // Use smart reload if this is an auto-run with changed files
+        const data = await loadData(config, configDir, {
+          reportValidation: true,
+          smartReload: options.isAutoRun,
+          changedFiles: options.changedFilePaths,
+        });
 
         logger.endTimer('Data loading', 'info');
+
+        // Log smart reload analysis if used
+        if (data.reloadAnalysis) {
+          logger.info(
+            `Smart reload: ${data.reloadAnalysis.strategy} - ${data.reloadAnalysis.reason}`
+          );
+        }
 
         // Log cache statistics
         if (data.cacheStats.hits > 0 || data.cacheStats.misses > 0) {

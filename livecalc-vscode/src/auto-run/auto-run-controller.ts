@@ -50,6 +50,7 @@ export class AutoRunController implements vscode.Disposable {
     | ((options?: {
         isAutoRun?: boolean;
         triggerInfo?: { files: string[]; types: ('changed' | 'created' | 'deleted')[] };
+        changedFilePaths?: string[];
       }) => Promise<void>)
     | undefined;
   private lastTrigger: AutoRunTrigger | undefined;
@@ -155,6 +156,7 @@ export class AutoRunController implements vscode.Disposable {
     command: (options?: {
       isAutoRun?: boolean;
       triggerInfo?: { files: string[]; types: ('changed' | 'created' | 'deleted')[] };
+      changedFilePaths?: string[];
     }) => Promise<void>
   ): void {
     this.runCommand = command;
@@ -310,6 +312,7 @@ export class AutoRunController implements vscode.Disposable {
             files: this.lastTrigger.files,
             types: this.lastTrigger.types,
           },
+          changedFilePaths: pendingFiles, // Full absolute paths for smart reload
         });
       } catch (error) {
         logger.debug('Auto-run after resume completed with error (handled by run command)');
@@ -597,7 +600,8 @@ export class AutoRunController implements vscode.Disposable {
     this.updateStatusBar();
 
     try {
-      // Pass isAutoRun flag and trigger info to run command
+      // Pass isAutoRun flag, trigger info, and full file paths to run command
+      // The full file paths enable smart reload optimization
       await this.runCommand({
         isAutoRun: true,
         triggerInfo: this.lastTrigger
@@ -606,6 +610,7 @@ export class AutoRunController implements vscode.Disposable {
               types: this.lastTrigger.types,
             }
           : undefined,
+        changedFilePaths: files, // Full absolute paths for smart reload
       });
     } catch (error) {
       // Errors are handled by the run command itself

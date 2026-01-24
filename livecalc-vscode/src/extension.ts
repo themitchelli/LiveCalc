@@ -8,7 +8,7 @@ import { disposeDataCache } from './data/cache';
 import { disposeDataValidator } from './data/data-validator';
 import { ResultsPanel } from './ui/results-panel';
 import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
-import { AutoRunController } from './auto-run';
+import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
 
@@ -164,6 +164,7 @@ export function deactivate(): void {
   disposeDataValidator();
   disposeComparisonManager();
   disposeRunHistoryManager();
+  disposeCacheManager();
 
   // Cleanup is handled via context.subscriptions
   statusBar = undefined;

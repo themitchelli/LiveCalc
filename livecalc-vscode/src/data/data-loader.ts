@@ -5,6 +5,7 @@
  * Uses modular loaders with caching and validation.
  */
 
+import * as vscode from 'vscode';
 import * as path from 'path';
 import { logger } from '../logging/logger';
 import type { LiveCalcConfig } from '../types';
@@ -20,6 +21,12 @@ import {
 } from './assumption-loader';
 import { getDataCache } from './cache';
 import { getDataValidator, createValidationResult } from './data-validator';
+import {
+  getCacheManager,
+  ReloadStrategy,
+  ChangeAnalysis,
+  DataFileType,
+} from '../auto-run/cache-manager';
 
 /**
  * Assumption metadata for display
@@ -60,6 +67,8 @@ export interface LoadResult extends LoadedData {
     lapse: AssumptionMetadata;
     expenses: AssumptionMetadata;
   };
+  /** Smart reload analysis (if smartReload was used) */
+  reloadAnalysis?: ChangeAnalysis;
 }
 
 /**
@@ -86,6 +95,10 @@ export interface DataLoadOptions {
   maxPolicies?: number;
   /** Report validation to Problems panel */
   reportValidation?: boolean;
+  /** Changed files for smart reload optimization */
+  changedFiles?: string[];
+  /** Use smart reload optimization (respects livecalc.enableCaching setting) */
+  smartReload?: boolean;
 }
 
 /**
@@ -100,6 +113,399 @@ export async function loadData(
   config: LiveCalcConfig,
   configDir: string,
   options: DataLoadOptions = {}
+): Promise<LoadResult> {
+  // Check if smart reload is enabled and requested
+  const enableCaching = vscode.workspace.getConfiguration('livecalc').get('enableCaching', true);
+  const useSmartReload = options.smartReload && enableCaching && options.changedFiles;
+
+  if (useSmartReload && options.changedFiles && options.changedFiles.length > 0) {
+    return loadDataSmart(config, configDir, options.changedFiles, options);
+  }
+
+  // Use standard loading
+  return loadDataStandard(config, configDir, options);
+}
+
+/**
+ * Resolve a data path from config to an absolute file path
+ *
+ * Supports:
+ * - local://path/to/file.csv - Relative to config directory
+ * - Absolute paths
+ * - Relative paths (relative to config directory)
+ * - assumptions://name:version - Cloud assumption references (placeholder)
+ */
+export function resolveDataPath(
+  configPath: string | undefined,
+  configDir: string
+): string | null {
+  if (!configPath) {
+    return null;
+  }
+
+  // Handle local:// prefix
+  if (configPath.startsWith('local://')) {
+    const relativePath = configPath.slice('local://'.length);
+    return path.resolve(configDir, relativePath);
+  }
+
+  // Handle assumptions:// prefix (placeholder - not yet supported)
+  if (configPath.startsWith('assumptions://')) {
+    logger.warn(
+      `Cloud assumption references (${configPath}) are not yet supported. ` +
+        'Use local:// paths for now.'
+    );
+    return null;
+  }
+
+  // Handle absolute paths
+  if (path.isAbsolute(configPath)) {
+    return configPath;
+  }
+
+  // Treat as relative path
+  return path.resolve(configDir, configPath);
+}
+
+/**
+ * Wrap an error with DataLoadError for consistent error handling
+ */
+function wrapError(error: unknown, fileType: string, filePath: string): DataLoadError {
+  if (error instanceof DataLoadError) {
+    return error;
+  }
+
+  if (error instanceof CsvLoadError) {
+    return new DataLoadError(error.message, error.code, error.filePath ?? filePath);
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return new DataLoadError(
+    `Failed to load ${fileType} file: ${message}`,
+    'LOAD_ERROR',
+    filePath
+  );
+}
+
+/**
+ * Invalidate cache for a specific file
+ */
+export function invalidateCache(filePath: string): void {
+  const cache = getDataCache();
+  cache.invalidate(filePath);
+}
+
+/**
+ * Invalidate all cached data
+ */
+export function invalidateAllCache(): void {
+  const cache = getDataCache();
+  cache.invalidateAll();
+}
+
+/**
+ * Get current cache statistics
+ */
+export function getCacheStats(): { entries: number; watchedFiles: number } {
+  const cache = getDataCache();
+  return cache.getStats();
+}
+
+// ============================================================================
+// Smart Reload Optimization
+// ============================================================================
+
+/**
+ * Load data with smart reload optimization
+ *
+ * Analyzes which files changed and only reloads the necessary data,
+ * keeping unchanged data cached.
+ *
+ * @param config - LiveCalc configuration
+ * @param configDir - Directory containing the config file
+ * @param changedFiles - List of file paths that changed
+ * @param options - Loading options
+ * @returns Loaded data with reload analysis
+ */
+async function loadDataSmart(
+  config: LiveCalcConfig,
+  configDir: string,
+  changedFiles: string[],
+  options: DataLoadOptions
+): Promise<LoadResult> {
+  const cacheManager = getCacheManager();
+  cacheManager.updateConfig(config, configDir);
+
+  // Analyze what changed
+  const analysis = cacheManager.analyzeChanges(changedFiles);
+
+  logger.info(
+    `Smart reload: ${analysis.strategy} - ${analysis.reason} ` +
+      `(changed: ${analysis.changedFiles.join(', ') || 'none'})`
+  );
+
+  // If full reload is needed, use normal load
+  if (analysis.strategy === ReloadStrategy.FULL) {
+    logger.debug('Smart reload: Full reload required, using standard load');
+    const result = await loadDataWithAnalysis(config, configDir, options, true);
+    result.reloadAnalysis = analysis;
+    return result;
+  }
+
+  // If nothing changed, try to use fully cached data
+  if (analysis.strategy === ReloadStrategy.NONE) {
+    logger.debug('Smart reload: No relevant changes, using cached data');
+  }
+
+  // Selective reload based on analysis
+  const result = await loadDataSelective(config, configDir, options, analysis);
+  result.reloadAnalysis = analysis;
+  return result;
+}
+
+/**
+ * Load data selectively based on change analysis
+ */
+async function loadDataSelective(
+  config: LiveCalcConfig,
+  configDir: string,
+  options: DataLoadOptions,
+  analysis: ChangeAnalysis
+): Promise<LoadResult> {
+  const cache = getDataCache();
+  const cacheManager = getCacheManager();
+  const validator = options.reportValidation !== false ? getDataValidator() : undefined;
+  const allErrors: CsvValidationError[] = [];
+  const allWarnings: CsvValidationError[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
+
+  // Clear previous validation diagnostics
+  validator?.clearAll();
+
+  // Determine what to reload based on strategy
+  const reloadPolicies = cacheManager.shouldReload('policies', analysis.strategy, analysis.changedTypes);
+  const reloadMortality = cacheManager.shouldReload('mortality', analysis.strategy, analysis.changedTypes);
+  const reloadLapse = cacheManager.shouldReload('lapse', analysis.strategy, analysis.changedTypes);
+  const reloadExpenses = cacheManager.shouldReload('expenses', analysis.strategy, analysis.changedTypes);
+
+  logger.debug(
+    `Smart reload decisions: policies=${reloadPolicies}, ` +
+      `mortality=${reloadMortality}, lapse=${reloadLapse}, expenses=${reloadExpenses}`
+  );
+
+  // Load policies
+  const policiesPath = resolveDataPath(config.policies, configDir);
+  if (!policiesPath) {
+    throw new DataLoadError('No policies file specified in config', 'NO_POLICIES_PATH');
+  }
+
+  let policiesResult: PolicyLoadResult;
+  const cachedPolicies = !reloadPolicies ? cache.get<PolicyLoadResult>(policiesPath) : undefined;
+
+  if (cachedPolicies) {
+    logger.debug(`Smart reload: Using cached policies`);
+    policiesResult = cachedPolicies;
+    cacheHits++;
+    cacheManager.recordHit();
+  } else {
+    try {
+      logger.debug(`Smart reload: Reloading policies`);
+      policiesResult = await loadPolicies(policiesPath, {
+        maxPolicies: options.maxPolicies ?? config.execution?.maxPolicies,
+      });
+      cache.set(policiesPath, policiesResult, policiesResult.csvContent);
+      cacheManager.recordCached('policies', policiesPath, policiesResult.csvContent);
+      cacheMisses++;
+      cacheManager.recordMiss();
+    } catch (error) {
+      throw wrapError(error, 'policies', policiesPath);
+    }
+  }
+
+  allErrors.push(...policiesResult.errors);
+  allWarnings.push(...policiesResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(policiesPath, 'policies', policiesResult.errors, policiesResult.warnings)
+    );
+  }
+
+  // Load mortality table
+  const mortalityPath = resolveDataPath(config.assumptions.mortality, configDir);
+  if (!mortalityPath) {
+    throw new DataLoadError('No mortality file specified in config', 'NO_MORTALITY_PATH');
+  }
+
+  let mortalityResult: MortalityLoadResult;
+  const cachedMortality = !reloadMortality ? cache.get<MortalityLoadResult>(mortalityPath) : undefined;
+
+  if (cachedMortality) {
+    logger.debug(`Smart reload: Using cached mortality`);
+    mortalityResult = cachedMortality;
+    cacheHits++;
+    cacheManager.recordHit();
+  } else {
+    try {
+      logger.debug(`Smart reload: Reloading mortality`);
+      mortalityResult = await loadMortality(mortalityPath);
+      cache.set(mortalityPath, mortalityResult, mortalityResult.csvContent);
+      cacheManager.recordCached('mortality', mortalityPath, mortalityResult.csvContent);
+      cacheMisses++;
+      cacheManager.recordMiss();
+    } catch (error) {
+      throw wrapError(error, 'mortality', mortalityPath);
+    }
+  }
+
+  allErrors.push(...mortalityResult.errors);
+  allWarnings.push(...mortalityResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(mortalityPath, 'mortality', mortalityResult.errors, mortalityResult.warnings)
+    );
+  }
+
+  // Load lapse table
+  const lapsePath = resolveDataPath(config.assumptions.lapse, configDir);
+  if (!lapsePath) {
+    throw new DataLoadError('No lapse file specified in config', 'NO_LAPSE_PATH');
+  }
+
+  let lapseResult: LapseLoadResult;
+  const cachedLapse = !reloadLapse ? cache.get<LapseLoadResult>(lapsePath) : undefined;
+
+  if (cachedLapse) {
+    logger.debug(`Smart reload: Using cached lapse`);
+    lapseResult = cachedLapse;
+    cacheHits++;
+    cacheManager.recordHit();
+  } else {
+    try {
+      logger.debug(`Smart reload: Reloading lapse`);
+      lapseResult = await loadLapse(lapsePath);
+      cache.set(lapsePath, lapseResult, lapseResult.csvContent);
+      cacheManager.recordCached('lapse', lapsePath, lapseResult.csvContent);
+      cacheMisses++;
+      cacheManager.recordMiss();
+    } catch (error) {
+      throw wrapError(error, 'lapse', lapsePath);
+    }
+  }
+
+  allErrors.push(...lapseResult.errors);
+  allWarnings.push(...lapseResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(lapsePath, 'lapse', lapseResult.errors, lapseResult.warnings)
+    );
+  }
+
+  // Load expenses
+  const expensesPath = resolveDataPath(config.assumptions.expenses, configDir);
+  if (!expensesPath) {
+    throw new DataLoadError('No expenses file specified in config', 'NO_EXPENSES_PATH');
+  }
+
+  let expensesResult: ExpensesLoadResult;
+  const cachedExpenses = !reloadExpenses ? cache.get<ExpensesLoadResult>(expensesPath) : undefined;
+
+  if (cachedExpenses) {
+    logger.debug(`Smart reload: Using cached expenses`);
+    expensesResult = cachedExpenses;
+    cacheHits++;
+    cacheManager.recordHit();
+  } else {
+    try {
+      logger.debug(`Smart reload: Reloading expenses`);
+      expensesResult = await loadExpenses(expensesPath);
+      cache.set(expensesPath, expensesResult, expensesResult.csvContent);
+      cacheManager.recordCached('expenses', expensesPath, expensesResult.csvContent);
+      cacheMisses++;
+      cacheManager.recordMiss();
+    } catch (error) {
+      throw wrapError(error, 'expenses', expensesPath);
+    }
+  }
+
+  allErrors.push(...expensesResult.errors);
+  allWarnings.push(...expensesResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(expensesPath, 'expenses', expensesResult.errors, expensesResult.warnings)
+    );
+  }
+
+  // Log summary with smart reload stats
+  const valid = allErrors.length === 0;
+  logger.info(
+    `Smart reload complete: ${policiesResult.count} policies, ` +
+      `${allErrors.length} errors, ${allWarnings.length} warnings, ` +
+      `cache hits: ${cacheHits}, misses: ${cacheMisses}`
+  );
+
+  // Log cache manager stats in debug mode
+  cacheManager.logStats();
+
+  if (!valid) {
+    logger.warn(`Data validation failed with ${allErrors.length} errors`);
+  }
+
+  return {
+    policiesCsv: policiesResult.csvContent,
+    mortalityCsv: mortalityResult.csvContent,
+    lapseCsv: lapseResult.csvContent,
+    expensesCsv: expensesResult.csvContent,
+    policyCount: policiesResult.count,
+    errors: allErrors,
+    warnings: allWarnings,
+    valid,
+    cacheStats: { hits: cacheHits, misses: cacheMisses },
+    assumptionMeta: {
+      mortality: {
+        filePath: mortalityResult.filePath,
+        contentHash: mortalityResult.contentHash,
+        modTime: mortalityResult.modTime,
+      },
+      lapse: {
+        filePath: lapseResult.filePath,
+        contentHash: lapseResult.contentHash,
+        modTime: lapseResult.modTime,
+      },
+      expenses: {
+        filePath: expensesResult.filePath,
+        contentHash: expensesResult.contentHash,
+        modTime: expensesResult.modTime,
+      },
+    },
+  };
+}
+
+/**
+ * Standard load with optional analysis attached
+ */
+async function loadDataWithAnalysis(
+  config: LiveCalcConfig,
+  configDir: string,
+  options: DataLoadOptions,
+  forceReload: boolean
+): Promise<LoadResult> {
+  // Call the standard load path but with forceReload
+  const result = await loadDataStandard(config, configDir, { ...options, forceReload });
+  return result;
+}
+
+/**
+ * Standard data loading (original implementation)
+ */
+async function loadDataStandard(
+  config: LiveCalcConfig,
+  configDir: string,
+  options: DataLoadOptions
 ): Promise<LoadResult> {
   logger.info(`Loading data from config directory: ${configDir}`);
 
@@ -306,91 +712,6 @@ export async function loadData(
       },
     },
   };
-}
-
-/**
- * Resolve a data path from config to an absolute file path
- *
- * Supports:
- * - local://path/to/file.csv - Relative to config directory
- * - Absolute paths
- * - Relative paths (relative to config directory)
- * - assumptions://name:version - Cloud assumption references (placeholder)
- */
-export function resolveDataPath(
-  configPath: string | undefined,
-  configDir: string
-): string | null {
-  if (!configPath) {
-    return null;
-  }
-
-  // Handle local:// prefix
-  if (configPath.startsWith('local://')) {
-    const relativePath = configPath.slice('local://'.length);
-    return path.resolve(configDir, relativePath);
-  }
-
-  // Handle assumptions:// prefix (placeholder - not yet supported)
-  if (configPath.startsWith('assumptions://')) {
-    logger.warn(
-      `Cloud assumption references (${configPath}) are not yet supported. ` +
-        'Use local:// paths for now.'
-    );
-    return null;
-  }
-
-  // Handle absolute paths
-  if (path.isAbsolute(configPath)) {
-    return configPath;
-  }
-
-  // Treat as relative path
-  return path.resolve(configDir, configPath);
-}
-
-/**
- * Wrap an error with DataLoadError for consistent error handling
- */
-function wrapError(error: unknown, fileType: string, filePath: string): DataLoadError {
-  if (error instanceof DataLoadError) {
-    return error;
-  }
-
-  if (error instanceof CsvLoadError) {
-    return new DataLoadError(error.message, error.code, error.filePath ?? filePath);
-  }
-
-  const message = error instanceof Error ? error.message : String(error);
-  return new DataLoadError(
-    `Failed to load ${fileType} file: ${message}`,
-    'LOAD_ERROR',
-    filePath
-  );
-}
-
-/**
- * Invalidate cache for a specific file
- */
-export function invalidateCache(filePath: string): void {
-  const cache = getDataCache();
-  cache.invalidate(filePath);
-}
-
-/**
- * Invalidate all cached data
- */
-export function invalidateAllCache(): void {
-  const cache = getDataCache();
-  cache.invalidateAll();
-}
-
-/**
- * Get current cache statistics
- */
-export function getCacheStats(): { entries: number; watchedFiles: number } {
-  const cache = getDataCache();
-  return cache.getStats();
 }
 
 // ============================================================================
