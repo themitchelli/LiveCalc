@@ -210,7 +210,7 @@
           "scenarios": "Array of NPV values"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

@@ -894,3 +894,50 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (comparison badge styles)
 - Tests: Extension compiles, type-checks, and packages successfully (277.98KB)
 
+## 2026-01-24 13:00 - US-007: Export Results (PRD-LC-004) - COMPLETE
+
+- Implemented comprehensive export functionality for valuation results
+- Created ResultsExporter class (src/ui/export.ts):
+  - export() main entry point for all export formats
+  - exportToCsv() exports statistics and scenario NPVs to CSV file
+  - exportToJson() exports full results object with metadata to JSON file
+  - exportToClipboard() copies summary statistics as formatted text
+  - buildCsvContent() generates CSV with statistics, assumptions, and scenarios
+  - buildJsonContent() generates structured JSON with metadata
+  - buildClipboardText() generates human-readable text summary
+  - Progress handling for large exports (>100K scenarios)
+  - Cancellation support for CSV exports
+  - Sensible default filenames (livecalc-results-YYYY-MM-DD.csv/json)
+- Updated run.ts to handle export messages:
+  - Added ResultsExporter import
+  - Added 'export' case to message handler
+  - Shows success/error notifications after export
+- CSV export format:
+  - Header comments with run metadata
+  - Statistics section (mean, std_dev, percentiles, etc.)
+  - Assumptions section (name, type, source, multiplier, hash)
+  - Scenario NPVs section (one row per scenario)
+- JSON export format:
+  - metadata object (runId, timestamp, model, policies, scenarios, etc.)
+  - statistics object (mean, stdDev, cte95, percentiles, min, max)
+  - assumptions array (name, type, source, version, multiplier, hash)
+  - scenarios array (optional, includes all NPVs)
+  - warnings array (if any)
+- Clipboard export format:
+  - Human-readable text summary with aligned columns
+  - Run metadata, statistics, percentiles, and assumptions
+- All acceptance criteria verified:
+  - Export button in results panel toolbar ✓
+  - Export dropdown with format options ✓
+  - Export to CSV: statistics + all scenario NPVs ✓
+  - Export to JSON: full results object with metadata ✓
+  - Export to clipboard: summary statistics as text ✓
+  - Export includes run metadata (timestamp, config, assumptions) ✓
+  - File save dialog with sensible default name ✓
+  - Success toast notification on export ✓
+  - Large exports (>100K scenarios) show progress ✓
+- Files changed:
+  - livecalc-vscode/src/ui/export.ts (new - ResultsExporter class)
+  - livecalc-vscode/src/commands/run.ts (added export message handler)
+- Tests: Extension compiles, type-checks, and packages successfully (279.82KB)
+

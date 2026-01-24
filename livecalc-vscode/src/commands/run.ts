@@ -7,6 +7,7 @@ import { ConfigLoader } from '../config/config-loader';
 import { ResultsPanel, ExtensionMessage } from '../ui/results-panel';
 import { createResultsState } from '../ui/results-state';
 import { ComparisonManager } from '../ui/comparison';
+import { ResultsExporter, ExportFormat } from '../ui/export';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
 
@@ -243,8 +244,8 @@ export function registerRunCommand(
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager
 ): vscode.Disposable {
-  // Set up message handler for comparison actions from webview
-  resultsPanel.onMessage((message: ExtensionMessage) => {
+  // Set up message handler for comparison and export actions from webview
+  resultsPanel.onMessage(async (message: ExtensionMessage) => {
     switch (message.type) {
       case 'pinComparison':
         // Pin current results as baseline
@@ -272,6 +273,21 @@ export function registerRunCommand(
         const compInfo = comparisonManager.getComparisonInfo();
         if (compInfo) {
           resultsPanel.setComparisonBaseline(compInfo.baselineDistribution);
+        }
+        break;
+      case 'export':
+        // Handle export request
+        const exportState = resultsPanel.getState();
+        if (exportState.type === 'results') {
+          const format = message.format as ExportFormat;
+          const result = await ResultsExporter.export(exportState.results, format);
+          if (result.success) {
+            vscode.window.showInformationMessage(result.message);
+          } else if (result.message !== 'Export cancelled') {
+            vscode.window.showErrorMessage(result.message);
+          }
+        } else {
+          vscode.window.showWarningMessage('No results to export. Run a valuation first.');
         }
         break;
     }
