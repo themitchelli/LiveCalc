@@ -87,7 +87,7 @@
         "events": "onDidChange, onDidCreate, onDidDelete",
         "glob": "Use RelativePattern for workspace-scoped watching"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

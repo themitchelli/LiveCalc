@@ -1,6 +1,28 @@
 import * as vscode from 'vscode';
 
 /**
+ * Show a notification message
+ * Utility function for simple notifications
+ */
+export function showNotification(
+  type: 'info' | 'warning' | 'error',
+  message: string
+): void {
+  const fullMessage = `LiveCalc: ${message}`;
+  switch (type) {
+    case 'info':
+      vscode.window.showInformationMessage(fullMessage);
+      break;
+    case 'warning':
+      vscode.window.showWarningMessage(fullMessage);
+      break;
+    case 'error':
+      vscode.window.showErrorMessage(fullMessage);
+      break;
+  }
+}
+
+/**
  * Notification helpers for LiveCalc
  */
 export class Notifications {

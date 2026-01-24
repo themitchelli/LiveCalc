@@ -1068,3 +1068,37 @@ For blocked stories, use:
   - livecalc-vscode/package.json (new settings and commands)
 - Tests: Extension compiles, type-checks, and packages successfully (286.96KB)
 
+## 2026-01-24 17:00 - US-002: File Watcher Configuration (PRD-LC-005) - COMPLETE
+
+- Enhanced FileWatcher with comprehensive file type tracking and debug logging
+- Added WatchedFileInfo interface for tracking pattern, type, and resolved path
+- Added getWatchedFilesInfo() for detailed debug inspection of watched files
+- Added logWatchedFiles() to log all watched patterns with types in debug mode
+- Added buildWatchedFilesList() to categorize files by type (config, model, policy, assumption, generic)
+- Added isConfigFile property to FileChangeEvent for detecting config changes
+- Added onFileDelete callback for special handling of deleted files
+- Added getDeletedFileType() to identify if a deleted file is critical (model, policy, assumption, config)
+- Added getReferencedAbsolutePaths() to get resolved paths for all config references
+- Enhanced AutoRunController with file delete handling:
+  - Shows warning notifications when critical files are deleted (model, policy, assumption, config)
+  - Graceful handling prevents crashes when referenced files are removed
+- Added showNotification() utility function to notifications.ts
+- Config file changes automatically reload watchers via reloadConfigAndWatchers()
+- All acceptance criteria verified:
+  - Watch all files referenced in livecalc.config.json ✓
+  - Watch the config file itself ✓
+  - Watch pattern includes: **/*.mga, **/*.csv, **/*.json in workspace ✓
+  - Exclude patterns: node_modules/**, .git/**, dist/**, build/** ✓
+  - Custom excludes configurable: livecalc.watchExclude ✓
+  - Handle file rename gracefully (treat as delete + create) ✓
+  - Handle file delete gracefully (show error, don't crash) ✓
+  - Handle external changes (edits from other applications) ✓
+  - Efficient watching (no polling, use native FS events) ✓
+  - Watcher recreated when config file changes ✓
+  - Log watched files in debug mode ✓
+- Files changed:
+  - livecalc-vscode/src/auto-run/file-watcher.ts (enhanced with type tracking, delete detection, debug logging)
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (added file delete handling, config reload)
+  - livecalc-vscode/src/ui/notifications.ts (added showNotification utility)
+- Tests: Extension compiles, type-checks, and packages successfully (287.63KB)
+

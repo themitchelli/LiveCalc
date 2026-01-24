@@ -6,6 +6,7 @@ import { Debouncer } from './debouncer';
 import { ConfigLoader } from '../config/config-loader';
 import { StatusBar } from '../ui/status-bar';
 import { LiveCalcConfig } from '../types';
+import { showNotification } from '../ui/notifications';
 
 /**
  * State keys for workspace state persistence
@@ -58,6 +59,7 @@ export class AutoRunController implements vscode.Disposable {
     // Create file watcher
     this.fileWatcher = new FileWatcher();
     this.fileWatcher.onFileChange((event) => this.handleFileChange(event));
+    this.fileWatcher.onFileDelete((event) => this.handleFileDelete(event));
 
     // Create debouncer with configured delay
     const debounceMs = this.getDebounceDelay();
@@ -203,6 +205,12 @@ export class AutoRunController implements vscode.Disposable {
       return;
     }
 
+    // If config file changed, reload config and recreate watchers
+    if (event.isConfigFile && event.type === 'changed') {
+      logger.info('Config file changed, reloading watchers');
+      this.reloadConfigAndWatchers();
+    }
+
     // Store the change info
     this.pendingChanges.set(event.uri.fsPath, event);
 
@@ -211,6 +219,62 @@ export class AutoRunController implements vscode.Disposable {
 
     // Update status bar to show pending changes
     this.updateStatusBar();
+  }
+
+  /**
+   * Handle a file delete event
+   */
+  private handleFileDelete(event: FileChangeEvent): void {
+    const fileType = this.fileWatcher.getDeletedFileType(event.uri);
+
+    if (!fileType) {
+      // Not a critical file, normal handling continues
+      return;
+    }
+
+    // Log the deletion
+    logger.warn(`Critical file deleted: ${event.fileName} (${fileType})`);
+
+    // Show appropriate warning to user
+    if (fileType === 'config') {
+      showNotification(
+        'warning',
+        `Config file deleted: ${event.fileName}. LiveCalc may not function correctly until it is restored.`
+      );
+    } else if (fileType === 'model') {
+      showNotification(
+        'warning',
+        `Model file deleted: ${event.fileName}. The next run will fail until it is restored.`
+      );
+    } else if (fileType === 'policy') {
+      showNotification(
+        'warning',
+        `Policy file deleted: ${event.fileName}. The next run will fail until it is restored.`
+      );
+    } else if (fileType === 'assumption') {
+      showNotification(
+        'warning',
+        `Assumption file deleted: ${event.fileName}. The next run will fail until it is restored.`
+      );
+    }
+  }
+
+  /**
+   * Reload config and recreate file watchers
+   */
+  private async reloadConfigAndWatchers(): Promise<void> {
+    try {
+      const result = await this.configLoader.loadConfig();
+      if (result) {
+        const configDir = this.configLoader.getConfigDirectory();
+        if (configDir) {
+          this.fileWatcher.updateConfig(result.config, configDir);
+          logger.info('Watchers recreated after config change');
+        }
+      }
+    } catch (error) {
+      logger.error(`Failed to reload config after change: ${error}`);
+    }
   }
 
   /**
