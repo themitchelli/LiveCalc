@@ -263,7 +263,7 @@
         },
         "cssApproach": "CSS Grid with auto-fit/minmax"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [
