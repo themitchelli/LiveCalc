@@ -163,6 +163,36 @@ export type {
   UnifiedWorkerPool,
 } from './fallback.js';
 
+// Work-stealing scheduler
+export {
+  WorkStealingDeque,
+  WorkStealingDequePool,
+  DequeResult,
+  attachToDequePool,
+} from './work-stealing-deque.js';
+
+export {
+  WorkStealingPool,
+  NodeWorkStealingPool,
+  createWorkStealingPool,
+} from './work-stealing-pool.js';
+export type {
+  WorkStealingPoolConfig,
+  WorkStealingWorkerMessage,
+  WorkStealingWorkerResponse,
+} from './work-stealing-pool.js';
+
+// Adaptive pool with work-stealing fallback
+export {
+  createAdaptivePool,
+  wouldUseWorkStealing,
+  getAvailableModes,
+} from './work-stealing-fallback.js';
+export type {
+  AdaptivePoolConfig,
+  AdaptiveWorkerPool,
+} from './work-stealing-fallback.js';
+
 // Types
 export type {
   // Core data types

@@ -130,7 +130,7 @@
         "taskGranularity": "Experiment with scenario chunks vs individual scenarios",
         "terminationDetection": "Global flag with Atomics.wait/notify"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-S04",
