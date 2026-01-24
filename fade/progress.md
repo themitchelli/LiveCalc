@@ -2134,3 +2134,37 @@ For blocked stories, use:
   - livecalc-vscode/src/config/config-validator.ts (integrated pipeline validation)
   - livecalc-vscode/samples/pipeline-example/livecalc.config.json (new - example)
 - Tests: Extension compiles, type-checks, and packages successfully (340.04KB)
+
+## 2026-01-24 18:36 - US-002: SAB Memory Offset Manager (PRD-LC-010) - COMPLETE
+
+- Implemented MemoryOffsetManager class for dynamic SharedArrayBuffer allocation
+- Memory layout with header (64 bytes), status region (64 bytes), bus resources, and optional checksum region
+- All allocations 16-byte aligned for SIMD compatibility using alignUp() function
+- MemoryOffsetMap JSON sent to workers at init with:
+  - totalSize, version, header info, status region with nodeOffsets
+  - blocks array with name, offset, sizeBytes, dataType, elementCount, checksumOffset
+  - blocksByName Map for quick O(1) lookup
+- Memory zeroed between runs when zeroMemoryBetweenRuns config enabled (default: true)
+- Platform memory limit detection:
+  - Browser: 2GB practical limit for SharedArrayBuffer
+  - Node.js: 75% of available memory, capped at 8GB
+  - Custom limit configurable via memoryLimit option
+- Clear MemoryAllocationError with requestedBytes, limitBytes, and details when exceeds limit
+- Debug logging via setLogger() method shows complete memory layout
+- parseBusResourceSize() utility for parsing size specs (bytes, KB/MB/GB suffixes, element:type format)
+- Checksum region added when enableIntegrityChecks=true (CRC32 4 bytes per block)
+- All acceptance criteria verified:
+  - Orchestrator parses pipeline and sums all 'bus://' resource requirements ✓
+  - Dynamic allocation of a single large SharedArrayBuffer ✓
+  - All allocations 16-byte aligned for SIMD compatibility ✓
+  - Generates 'MemoryOffsetMap' (JSON) sent to each worker at init ✓
+  - Workers map local pointers to global SAB offsets based on the map ✓
+  - Memory zeroed between runs for security (configurable for performance) ✓
+  - Clear error if total memory exceeds platform limits ✓
+  - Memory layout logged in debug mode for troubleshooting ✓
+- Files changed:
+  - livecalc-engine/js/src/orchestrator/memory-manager.ts (new - MemoryOffsetManager class)
+  - livecalc-engine/js/src/orchestrator/index.ts (new - module exports)
+  - livecalc-engine/js/src/index.ts (added orchestrator exports)
+  - livecalc-engine/js/tests/memory-manager.test.ts (new - 41 tests)
+- Tests: 221 total tests pass (180 existing + 41 new)

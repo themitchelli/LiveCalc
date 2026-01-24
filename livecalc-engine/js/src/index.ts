@@ -245,3 +245,18 @@ export {
   MEMORY_CONFIG_SMALL,
   MEMORY_CONFIG_LARGE,
 } from './types.js';
+
+// Pipeline Orchestrator
+export {
+  MemoryOffsetManager,
+  MemoryAllocationError,
+  parseBusResourceSize,
+} from './orchestrator/index.js';
+export type {
+  MemoryBlock,
+  MemoryOffsetMap,
+  MemoryOffsetMapJSON,
+  MemoryManagerConfig,
+  BusResourceRequirement,
+  TypedArrayType,
+} from './orchestrator/index.js';
