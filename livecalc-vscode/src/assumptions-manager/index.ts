@@ -16,3 +16,11 @@ export {
 export { AssumptionCompletionProvider } from './completion-provider';
 export { AssumptionDefinitionProvider, AssumptionDocumentLinkProvider } from './definition-provider';
 export { AssumptionDiagnosticProvider } from './diagnostic-provider';
+export {
+  AssumptionResolver,
+  ResolutionError,
+  disposeResolver,
+  type AssumptionReference,
+  type ResolutionResult,
+  type FullResolutionResult,
+} from './resolver';

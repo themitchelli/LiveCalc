@@ -16,6 +16,7 @@ import {
   AMStatusBar,
   disposeAuthManager,
   disposeAMClient,
+  disposeResolver,
   AssumptionHoverProvider,
   AssumptionCompletionProvider,
   AssumptionDefinitionProvider,
@@ -237,6 +238,7 @@ export function deactivate(): void {
   disposeComparisonManager();
   disposeRunHistoryManager();
   disposeCacheManager();
+  disposeResolver();
   disposeAMClient();
   disposeAuthManager();
 

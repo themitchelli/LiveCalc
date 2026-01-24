@@ -165,7 +165,7 @@
           "engineFormat": "Float64Array or number[][]"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

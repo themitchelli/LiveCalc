@@ -74,12 +74,26 @@ export class AuthManager implements vscode.Disposable {
 
   /**
    * Get singleton instance
+   *
+   * @param context - Extension context (required for first initialization)
+   * @returns AuthManager instance, or undefined if not yet initialized and no context provided
    */
-  public static getInstance(context: vscode.ExtensionContext): AuthManager {
+  public static getInstance(context?: vscode.ExtensionContext): AuthManager {
     if (!AuthManager.instance) {
+      if (!context) {
+        // Cannot create instance without context
+        throw new Error('AuthManager not initialized. Call getInstance with context first.');
+      }
       AuthManager.instance = new AuthManager(context);
     }
     return AuthManager.instance;
+  }
+
+  /**
+   * Check if the singleton instance exists
+   */
+  public static hasInstance(): boolean {
+    return AuthManager.instance !== undefined;
   }
 
   /**

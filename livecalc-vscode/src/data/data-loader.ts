@@ -3,6 +3,7 @@
  *
  * Handles loading policy and assumption data from files specified in config.
  * Uses modular loaders with caching and validation.
+ * Supports both local file references and Assumptions Manager (AM) references.
  */
 
 import * as vscode from 'vscode';
@@ -18,6 +19,7 @@ import {
   MortalityLoadResult,
   LapseLoadResult,
   ExpensesLoadResult,
+  expensesToCsv,
 } from './assumption-loader';
 import { getDataCache } from './cache';
 import { getDataValidator, createValidationResult } from './data-validator';
@@ -27,14 +29,41 @@ import {
   ChangeAnalysis,
   DataFileType,
 } from '../auto-run/cache-manager';
+import {
+  AssumptionResolver,
+  ResolutionError,
+  AuthManager,
+  AssumptionsManagerClient,
+  type ResolvedAssumption,
+  type FullResolutionResult,
+  type AMVersionInfo,
+} from '../assumptions-manager';
 
 /**
  * Assumption metadata for display
+ * Extended to support both local files and Assumptions Manager references
  */
 export interface AssumptionMetadata {
+  /** File path for local, reference string for AM */
   filePath: string;
+  /** Content hash for reproducibility */
   contentHash: string;
+  /** File modification time (for local files) */
   modTime?: string;
+  /** Source: 'local' or 'am' */
+  source?: 'local' | 'am';
+  /** AM table name (for AM references) */
+  tableName?: string;
+  /** Version requested (e.g., 'latest', 'v2.1') */
+  version?: string;
+  /** Resolved version (actual version number) */
+  resolvedVersion?: string;
+  /** Approval status (for AM references) */
+  approvalStatus?: AMVersionInfo['status'];
+  /** Approved by (for AM references) */
+  approvedBy?: string;
+  /** Approved at (for AM references) */
+  approvedAt?: string;
 }
 
 /**
@@ -69,6 +98,10 @@ export interface LoadResult extends LoadedData {
   };
   /** Smart reload analysis (if smartReload was used) */
   reloadAnalysis?: ChangeAnalysis;
+  /** Resolved versions for AM references (for audit trail) */
+  resolvedVersions?: Map<string, string>;
+  /** Resolution log messages */
+  resolutionLog?: string[];
 }
 
 /**
@@ -114,6 +147,12 @@ export async function loadData(
   configDir: string,
   options: DataLoadOptions = {}
 ): Promise<LoadResult> {
+  // Check if any assumptions use AM references
+  if (hasAMReferences(config)) {
+    logger.info('Config contains Assumptions Manager references, using AM resolver');
+    return loadDataWithAMResolver(config, configDir, options);
+  }
+
   // Check if smart reload is enabled and requested
   const enableCaching = vscode.workspace.getConfiguration('livecalc').get('enableCaching', true);
   const useSmartReload = options.smartReload && enableCaching && options.changedFiles;
@@ -127,13 +166,287 @@ export async function loadData(
 }
 
 /**
+ * Load data with Assumptions Manager resolver for AM references
+ *
+ * This function handles mixed scenarios where some assumptions come from
+ * Assumptions Manager and others from local files.
+ */
+async function loadDataWithAMResolver(
+  config: LiveCalcConfig,
+  configDir: string,
+  options: DataLoadOptions
+): Promise<LoadResult> {
+  logger.info('Loading data with AM resolver');
+
+  const cache = getDataCache();
+  const validator = options.reportValidation !== false ? getDataValidator() : undefined;
+  const allErrors: CsvValidationError[] = [];
+  const allWarnings: CsvValidationError[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
+
+  // Clear previous validation diagnostics
+  validator?.clearAll();
+
+  // Load policies (always local)
+  const policiesPath = resolveDataPath(config.policies, configDir);
+  if (!policiesPath) {
+    throw new DataLoadError('No policies file specified in config', 'NO_POLICIES_PATH');
+  }
+
+  let policiesResult: PolicyLoadResult;
+  const cachedPolicies = !options.forceReload
+    ? cache.get<PolicyLoadResult>(policiesPath)
+    : undefined;
+
+  if (cachedPolicies) {
+    logger.debug(`Using cached policies: ${policiesPath}`);
+    policiesResult = cachedPolicies;
+    cacheHits++;
+  } else {
+    try {
+      policiesResult = await loadPolicies(policiesPath, {
+        maxPolicies: options.maxPolicies ?? config.execution?.maxPolicies,
+      });
+      cache.set(policiesPath, policiesResult, policiesResult.csvContent);
+      cacheMisses++;
+    } catch (error) {
+      throw wrapError(error, 'policies', policiesPath);
+    }
+  }
+
+  allErrors.push(...policiesResult.errors);
+  allWarnings.push(...policiesResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(
+        policiesPath,
+        'policies',
+        policiesResult.errors,
+        policiesResult.warnings
+      )
+    );
+  }
+
+  // Get the resolver (requires AuthManager and Client from the extension)
+  if (!AuthManager.hasInstance()) {
+    throw new DataLoadError(
+      'AuthManager not initialized. Extension may not be fully activated.',
+      'AUTH_NOT_INITIALIZED'
+    );
+  }
+  const authManager = AuthManager.getInstance();
+
+  const client = AssumptionsManagerClient.getInstance(authManager);
+  const resolver = AssumptionResolver.getInstance(authManager, client);
+
+  // Resolve all assumptions (handles both AM and local references)
+  let resolutionResult: FullResolutionResult;
+  try {
+    resolutionResult = await resolver.resolveAll(config, configDir);
+  } catch (error) {
+    if (error instanceof ResolutionError) {
+      throw new DataLoadError(
+        error.message,
+        'RESOLUTION_ERROR',
+        error.reference
+      );
+    }
+    throw error;
+  }
+
+  // Add resolution warnings
+  for (const warning of resolutionResult.warnings) {
+    allWarnings.push({
+      message: warning,
+      severity: 'warning',
+    });
+  }
+
+  // Convert resolved assumptions to CSV format for the engine
+  const mortalityCsv = convertResolvedToCsv(
+    resolutionResult.assumptions.mortality,
+    'mortality'
+  );
+  const lapseCsv = convertResolvedToCsv(
+    resolutionResult.assumptions.lapse,
+    'lapse'
+  );
+  const expensesCsv = convertResolvedToCsv(
+    resolutionResult.assumptions.expenses,
+    'expenses'
+  );
+
+  // Build assumption metadata
+  const assumptionMeta = {
+    mortality: buildAssumptionMetadata(resolutionResult.assumptions.mortality),
+    lapse: buildAssumptionMetadata(resolutionResult.assumptions.lapse),
+    expenses: buildAssumptionMetadata(resolutionResult.assumptions.expenses),
+  };
+
+  // Log summary
+  const valid = allErrors.length === 0;
+  logger.info(
+    `Data loading complete (with AM resolver): ${policiesResult.count} policies, ` +
+      `${allErrors.length} errors, ${allWarnings.length} warnings`
+  );
+
+  // Log resolution details
+  for (const log of resolutionResult.resolutionLog) {
+    logger.info(`Resolution: ${log}`);
+  }
+
+  if (!valid) {
+    logger.warn(`Data validation failed with ${allErrors.length} errors`);
+  }
+
+  return {
+    policiesCsv: policiesResult.csvContent,
+    mortalityCsv,
+    lapseCsv,
+    expensesCsv,
+    policyCount: policiesResult.count,
+    errors: allErrors,
+    warnings: allWarnings,
+    valid,
+    cacheStats: { hits: cacheHits, misses: cacheMisses },
+    assumptionMeta,
+    resolvedVersions: resolutionResult.resolvedVersions,
+    resolutionLog: resolutionResult.resolutionLog,
+  };
+}
+
+/**
+ * Convert a resolved assumption to CSV format for the engine
+ */
+function convertResolvedToCsv(
+  resolved: ResolvedAssumption,
+  assumptionType: 'mortality' | 'lapse' | 'expenses'
+): string {
+  // Build CSV from columns and data
+  const header = resolved.columns.join(',');
+  const rows = resolved.data.map((row) => row.join(','));
+
+  // For expenses, we need special handling since the engine expects a specific format
+  if (assumptionType === 'expenses') {
+    // If it's from AM, convert the tabular format to the expected parameter,value format
+    if (resolved.source === 'am') {
+      return convertExpenseDataToCsv(resolved);
+    }
+    // For local files, the data is already in the right format
+    return [header, ...rows].join('\n');
+  }
+
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Convert expense data from AM format to engine CSV format
+ */
+function convertExpenseDataToCsv(resolved: ResolvedAssumption): string {
+  // Expected engine format:
+  // parameter,value
+  // per_policy_acquisition,500
+  // per_policy_maintenance,50
+  // percent_of_premium,0.02
+  // claim_expense,100
+
+  // AM format could be:
+  // - columns: ['name', 'value'] with rows [['acquisition', 500], ...]
+  // - or columns: ['per_policy_acquisition', 'per_policy_maintenance', ...]
+
+  const columns = resolved.columns.map((c) => c.toLowerCase());
+
+  // Check if it's name/value format
+  const nameIdx = columns.findIndex((c) => ['name', 'parameter', 'type'].includes(c));
+  const valueIdx = columns.findIndex((c) => ['value', 'amount', 'rate'].includes(c));
+
+  if (nameIdx >= 0 && valueIdx >= 0) {
+    // Name/value format - convert to expected parameter names
+    const params: Record<string, number> = {};
+    for (const row of resolved.data) {
+      const name = String(resolved.columns[nameIdx] === 'name' ? '' : '') || 'unknown';
+      // Actually extract name from the first column data
+      const rowName = String(row[nameIdx]).toLowerCase().replace(/[\s-]/g, '_');
+      params[rowName] = row[valueIdx];
+    }
+
+    return `parameter,value
+per_policy_acquisition,${params['per_policy_acquisition'] ?? params['acquisition'] ?? 0}
+per_policy_maintenance,${params['per_policy_maintenance'] ?? params['maintenance'] ?? 0}
+percent_of_premium,${params['percent_of_premium'] ?? params['percent_premium'] ?? 0}
+claim_expense,${params['claim_expense'] ?? params['per_claim'] ?? 0}`;
+  }
+
+  // Columnar format - look for specific column names
+  const acqIdx = columns.findIndex((c) =>
+    ['per_policy_acquisition', 'acquisition', 'acq_expense'].includes(c)
+  );
+  const maintIdx = columns.findIndex((c) =>
+    ['per_policy_maintenance', 'maintenance', 'maint_expense'].includes(c)
+  );
+  const pctIdx = columns.findIndex((c) =>
+    ['percent_of_premium', 'percent_premium', 'pct_premium'].includes(c)
+  );
+  const claimIdx = columns.findIndex((c) =>
+    ['claim_expense', 'per_claim', 'claim'].includes(c)
+  );
+
+  // Use first row if columnar format
+  const row = resolved.data[0] || [];
+
+  return `parameter,value
+per_policy_acquisition,${acqIdx >= 0 ? row[acqIdx] : 0}
+per_policy_maintenance,${maintIdx >= 0 ? row[maintIdx] : 0}
+percent_of_premium,${pctIdx >= 0 ? row[pctIdx] : 0}
+claim_expense,${claimIdx >= 0 ? row[claimIdx] : 0}`;
+}
+
+/**
+ * Build AssumptionMetadata from a resolved assumption
+ */
+function buildAssumptionMetadata(resolved: ResolvedAssumption): AssumptionMetadata {
+  return {
+    filePath: resolved.source === 'local' ? resolved.reference : `assumptions://${resolved.tableName}:${resolved.version}`,
+    contentHash: resolved.metadata.contentHash,
+    modTime: resolved.metadata.fetchedAt,
+    source: resolved.source,
+    tableName: resolved.source === 'am' ? resolved.tableName : undefined,
+    version: resolved.source === 'am' ? resolved.version : undefined,
+    resolvedVersion: resolved.source === 'am' ? resolved.resolvedVersion : undefined,
+    approvalStatus: resolved.metadata.status,
+    approvedBy: resolved.metadata.approvedBy,
+    approvedAt: resolved.metadata.approvedAt,
+  };
+}
+
+/**
+ * Check if a path is an Assumptions Manager reference
+ */
+export function isAMReference(configPath: string | undefined): boolean {
+  return configPath?.startsWith('assumptions://') ?? false;
+}
+
+/**
+ * Check if a config has any Assumptions Manager references
+ */
+export function hasAMReferences(config: LiveCalcConfig): boolean {
+  return (
+    isAMReference(config.assumptions.mortality) ||
+    isAMReference(config.assumptions.lapse) ||
+    isAMReference(config.assumptions.expenses)
+  );
+}
+
+/**
  * Resolve a data path from config to an absolute file path
  *
  * Supports:
  * - local://path/to/file.csv - Relative to config directory
  * - Absolute paths
  * - Relative paths (relative to config directory)
- * - assumptions://name:version - Cloud assumption references (placeholder)
+ * - assumptions://name:version - Cloud assumption references (handled by resolver)
  */
 export function resolveDataPath(
   configPath: string | undefined,
@@ -149,12 +462,9 @@ export function resolveDataPath(
     return path.resolve(configDir, relativePath);
   }
 
-  // Handle assumptions:// prefix (placeholder - not yet supported)
+  // Handle assumptions:// prefix - return null to signal AM resolution needed
   if (configPath.startsWith('assumptions://')) {
-    logger.warn(
-      `Cloud assumption references (${configPath}) are not yet supported. ` +
-        'Use local:// paths for now.'
-    );
+    // This is now handled by AssumptionResolver
     return null;
   }
 
@@ -470,16 +780,19 @@ async function loadDataSelective(
         filePath: mortalityResult.filePath,
         contentHash: mortalityResult.contentHash,
         modTime: mortalityResult.modTime,
+        source: 'local',
       },
       lapse: {
         filePath: lapseResult.filePath,
         contentHash: lapseResult.contentHash,
         modTime: lapseResult.modTime,
+        source: 'local',
       },
       expenses: {
         filePath: expensesResult.filePath,
         contentHash: expensesResult.contentHash,
         modTime: expensesResult.modTime,
+        source: 'local',
       },
     },
   };
@@ -699,16 +1012,19 @@ async function loadDataStandard(
         filePath: mortalityResult.filePath,
         contentHash: mortalityResult.contentHash,
         modTime: mortalityResult.modTime,
+        source: 'local',
       },
       lapse: {
         filePath: lapseResult.filePath,
         contentHash: lapseResult.contentHash,
         modTime: lapseResult.modTime,
+        source: 'local',
       },
       expenses: {
         filePath: expensesResult.filePath,
         contentHash: expensesResult.contentHash,
         modTime: expensesResult.modTime,
+        source: 'local',
       },
     },
   };
@@ -795,3 +1111,6 @@ export { CsvLoadError, CsvValidationError } from './csv-loader';
 export type { PolicyLoadResult } from './policy-loader';
 export type { MortalityLoadResult, LapseLoadResult, ExpensesLoadResult } from './assumption-loader';
 export { calculateContentHash, getFileModTime } from './assumption-loader';
+
+// Re-export AM resolver types for use in results display
+export type { ResolvedAssumption } from '../assumptions-manager';

@@ -1836,3 +1836,67 @@ For blocked stories, use:
   - livecalc-vscode/src/assumptions-manager/index.ts (added exports)
   - livecalc-vscode/src/extension.ts (added disposeAMClient to cleanup)
 - Tests: Extension compiles and type-checks successfully
+
+## 2026-01-24 - US-004: Assumption Resolution Pipeline (PRD-LC-006) - COMPLETE
+
+- Implemented AssumptionResolver class that handles all reference resolution
+- Resolution features:
+  - resolveAll(): Resolves all assumptions from config in parallel
+  - resolveSingle(): Resolves a single assumption reference
+  - parseReference(): Parses reference string into AssumptionReference object
+  - isAMReference(): Checks if reference is assumptions:// format
+  - isLocalReference(): Checks if reference is local:// or relative path
+  - hasAMReferences(): Checks if config contains any AM references
+- Reference parsing:
+  - Format: assumptions://table-name:version (e.g., assumptions://mortality-standard:latest)
+  - Supports 'latest' and 'draft' version aliases
+  - Local references: local:// prefix or relative paths without protocol
+- Parallel fetching:
+  - All AM references fetched concurrently with Promise.all()
+  - Local references still loaded via existing CSV loader
+  - Mixed sources supported (AM + local in same config)
+- Version resolution:
+  - 'latest' resolved to actual version number (e.g., v2.1)
+  - 'draft' resolved similarly
+  - Logged: "Resolved mortality-standard:latest → v2.1"
+- Format conversion:
+  - AM API response (columns + rows) converted to engine-compatible CSV
+  - Mortality/lapse: age,rate format
+  - Expenses: expense_type,amount format
+- Error handling:
+  - Fail fast if any assumption cannot be resolved
+  - ResolutionError with specific message: table name, version, and reason
+  - NOT_FOUND, UNAUTHORIZED, NETWORK errors handled specifically
+- Metadata tracking:
+  - Content hash computed for reproducibility
+  - Source tracking: 'local' or 'am'
+  - Version info: requested version, resolved version
+  - Approval status: approved, draft, pending, rejected
+  - Approver info: approvedBy, approvedAt
+- Integration with data-loader.ts:
+  - loadDataWithAMResolver() handles AM references
+  - Falls back to existing loadData() for pure local configs
+  - Resolution log included in LoadResult
+- Results state enhanced:
+  - AssumptionInfo includes version, resolvedVersion, tableName
+  - Approval status displayed in results panel
+  - buildAssumptionInfo() helper for consistent info building
+- All acceptance criteria verified:
+  - AssumptionResolver class handles all reference resolution ✓
+  - Parse config for all assumptions:// references ✓
+  - Resolve 'latest' to specific version number at resolution time ✓
+  - Fetch all referenced tables in parallel for performance ✓
+  - Convert API response format to engine-compatible format ✓
+  - Fail fast if any assumption cannot be resolved ✓
+  - Error message specifies which assumption failed and why ✓
+  - Resolution logged: 'Resolved mortality-standard:latest → v2.1' ✓
+  - Resolved versions stored in run metadata for audit ✓
+  - Local file references (local://) still work alongside AM references ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/resolver.ts (new - AssumptionResolver)
+  - livecalc-vscode/src/assumptions-manager/index.ts (added resolver exports)
+  - livecalc-vscode/src/assumptions-manager/auth.ts (added hasInstance, optional context)
+  - livecalc-vscode/src/data/data-loader.ts (added AM resolver integration)
+  - livecalc-vscode/src/ui/results-state.ts (enhanced AssumptionInfo, buildAssumptionInfo)
+  - livecalc-vscode/src/extension.ts (added disposeResolver to cleanup)
+- Tests: Extension compiles and type-checks successfully

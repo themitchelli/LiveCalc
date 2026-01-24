@@ -75,15 +75,25 @@ export interface AssumptionInfo {
   /** Resolved absolute file path for local files */
   absolutePath?: string;
   isLocal: boolean;
-  /** AM reference version (future) */
+  /** Requested version (e.g., 'latest', 'v2.1') */
   version?: string;
+  /** Resolved version (actual version, e.g., 'v2.1' when 'latest' was requested) */
+  resolvedVersion?: string;
+  /** AM table name */
+  tableName?: string;
   multiplier?: number;
   /** Content hash for reproducibility */
   hash?: string;
-  /** File modification time at load */
+  /** File modification time at load or fetch time */
   modTime?: string;
   /** Whether file was modified since run started */
   modified?: boolean;
+  /** Approval status (for AM references) */
+  approvalStatus?: 'approved' | 'draft' | 'pending' | 'rejected';
+  /** Who approved (for AM references) */
+  approvedBy?: string;
+  /** When approved (for AM references) */
+  approvedAt?: string;
 }
 
 /**
@@ -200,39 +210,27 @@ export function createResultsState(
   const multipliers = options?.multipliers;
 
   const assumptions: AssumptionInfo[] = [
-    {
-      name: 'Mortality',
-      type: 'mortality',
-      source: config.assumptions.mortality,
-      absolutePath: assumptionMeta?.mortality.filePath,
-      isLocal: isLocalPath(config.assumptions.mortality),
-      version: extractAmVersion(config.assumptions.mortality),
-      multiplier: multipliers?.mortality,
-      hash: assumptionMeta?.mortality.contentHash,
-      modTime: assumptionMeta?.mortality.modTime,
-    },
-    {
-      name: 'Lapse',
-      type: 'lapse',
-      source: config.assumptions.lapse,
-      absolutePath: assumptionMeta?.lapse.filePath,
-      isLocal: isLocalPath(config.assumptions.lapse),
-      version: extractAmVersion(config.assumptions.lapse),
-      multiplier: multipliers?.lapse,
-      hash: assumptionMeta?.lapse.contentHash,
-      modTime: assumptionMeta?.lapse.modTime,
-    },
-    {
-      name: 'Expenses',
-      type: 'expenses',
-      source: config.assumptions.expenses,
-      absolutePath: assumptionMeta?.expenses.filePath,
-      isLocal: isLocalPath(config.assumptions.expenses),
-      version: extractAmVersion(config.assumptions.expenses),
-      multiplier: multipliers?.expenses,
-      hash: assumptionMeta?.expenses.contentHash,
-      modTime: assumptionMeta?.expenses.modTime,
-    },
+    buildAssumptionInfo(
+      'Mortality',
+      'mortality',
+      config.assumptions.mortality,
+      assumptionMeta?.mortality,
+      multipliers?.mortality
+    ),
+    buildAssumptionInfo(
+      'Lapse',
+      'lapse',
+      config.assumptions.lapse,
+      assumptionMeta?.lapse,
+      multipliers?.lapse
+    ),
+    buildAssumptionInfo(
+      'Expenses',
+      'expenses',
+      config.assumptions.expenses,
+      assumptionMeta?.expenses,
+      multipliers?.expenses
+    ),
   ];
 
   return {
@@ -241,6 +239,36 @@ export function createResultsState(
     metadata,
     assumptions,
     executionTimeMs: result.executionTimeMs,
+  };
+}
+
+/**
+ * Build AssumptionInfo from config and metadata
+ */
+function buildAssumptionInfo(
+  name: string,
+  type: 'mortality' | 'lapse' | 'expenses',
+  source: string,
+  meta: AssumptionMetadata | undefined,
+  multiplier: number | undefined
+): AssumptionInfo {
+  const isLocal = isLocalPath(source);
+
+  return {
+    name,
+    type,
+    source,
+    absolutePath: meta?.filePath,
+    isLocal,
+    version: meta?.version ?? extractAmVersion(source),
+    resolvedVersion: meta?.resolvedVersion,
+    tableName: meta?.tableName,
+    multiplier,
+    hash: meta?.contentHash,
+    modTime: meta?.modTime,
+    approvalStatus: meta?.approvalStatus as AssumptionInfo['approvalStatus'],
+    approvedBy: meta?.approvedBy,
+    approvedAt: meta?.approvedAt,
   };
 }
 
