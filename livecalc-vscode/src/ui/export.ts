@@ -160,11 +160,19 @@ export class ResultsExporter {
 
     // Assumptions section
     lines.push('# Assumptions');
-    lines.push('name,type,source,multiplier,hash');
+    lines.push('name,type,source,is_local,version,resolved_version,multiplier,hash,approval_status,approved_by,approved_at');
     for (const assumption of results.assumptions) {
       const multiplier = assumption.multiplier !== undefined ? assumption.multiplier : 1;
       const hash = assumption.hash || '';
-      lines.push(`${this.escapeCsvValue(assumption.name)},${assumption.type},${this.escapeCsvValue(assumption.source)},${multiplier},${hash}`);
+      const isLocal = assumption.isLocal ? 'true' : 'false';
+      const version = assumption.version || '';
+      const resolvedVersion = assumption.resolvedVersion || '';
+      const approvalStatus = assumption.approvalStatus || '';
+      const approvedBy = assumption.approvedBy || '';
+      const approvedAt = assumption.approvedAt || '';
+      lines.push(
+        `${this.escapeCsvValue(assumption.name)},${assumption.type},${this.escapeCsvValue(assumption.source)},${isLocal},${this.escapeCsvValue(version)},${this.escapeCsvValue(resolvedVersion)},${multiplier},${hash},${approvalStatus},${this.escapeCsvValue(approvedBy)},${approvedAt}`
+      );
     }
     lines.push('');
 
@@ -297,9 +305,16 @@ export class ResultsExporter {
         type: a.type,
         source: a.source,
         isLocal: a.isLocal,
+        absolutePath: a.absolutePath,
         version: a.version,
+        resolvedVersion: a.resolvedVersion,
+        tableName: a.tableName,
         multiplier: a.multiplier,
         hash: a.hash,
+        modTime: a.modTime,
+        approvalStatus: a.approvalStatus,
+        approvedBy: a.approvedBy,
+        approvedAt: a.approvedAt,
       })),
       scenarios: includeScenarios ? results.distribution : undefined,
       warnings: results.warnings,
@@ -362,7 +377,11 @@ export class ResultsExporter {
       lines.push('-----------');
       for (const a of results.assumptions) {
         const multiplierStr = a.multiplier && a.multiplier !== 1 ? ` (${a.multiplier}x)` : '';
-        lines.push(`${a.name}: ${a.source}${multiplierStr}`);
+        const versionStr = a.version ? `:${a.version}` : '';
+        const resolvedStr = a.resolvedVersion && a.resolvedVersion !== a.version ? ` → ${a.resolvedVersion}` : '';
+        const statusStr = a.approvalStatus && a.approvalStatus !== 'approved' ? ` [${a.approvalStatus}]` : '';
+        const approvedStr = a.approvedBy ? ` (approved by ${a.approvedBy})` : '';
+        lines.push(`${a.name}: ${a.source}${versionStr}${resolvedStr}${multiplierStr}${statusStr}${approvedStr}`);
       }
     }
 

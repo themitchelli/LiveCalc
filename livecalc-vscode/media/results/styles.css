@@ -839,6 +839,12 @@ details[open] .expand-icon::after {
 
 .assumption-item {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assumption-main-row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
@@ -857,6 +863,15 @@ details[open] .expand-icon::after {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.assumption-icon {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground, #808080);
+}
+
+.assumption-icon-am {
+  color: var(--vscode-textLink-foreground, #3794ff);
 }
 
 .assumption-name {
@@ -881,6 +896,11 @@ details[open] .expand-icon::after {
   text-decoration: underline;
 }
 
+.assumption-am-link {
+  font-style: normal;
+  font-weight: 500;
+}
+
 .assumption-am-ref {
   color: var(--vscode-descriptionForeground, #808080);
   font-style: italic;
@@ -894,6 +914,34 @@ details[open] .expand-icon::after {
   border-radius: 3px;
   font-size: 10px;
   font-weight: 500;
+}
+
+/* Approval status badges */
+.assumption-status {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.assumption-status-approved {
+  background-color: var(--vscode-charts-green, #89d185);
+  color: #000;
+}
+
+.assumption-status-draft {
+  background-color: var(--vscode-charts-yellow, #cca700);
+  color: #000;
+}
+
+.assumption-status-pending {
+  background-color: var(--vscode-charts-orange, #d18616);
+  color: #000;
+}
+
+.assumption-status-rejected {
+  background-color: var(--vscode-charts-red, #f14c4c);
+  color: #fff;
 }
 
 .assumption-multiplier {
@@ -916,6 +964,15 @@ details[open] .expand-icon::after {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 10px;
   opacity: 0.7;
+}
+
+/* Approval details and modification time rows */
+.assumption-approval-details,
+.assumption-mod-time {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground, #808080);
+  padding-left: 20px;
+  font-style: italic;
 }
 
 /* Run History Section */

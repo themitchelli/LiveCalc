@@ -851,8 +851,18 @@ function formatPercent(value) {
 function updateAssumptions(assumptions) {
   if (!elements.assumptionsList) return;
 
+  // Check for any draft/unapproved assumptions to show warning
+  const unapprovedAssumptions = assumptions.filter(
+    (a) => !a.isLocal && a.approvalStatus && a.approvalStatus !== 'approved'
+  );
+
   elements.assumptionsList.innerHTML = assumptions
     .map((a) => {
+      // Build source icon - different for AM vs local
+      const sourceIcon = a.isLocal
+        ? '<svg class="assumption-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Local file"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>'
+        : '<svg class="assumption-icon assumption-icon-am" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" title="Assumptions Manager"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>';
+
       // Build multiplier badge
       const multiplierHtml =
         a.multiplier && a.multiplier !== 1
@@ -865,7 +875,29 @@ function updateAssumptions(assumptions) {
         : '';
 
       // Build version badge for AM references
-      const versionHtml = a.version ? `<span class="assumption-version">v${escapeHtml(a.version)}</span>` : '';
+      let versionHtml = '';
+      if (a.version) {
+        // Show resolved version if different from requested
+        const displayVersion = a.resolvedVersion && a.resolvedVersion !== a.version
+          ? `${a.version} \u2192 ${a.resolvedVersion}`
+          : a.version;
+        versionHtml = `<span class="assumption-version" title="Version: ${escapeHtml(displayVersion)}">${escapeHtml(displayVersion)}</span>`;
+      }
+
+      // Build approval status badge (for AM references only)
+      let approvalHtml = '';
+      if (!a.isLocal && a.approvalStatus) {
+        const statusClass = `assumption-status-${a.approvalStatus}`;
+        const statusIcon = getApprovalStatusIcon(a.approvalStatus);
+        let statusTooltip = `Status: ${a.approvalStatus}`;
+        if (a.approvedBy) {
+          statusTooltip += `\nApproved by: ${a.approvedBy}`;
+        }
+        if (a.approvedAt) {
+          statusTooltip += `\nApproved: ${formatTimestamp(a.approvedAt)}`;
+        }
+        approvalHtml = `<span class="assumption-status ${statusClass}" title="${escapeHtml(statusTooltip)}">${statusIcon} ${a.approvalStatus}</span>`;
+      }
 
       // Build hash badge
       const hashHtml = a.hash ? `<span class="assumption-hash" title="Content hash: ${a.hash}">#${a.hash.slice(0, 6)}</span>` : '';
@@ -876,29 +908,49 @@ function updateAssumptions(assumptions) {
         const clickPath = a.absolutePath || a.source;
         sourceHtml = `<span class="assumption-source clickable" data-path="${escapeHtml(clickPath)}" title="Click to open: ${escapeHtml(clickPath)}">${escapeHtml(getFileName(a.source))}</span>`;
       } else {
-        // AM reference - placeholder link for future integration
-        sourceHtml = `<span class="assumption-am-ref" title="Assumptions Manager reference (not yet linked)">${escapeHtml(a.source)}</span>`;
+        // AM reference - clickable to open in Assumptions Manager
+        const tableName = a.tableName || extractTableName(a.source);
+        const version = a.resolvedVersion || a.version || 'latest';
+        sourceHtml = `<span class="assumption-source assumption-am-link clickable" data-table="${escapeHtml(tableName)}" data-version="${escapeHtml(version)}" title="Click to open in Assumptions Manager">${escapeHtml(tableName)}</span>`;
+      }
+
+      // Build approval details row (for AM references with approval info)
+      let approvalDetailsHtml = '';
+      if (!a.isLocal && a.approvedBy && a.approvedAt) {
+        approvalDetailsHtml = `<div class="assumption-approval-details">Approved by ${escapeHtml(a.approvedBy)} on ${formatTimestamp(a.approvedAt)}</div>`;
+      }
+
+      // Build modification time row (for local files)
+      let modTimeHtml = '';
+      if (a.isLocal && a.modTime) {
+        modTimeHtml = `<div class="assumption-mod-time">Last modified: ${formatTimestamp(a.modTime)}</div>`;
       }
 
       return `
         <li class="assumption-item">
-          <div class="assumption-left">
-            <span class="assumption-name">${escapeHtml(a.name)}</span>
-            ${versionHtml}
-            ${multiplierHtml}
-            ${modifiedHtml}
+          <div class="assumption-main-row">
+            <div class="assumption-left">
+              ${sourceIcon}
+              <span class="assumption-name">${escapeHtml(a.name)}</span>
+              ${versionHtml}
+              ${approvalHtml}
+              ${multiplierHtml}
+              ${modifiedHtml}
+            </div>
+            <div class="assumption-right">
+              ${sourceHtml}
+              ${hashHtml}
+            </div>
           </div>
-          <div class="assumption-right">
-            ${sourceHtml}
-            ${hashHtml}
-          </div>
+          ${approvalDetailsHtml}
+          ${modTimeHtml}
         </li>
       `;
     })
     .join('');
 
   // Add click handlers for local file links
-  elements.assumptionsList.querySelectorAll('.assumption-source.clickable').forEach((el) => {
+  elements.assumptionsList.querySelectorAll('.assumption-source.clickable:not(.assumption-am-link)').forEach((el) => {
     el.addEventListener('click', () => {
       const filePath = el.dataset.path;
       if (filePath) {
@@ -906,6 +958,66 @@ function updateAssumptions(assumptions) {
       }
     });
   });
+
+  // Add click handlers for AM reference links
+  elements.assumptionsList.querySelectorAll('.assumption-am-link').forEach((el) => {
+    el.addEventListener('click', () => {
+      const tableName = el.dataset.table;
+      const version = el.dataset.version;
+      if (tableName) {
+        vscode.postMessage({ type: 'openAMTable', tableName, version });
+      }
+    });
+  });
+
+  // Show warning for unapproved assumptions
+  if (unapprovedAssumptions.length > 0) {
+    showUnapprovedAssumptionWarning(unapprovedAssumptions);
+  }
+}
+
+/**
+ * Get icon for approval status
+ */
+function getApprovalStatusIcon(status) {
+  switch (status) {
+    case 'approved':
+      return '\u2713'; // ✓
+    case 'draft':
+      return '\u270E'; // ✎
+    case 'pending':
+      return '\u23F3'; // ⏳
+    case 'rejected':
+      return '\u2717'; // ✗
+    default:
+      return '';
+  }
+}
+
+/**
+ * Extract table name from assumptions:// reference
+ */
+function extractTableName(source) {
+  if (!source || !source.startsWith('assumptions://')) {
+    return source;
+  }
+  const withoutPrefix = source.slice('assumptions://'.length);
+  const parts = withoutPrefix.split(':');
+  return parts[0] || withoutPrefix;
+}
+
+/**
+ * Show warning banner for unapproved assumptions
+ */
+function showUnapprovedAssumptionWarning(unapprovedAssumptions) {
+  const warningMessages = unapprovedAssumptions.map((a) => ({
+    message: `${a.name} is using ${a.approvalStatus} assumption "${a.tableName || extractTableName(a.source)}"`,
+    category: 'governance',
+  }));
+
+  // Merge with existing warnings
+  const existingWarnings = currentWarnings.filter((w) => w.category !== 'governance');
+  showWarnings([...warningMessages, ...existingWarnings]);
 }
 
 /**

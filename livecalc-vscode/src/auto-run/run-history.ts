@@ -3,6 +3,24 @@ import { ResultsState } from '../ui/results-state';
 import { logger } from '../logging/logger';
 
 /**
+ * Summary of assumption versions used in a run
+ */
+export interface AssumptionVersionSummary {
+  /** Assumption name (e.g., 'Mortality') */
+  name: string;
+  /** Source reference */
+  source: string;
+  /** Version used (for AM references) */
+  version?: string;
+  /** Resolved version (if different from requested, e.g., 'latest' → 'v2.1') */
+  resolvedVersion?: string;
+  /** Whether this is a local file (vs AM reference) */
+  isLocal: boolean;
+  /** Approval status (for AM references) */
+  approvalStatus?: 'approved' | 'draft' | 'pending' | 'rejected';
+}
+
+/**
  * A summary entry for run history (stored for display)
  * Contains just enough data to display in the history list
  */
@@ -15,6 +33,8 @@ export interface RunHistoryEntry {
   meanNpv: number;
   scenarioCount: number;
   policyCount: number;
+  /** Summary of assumption versions used in this run */
+  assumptionVersions?: AssumptionVersionSummary[];
 }
 
 /**
@@ -93,6 +113,16 @@ export class RunHistoryManager implements vscode.Disposable {
     // Update max size in case config changed
     this.maxSize = this.getMaxSizeFromConfig();
 
+    // Extract assumption version summary
+    const assumptionVersions: AssumptionVersionSummary[] = results.assumptions.map((a) => ({
+      name: a.name,
+      source: a.source,
+      version: a.version,
+      resolvedVersion: a.resolvedVersion,
+      isLocal: a.isLocal,
+      approvalStatus: a.approvalStatus,
+    }));
+
     const entry: RunHistoryEntry = {
       runId: results.metadata.runId,
       timestamp: results.metadata.timestamp,
@@ -102,6 +132,7 @@ export class RunHistoryManager implements vscode.Disposable {
       meanNpv: results.statistics.mean,
       scenarioCount: results.metadata.scenarioCount,
       policyCount: results.metadata.policyCount,
+      assumptionVersions,
     };
 
     const item: RunHistoryItem = {
@@ -226,12 +257,31 @@ export class RunHistoryManager implements vscode.Disposable {
       'P99',
       'Min',
       'Max',
+      'Mortality Version',
+      'Lapse Version',
+      'Expenses Version',
     ].join(','));
 
     // Data rows
     for (const item of this.history) {
       const entry = item.entry;
       const stats = item.results.statistics;
+      const assumptions = item.results.assumptions;
+
+      // Extract version info for each assumption type
+      const getVersionInfo = (type: string): string => {
+        const assumption = assumptions.find((a) => a.type === type);
+        if (!assumption) return '';
+        if (assumption.isLocal) {
+          return `local:${assumption.source}`;
+        }
+        const version = assumption.resolvedVersion || assumption.version || 'unknown';
+        const status = assumption.approvalStatus && assumption.approvalStatus !== 'approved'
+          ? ` [${assumption.approvalStatus}]`
+          : '';
+        return `${assumption.tableName || assumption.source}:${version}${status}`;
+      };
+
       lines.push([
         entry.runId,
         entry.timestamp.toISOString(),
@@ -250,10 +300,23 @@ export class RunHistoryManager implements vscode.Disposable {
         stats.p99.toString(),
         stats.min.toString(),
         stats.max.toString(),
+        this.escapeCsvValue(getVersionInfo('mortality')),
+        this.escapeCsvValue(getVersionInfo('lapse')),
+        this.escapeCsvValue(getVersionInfo('expenses')),
       ].join(','));
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * Escape a value for CSV (wrap in quotes if contains comma, quote, or newline)
+   */
+  private escapeCsvValue(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
   }
 
   /**

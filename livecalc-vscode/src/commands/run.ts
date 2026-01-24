@@ -418,6 +418,23 @@ export function registerRunCommand(
         // Clear run history
         vscode.commands.executeCommand('livecalc.clearHistory');
         break;
+      case 'openAMTable':
+        // Open table in Assumptions Manager browser
+        if ('tableName' in message) {
+          const amUrl = vscode.workspace.getConfiguration('livecalc.assumptionsManager').get<string>('url');
+          if (amUrl) {
+            const tableUrl = message.version
+              ? `${amUrl}/tables?search=${encodeURIComponent(message.tableName)}&version=${encodeURIComponent(message.version)}`
+              : `${amUrl}/tables?search=${encodeURIComponent(message.tableName)}`;
+            vscode.env.openExternal(vscode.Uri.parse(tableUrl));
+            logger.debug(`Opening AM table: ${message.tableName} (${message.version || 'latest'})`);
+          } else {
+            vscode.window.showWarningMessage(
+              'Assumptions Manager URL not configured. Set livecalc.assumptionsManager.url in settings.'
+            );
+          }
+        }
+        break;
     }
   });
 

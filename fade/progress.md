@@ -1953,3 +1953,55 @@ For blocked stories, use:
   - livecalc-vscode/src/data/data-loader.ts (get cache for resolver)
   - livecalc-vscode/src/extension.ts (initialize/dispose AMCache)
 - Tests: Extension compiles and packages successfully
+
+
+## 2026-01-24 - US-006: Version Metadata in Results (PRD-LC-006) - COMPLETE
+
+- Enhanced results panel to display comprehensive assumption metadata
+- Updated main.js (media/results/main.js):
+  - Enhanced updateAssumptions() with visual source indicators (cloud icon for AM, file icon for local)
+  - Added approval status badges with color coding (approved=green, draft=yellow, pending=orange, rejected=red)
+  - Made AM assumptions clickable with 'openAMTable' message type
+  - Added approval details row showing "Approved by X on date"
+  - Added modification time row for local files
+  - Added warning banner for draft/unapproved assumptions
+  - New helper functions: getApprovalStatusIcon(), extractTableName(), showUnapprovedAssumptionWarning()
+- Updated styles.css (media/results/styles.css):
+  - Added .assumption-icon, .assumption-icon-am for source indicators
+  - Added .assumption-status variants for approval status badges
+  - Added .assumption-am-link for clickable AM assumptions
+  - Added .assumption-approval-details, .assumption-mod-time for metadata rows
+  - Updated .assumption-item layout for column-based display
+- Updated results-panel.ts:
+  - Added 'openAMTable' message type to ExtensionMessage union
+- Updated run.ts:
+  - Added handler for 'openAMTable' message that opens AM URL in browser
+  - Constructs URL with table name and optional version for search
+- Updated export.ts:
+  - Enhanced CSV export header: name,type,source,is_local,version,resolved_version,multiplier,hash,approval_status,approved_by,approved_at
+  - Enhanced JSON export with full metadata: absolutePath, resolvedVersion, tableName, modTime, approvalStatus, approvedBy, approvedAt
+  - Enhanced clipboard export to show version, resolved version, approval status, approved by
+- Updated run-history.ts:
+  - Added AssumptionVersionSummary interface for version tracking
+  - Added assumptionVersions field to RunHistoryEntry
+  - Enhanced addRun() to extract assumption version summaries
+  - Enhanced exportDetailedToCsv() with Mortality/Lapse/Expenses version columns
+  - Added escapeCsvValue() helper for proper CSV escaping
+- All acceptance criteria verified:
+  - Results panel shows 'Assumptions Used' section ✓
+  - Each assumption shows: name, version, source (AM or local) ✓
+  - AM assumptions show: approval status, approved by, approved date ✓
+  - Local files show: file path, last modified date, content hash ✓
+  - Click on AM assumption opens in Assumptions Manager (browser) ✓
+  - Click on local file opens in VS Code editor ✓
+  - Export includes full assumption metadata ✓
+  - Run history includes assumption versions for each run ✓
+  - Warning shown if using draft or unapproved assumption ✓
+- Files changed:
+  - livecalc-vscode/media/results/main.js (enhanced assumption display)
+  - livecalc-vscode/media/results/styles.css (status badges, icons, layout)
+  - livecalc-vscode/src/ui/results-panel.ts (openAMTable message type)
+  - livecalc-vscode/src/commands/run.ts (openAMTable handler)
+  - livecalc-vscode/src/ui/export.ts (enhanced exports with metadata)
+  - livecalc-vscode/src/auto-run/run-history.ts (assumption version tracking)
+- Tests: Extension compiles (npm run compile), type-checks (npx tsc --noEmit), and packages (334.6KB) successfully

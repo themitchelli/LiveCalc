@@ -67,6 +67,7 @@ export type ExtensionMessage =
   | { type: 'viewLogs' }
   | { type: 'export'; format: 'csv' | 'json' | 'clipboard' }
   | { type: 'openFile'; path: string }
+  | { type: 'openAMTable'; tableName: string; version?: string }
   | { type: 'clearComparison' }
   | { type: 'pinComparison' }
   | { type: 'toggleChartType' }
