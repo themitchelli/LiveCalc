@@ -6,3 +6,12 @@
 export * from './types';
 export { AuthManager, AMAuthError, disposeAuthManager } from './auth';
 export { AMStatusBar } from './status-bar';
+export {
+  AssumptionHoverProvider,
+  parseAssumptionReference,
+  findAssumptionReferenceAtPosition,
+  ASSUMPTION_REFERENCE_PATTERN,
+} from './hover-provider';
+export { AssumptionCompletionProvider } from './completion-provider';
+export { AssumptionDefinitionProvider, AssumptionDocumentLinkProvider } from './definition-provider';
+export { AssumptionDiagnosticProvider } from './diagnostic-provider';

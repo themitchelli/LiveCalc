@@ -114,7 +114,7 @@
         "hoverProvider": "vscode.languages.registerHoverProvider",
         "completionProvider": "vscode.languages.registerCompletionItemProvider"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

@@ -11,7 +11,16 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
-import { AuthManager, AMStatusBar, disposeAuthManager } from './assumptions-manager';
+import {
+  AuthManager,
+  AMStatusBar,
+  disposeAuthManager,
+  AssumptionHoverProvider,
+  AssumptionCompletionProvider,
+  AssumptionDefinitionProvider,
+  AssumptionDocumentLinkProvider,
+  AssumptionDiagnosticProvider,
+} from './assumptions-manager';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
@@ -21,6 +30,7 @@ let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
 let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
+let assumptionDiagnosticProvider: AssumptionDiagnosticProvider | undefined;
 
 /**
  * Extension activation
@@ -90,6 +100,48 @@ export function activate(context: vscode.ExtensionContext): void {
   authManager.initialize().catch(() => {
     logger.warn('AuthManager initialization failed');
   });
+
+  // Register assumption reference language providers
+  // These work in both MGA files and JSON files (for livecalc.config.json)
+  const documentSelector = [
+    { language: 'mga' },
+    { language: 'json', pattern: '**/livecalc.config.json' },
+  ];
+
+  // Hover provider - shows table metadata on hover
+  const hoverProvider = new AssumptionHoverProvider(authManager);
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(documentSelector, hoverProvider)
+  );
+
+  // Completion provider - autocomplete for assumptions:// references
+  const completionProvider = new AssumptionCompletionProvider(authManager);
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      documentSelector,
+      completionProvider,
+      '/', // Trigger after 'assumptions:/'
+      ':' // Trigger after 'table-name:'
+    )
+  );
+
+  // Definition provider - Ctrl+Click opens in Assumptions Manager
+  const definitionProvider = new AssumptionDefinitionProvider(authManager);
+  context.subscriptions.push(
+    vscode.languages.registerDefinitionProvider(documentSelector, definitionProvider)
+  );
+
+  // Document link provider - makes references clickable
+  const documentLinkProvider = new AssumptionDocumentLinkProvider(authManager);
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(documentSelector, documentLinkProvider)
+  );
+
+  // Diagnostic provider - shows error squiggles for invalid references
+  assumptionDiagnosticProvider = new AssumptionDiagnosticProvider(authManager);
+  context.subscriptions.push(assumptionDiagnosticProvider);
+
+  logger.debug('Assumption reference language providers registered');
 
   // Listen for pause state changes to update status bar
   context.subscriptions.push(
@@ -195,6 +247,7 @@ export function deactivate(): void {
   autoRunController = undefined;
   authManager = undefined;
   amStatusBar = undefined;
+  assumptionDiagnosticProvider = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }

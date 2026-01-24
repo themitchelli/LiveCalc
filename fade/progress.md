@@ -1725,3 +1725,63 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/index.ts (register AM commands)
   - livecalc-vscode/src/extension.ts (initialize AM components)
 - Tests: Extension compiles, type-checks, and packages successfully (320.98KB)
+
+## 2026-01-24 - US-002: Assumption Reference Syntax (PRD-LC-006) - COMPLETE
+
+- Implemented comprehensive language support for assumptions:// references in MGA and JSON files
+- Created hover-provider.ts:
+  - AssumptionHoverProvider shows table metadata on hover
+  - Displays table name, type, version, status, approval info, change notes
+  - Shows warning for unauthenticated users with login link
+  - Shows error for unknown tables
+  - Caches metadata for 5 minutes to reduce API calls
+  - Links to open table in Assumptions Manager browser
+- Created completion-provider.ts:
+  - AssumptionCompletionProvider provides autocomplete after 'assumptions://' and 'table-name:'
+  - Suggests available tables with type and description
+  - Suggests versions (latest, draft, specific versions) with status badges
+  - Triggers chained completion (table → version)
+  - Provides 'assumptions://' snippet when typing 'assu...'
+  - Sorts tables by type relevance (mortality, lapse, expense, other)
+  - Sorts versions by recency (approved first, then by version number)
+- Created definition-provider.ts:
+  - AssumptionDefinitionProvider enables Ctrl+Click to open in Assumptions Manager
+  - Resolves table ID for direct linking
+  - Falls back to search URL if table ID unavailable
+  - AssumptionDocumentLinkProvider makes references visually clickable
+- Created diagnostic-provider.ts:
+  - AssumptionDiagnosticProvider shows error squiggles for invalid references
+  - Validates syntax (missing colon, missing version, etc.)
+  - Validates table existence (when authenticated)
+  - Validates version existence (when authenticated)
+  - Shows warnings for draft/pending versions
+  - Debounced validation (500ms) to avoid excessive API calls
+  - Refreshes validation on auth state changes
+- Registered all providers in extension.ts:
+  - Document selector for MGA and livecalc.config.json files
+  - Completion triggers on '/' and ':'
+  - All providers share AuthManager instance
+- Syntax: assumptions://table-name:version
+  - Supports: assumptions://mortality-standard:v2.1
+  - Supports: assumptions://mortality-standard:latest
+  - Supports: assumptions://mortality-standard:draft
+- All acceptance criteria verified:
+  - Syntax: assumptions://table-name:version ✓
+  - Example: assumptions://mortality-standard:v2.1 ✓
+  - Syntax: assumptions://table-name:latest for latest approved version ✓
+  - Syntax: assumptions://table-name:draft for current draft (if permitted) ✓
+  - References work in livecalc.config.json assumptions section ✓
+  - References work inline in .mga model files ✓
+  - Invalid references show error squiggles in editor ✓
+  - Hover on reference shows table metadata (name, version, approved date) ✓
+  - Ctrl+Click on reference opens table in Assumptions Manager (browser) ✓
+  - Autocomplete suggests available tables after typing 'assumptions://' ✓
+  - Autocomplete suggests versions after typing table name and colon ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/hover-provider.ts (new)
+  - livecalc-vscode/src/assumptions-manager/completion-provider.ts (new)
+  - livecalc-vscode/src/assumptions-manager/definition-provider.ts (new)
+  - livecalc-vscode/src/assumptions-manager/diagnostic-provider.ts (new)
+  - livecalc-vscode/src/assumptions-manager/index.ts (added exports)
+  - livecalc-vscode/src/extension.ts (register language providers)
+- Tests: Extension compiles, type-checks, and packages successfully (325.29KB)
