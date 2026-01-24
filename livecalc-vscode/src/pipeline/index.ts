@@ -39,3 +39,10 @@ export {
   IntegrityFailure,
   IntegritySummary,
 } from './culprit-identifier';
+
+export {
+  BreakpointManager,
+  BreakpointState,
+  PausedState,
+  BreakpointAction,
+} from './breakpoint-manager';

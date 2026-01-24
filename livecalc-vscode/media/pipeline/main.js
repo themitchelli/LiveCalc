@@ -9,6 +9,9 @@
   const vscode = acquireVsCodeApi();
   let currentState = null;
   let selectedNodeId = null;
+  let breakpoints = new Set();
+  let isPaused = false;
+  let pausedData = null;
 
   // DOM elements
   const container = document.getElementById('container');
@@ -21,6 +24,10 @@
   const exportBtn = document.getElementById('exportBtn');
   const closeDetailsBtn = document.getElementById('closeDetailsBtn');
   const statusText = document.getElementById('statusText');
+  const debugControls = document.getElementById('debugControls');
+  const stepBtn = document.getElementById('stepBtn');
+  const continueBtn = document.getElementById('continueBtn');
+  const abortBtn = document.getElementById('abortBtn');
 
   // Initialize
   window.addEventListener('load', () => {
@@ -44,6 +51,12 @@
       case 'clear':
         clearView();
         break;
+      case 'setBreakpoints':
+        setBreakpoints(message.breakpoints);
+        break;
+      case 'setPaused':
+        setPausedState(message.isPaused, message.nodeId, message.busData, message.checksums);
+        break;
     }
   });
 
@@ -58,6 +71,22 @@
 
   closeDetailsBtn.addEventListener('click', () => {
     hideNodeDetails();
+  });
+
+  // Debug control handlers
+  stepBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'step' });
+    debugControls.classList.add('hidden');
+  });
+
+  continueBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'continue' });
+    debugControls.classList.add('hidden');
+  });
+
+  abortBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'abort' });
+    debugControls.classList.add('hidden');
   });
 
   /**
@@ -209,7 +238,21 @@
       if (currentState.currentNode === node.id) {
         nodeDiv.classList.add('current');
       }
+      if (node.hasBreakpoint) {
+        nodeDiv.classList.add('has-breakpoint');
+      }
+      if (node.isPausedAt) {
+        nodeDiv.classList.add('paused-at');
+      }
+
+      // Breakpoint indicator
+      const breakpointIndicator = node.hasBreakpoint ? '<div class="breakpoint-indicator" title="Breakpoint set">⬤</div>' : '';
+      // Paused indicator
+      const pausedIndicator = node.isPausedAt ? '<div class="paused-indicator" title="Paused here">⏸</div>' : '';
+
       nodeDiv.innerHTML = `
+        ${breakpointIndicator}
+        ${pausedIndicator}
         <div class="node-header">
           <div class="node-icon ${node.engineType}">${node.engineType === 'wasm' ? 'W' : 'P'}</div>
           <div class="node-name" title="${node.name}">${node.name}</div>
@@ -229,6 +272,11 @@
 
       nodeDiv.addEventListener('click', () => {
         handleNodeClick(node.id);
+      });
+
+      // Double-click to toggle breakpoint
+      nodeDiv.addEventListener('dblclick', () => {
+        handleNodeDoubleClick(node.id);
       });
 
       foreignObject.appendChild(nodeDiv);
@@ -538,5 +586,72 @@
     if (ms < 1) return '<1ms';
     if (ms < 1000) return `${Math.round(ms)}ms`;
     return `${(ms / 1000).toFixed(2)}s`;
+  }
+
+  /**
+   * Set breakpoints on pipeline nodes
+   */
+  function setBreakpoints(bpArray) {
+    breakpoints = new Set(bpArray);
+    // Re-render nodes to show breakpoint indicators
+    if (currentState) {
+      currentState.nodes.forEach((node) => {
+        node.hasBreakpoint = breakpoints.has(node.id);
+      });
+      renderPipeline();
+    }
+  }
+
+  /**
+   * Set paused state when breakpoint is hit
+   */
+  function setPausedState(paused, nodeId, busData, checksums) {
+    isPaused = paused;
+
+    if (paused && nodeId) {
+      pausedData = { nodeId, busData, checksums };
+
+      // Show debug controls
+      debugControls.classList.remove('hidden');
+
+      // Update status text
+      statusText.textContent = `⏸ Paused at: ${nodeId}`;
+      statusText.classList.add('paused');
+
+      // Highlight paused node
+      if (currentState) {
+        currentState.nodes.forEach((node) => {
+          node.isPausedAt = (node.id === nodeId);
+        });
+        renderPipeline();
+
+        // Auto-select paused node details
+        showNodeDetails(nodeId);
+      }
+    } else {
+      pausedData = null;
+
+      // Hide debug controls
+      debugControls.classList.add('hidden');
+
+      // Update status text
+      statusText.textContent = '';
+      statusText.classList.remove('paused');
+
+      // Clear paused state
+      if (currentState) {
+        currentState.nodes.forEach((node) => {
+          node.isPausedAt = false;
+        });
+        renderPipeline();
+      }
+    }
+  }
+
+  /**
+   * Toggle breakpoint on a node (double-click handler)
+   */
+  function handleNodeDoubleClick(nodeId) {
+    vscode.postMessage({ type: 'toggleBreakpoint', nodeId });
   }
 })();

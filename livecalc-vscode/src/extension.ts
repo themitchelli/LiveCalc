@@ -11,7 +11,7 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
-import { PipelineView, PipelineDataInspector } from './pipeline';
+import { PipelineView, PipelineDataInspector, BreakpointManager } from './pipeline';
 import {
   AuthManager,
   AMStatusBar,
@@ -37,6 +37,7 @@ let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
 let pipelineView: PipelineView | undefined;
 let pipelineDataInspector: PipelineDataInspector | undefined;
+let breakpointManager: BreakpointManager | undefined;
 let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
 let amCache: AMCache | undefined;
@@ -93,14 +94,18 @@ export function activate(context: vscode.ExtensionContext): void {
   pipelineDataInspector = new PipelineDataInspector();
   context.subscriptions.push(pipelineDataInspector);
 
+  // Create breakpoint manager (persisted in workspace state)
+  breakpointManager = BreakpointManager.getInstance(context, logger);
+  context.subscriptions.push(breakpointManager);
+
   // Create auto-run controller
   autoRunController = new AutoRunController(context, configLoader, statusBar);
   context.subscriptions.push(autoRunController);
 
   // Set up auto-run to execute the run command
   autoRunController.setRunCommand(async (options) => {
-    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager && pipelineView && pipelineDataInspector) {
-      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, options);
+    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager && pipelineView && pipelineDataInspector && breakpointManager) {
+      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, breakpointManager, options);
     }
   });
 
@@ -197,7 +202,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, pipelineDataInspector, authManager, amStatusBar, amCache, assumptionTreeProvider);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, pipelineDataInspector, breakpointManager, authManager, amStatusBar, amCache, assumptionTreeProvider);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();

@@ -31,6 +31,10 @@ export interface PipelineNodeState {
   isCulprit?: boolean;
   /** Integrity failures caused by this node */
   integrityFailures?: IntegrityFailure[];
+  /** Whether this node has a breakpoint set */
+  hasBreakpoint?: boolean;
+  /** Whether this node is currently paused at */
+  isPausedAt?: boolean;
 }
 
 /**
@@ -54,6 +58,10 @@ export interface PipelineExecutionState {
   endTime?: number;
   /** Integrity summary for all bus resources */
   integritySummary?: IntegritySummary;
+  /** Whether pipeline is currently paused */
+  isPaused?: boolean;
+  /** Node ID where pipeline is paused */
+  pausedAtNode?: string;
 }
 
 /**
@@ -64,7 +72,11 @@ export type PipelineViewMessage =
   | { type: 'ready' }
   | { type: 'exportSvg' }
   | { type: 'refresh' }
-  | { type: 'exportIntegrityReport' };
+  | { type: 'exportIntegrityReport' }
+  | { type: 'toggleBreakpoint'; nodeId: string }
+  | { type: 'step' }
+  | { type: 'continue' }
+  | { type: 'abort' };
 
 /**
  * Message types from extension to webview
@@ -75,7 +87,9 @@ export type PipelineWebviewMessage =
   | { type: 'setCurrentNode'; nodeId: string | null }
   | { type: 'setIntegritySummary'; summary: IntegritySummary }
   | { type: 'highlightCulprit'; nodeId: string; failures: IntegrityFailure[] }
-  | { type: 'clear' };
+  | { type: 'clear' }
+  | { type: 'setBreakpoints'; breakpoints: string[] }
+  | { type: 'setPaused'; isPaused: boolean; nodeId?: string; busData?: Record<string, Float64Array>; checksums?: Record<string, string> };
 
 /**
  * Pipeline View provider for visualizing pipeline execution as DAG
@@ -267,6 +281,62 @@ export class PipelineView implements vscode.Disposable {
   }
 
   /**
+   * Set breakpoints on pipeline nodes
+   * Updates visual indicators in the pipeline view
+   */
+  public setBreakpoints(breakpoints: string[]): void {
+    if (this.currentState) {
+      // Update node states to reflect breakpoints
+      for (const node of this.currentState.nodes) {
+        node.hasBreakpoint = breakpoints.includes(node.id);
+      }
+    }
+    this.postMessage({ type: 'setBreakpoints', breakpoints });
+    logger.debug(`Updated pipeline view with ${breakpoints.length} breakpoints`);
+  }
+
+  /**
+   * Set paused state when pipeline hits a breakpoint
+   */
+  public setPaused(
+    isPaused: boolean,
+    nodeId?: string,
+    busData?: Record<string, Float64Array>,
+    checksums?: Record<string, string>
+  ): void {
+    if (this.currentState) {
+      this.currentState.isPaused = isPaused;
+      this.currentState.pausedAtNode = nodeId;
+
+      if (nodeId) {
+        const node = this.currentState.nodes.find((n) => n.id === nodeId);
+        if (node) {
+          node.isPausedAt = isPaused;
+        }
+      } else {
+        // Clear all paused states
+        for (const node of this.currentState.nodes) {
+          node.isPausedAt = false;
+        }
+      }
+    }
+
+    this.postMessage({
+      type: 'setPaused',
+      isPaused,
+      nodeId,
+      busData,
+      checksums,
+    });
+
+    if (isPaused && nodeId) {
+      logger.info(`Pipeline view paused at node: ${nodeId}`);
+    } else {
+      logger.debug('Pipeline view resumed');
+    }
+  }
+
+  /**
    * Create initial pipeline state from config
    */
   private createInitialState(config: PipelineConfig): PipelineExecutionState {
@@ -340,6 +410,17 @@ export class PipelineView implements vscode.Disposable {
     <button id="exportBtn" title="Export as SVG">
       <span class="codicon codicon-export"></span>
     </button>
+    <div id="debugControls" class="hidden">
+      <button id="stepBtn" title="Step to Next Node" class="debug-control">
+        <span class="codicon codicon-debug-step-over"></span>
+      </button>
+      <button id="continueBtn" title="Continue Execution" class="debug-control">
+        <span class="codicon codicon-debug-continue"></span>
+      </button>
+      <button id="abortBtn" title="Abort Execution" class="debug-control">
+        <span class="codicon codicon-debug-stop"></span>
+      </button>
+    </div>
     <div id="statusText"></div>
   </div>
 

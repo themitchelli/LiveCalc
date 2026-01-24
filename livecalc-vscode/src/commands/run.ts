@@ -12,7 +12,7 @@ import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
-import { PipelineView, PipelineDataInspector } from '../pipeline';
+import { PipelineView, PipelineDataInspector, BreakpointManager } from '../pipeline';
 import { hasPipeline } from '../pipeline/pipeline-validator';
 
 /**
@@ -57,6 +57,7 @@ export async function runCommand(
   runHistoryManager: RunHistoryManager,
   pipelineView: PipelineView,
   pipelineDataInspector: PipelineDataInspector,
+  breakpointManager: BreakpointManager,
   options: RunOptions = {}
 ): Promise<void> {
   logger.separator();
@@ -88,6 +89,15 @@ export async function runCommand(
   if (usesPipeline && config.pipeline) {
     logger.info(`Pipeline detected with ${config.pipeline.nodes.length} nodes`);
     pipelineView.initialize(config.pipeline);
+
+    // Import breakpoints from config if defined
+    if (config.pipeline.debug?.breakpoints) {
+      await breakpointManager.importFromConfig(config.pipeline.debug.breakpoints);
+      logger.info(`Imported ${config.pipeline.debug.breakpoints.length} breakpoints from config`);
+    }
+
+    // Update pipeline view with current breakpoints
+    pipelineView.setBreakpoints(breakpointManager.exportToConfig());
   } else {
     logger.debug('No pipeline configuration found');
   }
@@ -349,7 +359,8 @@ export function registerRunCommand(
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
   pipelineView: PipelineView,
-  pipelineDataInspector: PipelineDataInspector
+  pipelineDataInspector: PipelineDataInspector,
+  breakpointManager: BreakpointManager
 ): vscode.Disposable {
   // Set up message handler for comparison and export actions from webview
   resultsPanel.onMessage(async (message: ExtensionMessage) => {
@@ -484,8 +495,53 @@ export function registerRunCommand(
     }
   });
 
+  // Set up pipeline view message handler for breakpoints
+  pipelineView.onMessage(async (message) => {
+    switch (message.type) {
+      case 'toggleBreakpoint':
+        await breakpointManager.toggleBreakpoint(message.nodeId);
+        // Update pipeline view with new breakpoint state
+        pipelineView.setBreakpoints(breakpointManager.exportToConfig());
+        break;
+      case 'step':
+        await breakpointManager.step();
+        break;
+      case 'continue':
+        await breakpointManager.resume();
+        break;
+      case 'abort':
+        await breakpointManager.abort();
+        break;
+    }
+  });
+
+  // Subscribe to breakpoint manager events to update pipeline view
+  context.subscriptions.push(
+    breakpointManager.onDidChangeBreakpoints((breakpoints) => {
+      const nodeIds = breakpoints.filter((bp) => bp.enabled).map((bp) => bp.nodeId);
+      pipelineView.setBreakpoints(nodeIds);
+    })
+  );
+
+  context.subscriptions.push(
+    breakpointManager.onDidPause((pausedState) => {
+      pipelineView.setPaused(
+        true,
+        pausedState.pausedAtNode,
+        pausedState.busDataSnapshot,
+        pausedState.checksums
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    breakpointManager.onDidResume(() => {
+      pipelineView.setPaused(false);
+    })
+  );
+
   // Manual run from command palette is not an auto-run
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, { isAutoRun: false })
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, breakpointManager, { isAutoRun: false })
   );
 }
