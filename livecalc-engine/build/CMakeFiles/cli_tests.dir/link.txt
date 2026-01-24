@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cli_tests.dir/tests/test_cli.cpp.o -o cli_tests  _deps/catch2-build/src/libCatch2Main.a _deps/catch2-build/src/libCatch2.a

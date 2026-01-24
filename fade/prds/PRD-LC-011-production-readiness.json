@@ -1,0 +1,619 @@
+{
+  "id": "PRD-LC-011",
+  "title": "Production Readiness",
+  "type": "release",
+  "priority": "critical",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 4,
+  "description": "Polish, optimize, document, and prepare LiveCalc for production release. This includes performance optimization, comprehensive error handling, user documentation, onboarding experience, and VS Code Marketplace publishing.",
+  "problem": [
+    "MVP features built but not production-hardened",
+    "No comprehensive documentation for users",
+    "Onboarding experience not optimized",
+    "Not published to VS Code Marketplace",
+    "No telemetry or feedback mechanism"
+  ],
+  "solution": [
+    "Performance profiling and optimization",
+    "Comprehensive error handling and recovery",
+    "User documentation and quick start guide",
+    "Guided onboarding experience",
+    "Marketplace publishing with proper listing"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-001 through PRD-LC-010",
+      "title": "All previous PRDs",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "targetVersion": "1.0.0",
+    "marketplace": "Visual Studio Code Marketplace",
+    "publisher": "Milliman (or livecalc)",
+    "documentation": "Markdown in repo + hosted docs site"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Performance Optimization",
+      "story": "As an actuary, I want LiveCalc to be fast and responsive so my workflow isn't interrupted",
+      "acceptanceCriteria": [
+        "Profile WASM engine, identify hotspots",
+        "Optimize critical path (projection loop, aggregation)",
+        "Target: 20% improvement over initial implementation",
+        "Extension activation time < 500ms",
+        "Results panel render time < 100ms",
+        "Memory usage profiled and optimized",
+        "No memory leaks over extended use (test 100+ runs)",
+        "Large file handling: 100K policies in < 512MB RAM",
+        "Streaming where possible to reduce peak memory",
+        "Performance regression tests in CI",
+        "Benchmark results documented"
+      ],
+      "technicalNotes": {
+        "profiling": {
+          "wasm": "Chrome DevTools Performance tab",
+          "extension": "VS Code Extension Profiler",
+          "memory": "Node.js --inspect with heap snapshots"
+        },
+        "optimizations": [
+          "SIMD instructions in WASM where applicable",
+          "Avoid unnecessary allocations in hot loop",
+          "Batch DOM updates in webview",
+          "Lazy load non-critical components"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Error Handling and Recovery",
+      "story": "As an actuary, I want clear error messages and graceful recovery so I can fix problems quickly",
+      "acceptanceCriteria": [
+        "All errors categorized by type and severity",
+        "User-friendly error messages (no stack traces in UI)",
+        "Technical details available in expandable section",
+        "Actionable guidance for common errors:",
+        "  - File not found → 'Check path in livecalc.config.json'",
+        "  - Parse error → 'Invalid CSV at line 42, column 3'",
+        "  - Memory exceeded → 'Try smaller sample or use cloud'",
+        "  - Network error → 'Check connection, retry in 30 seconds'",
+        "Auto-retry for transient errors (network, timeout)",
+        "Graceful degradation: partial results if possible",
+        "Error telemetry (opt-in) for debugging",
+        "'Report Issue' button opens GitHub issue template",
+        "Crash recovery: restore state after extension reload",
+        "All error paths have unit tests"
+      ],
+      "technicalNotes": {
+        "errorCategories": [
+          "CONFIG_ERROR",
+          "FILE_ERROR",
+          "PARSE_ERROR",
+          "ENGINE_ERROR",
+          "NETWORK_ERROR",
+          "AUTH_ERROR",
+          "QUOTA_ERROR",
+          "TIMEOUT_ERROR",
+          "MEMORY_ERROR",
+          "UNKNOWN_ERROR"
+        ],
+        "errorSchema": {
+          "code": "string",
+          "message": "string (user-friendly)",
+          "details": "string (technical)",
+          "guidance": "string (actionable)",
+          "retryable": "boolean",
+          "reportable": "boolean"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Progress Reporting",
+      "story": "As an actuary, I want accurate progress indication so I know how long to wait",
+      "acceptanceCriteria": [
+        "Progress percentage accurate to within 5%",
+        "Progress updates smooth (no jumping)",
+        "ETA displayed and updated: 'Estimated: 23 seconds remaining'",
+        "ETA based on actual throughput, not just percentage",
+        "Progress for multi-stage operations (load → run → aggregate)",
+        "Stage indicator: 'Loading assumptions... (1/3)'",
+        "Cancel button responsive at all times",
+        "Progress visible in status bar during background runs",
+        "Large jumps explained: 'Finalizing results...'",
+        "No false 'stuck at 99%' situations"
+      ],
+      "technicalNotes": {
+        "etaCalculation": {
+          "method": "Exponential moving average of throughput",
+          "smoothing": "α = 0.3 (balance responsiveness and stability)",
+          "minSamples": 5
+        },
+        "stages": [
+          { "name": "Loading policies", "weight": 0.1 },
+          { "name": "Loading assumptions", "weight": 0.05 },
+          { "name": "Running projections", "weight": 0.8 },
+          { "name": "Aggregating results", "weight": 0.05 }
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "User Documentation",
+      "story": "As a new user, I want comprehensive documentation so I can learn LiveCalc effectively",
+      "acceptanceCriteria": [
+        "README.md with quick start (10-minute onboarding)",
+        "Installation guide (marketplace, manual)",
+        "Configuration reference (all settings documented)",
+        "MGA syntax reference (all keywords, examples)",
+        "Tutorial: First projection in 5 minutes",
+        "Tutorial: Connecting to Assumptions Manager",
+        "Tutorial: Running in the cloud",
+        "Troubleshooting guide (common issues and solutions)",
+        "FAQ section",
+        "API reference for advanced users",
+        "Changelog maintained with each release",
+        "Documentation versioned with extension",
+        "Search functionality on docs site",
+        "Screenshots and GIFs for visual guidance"
+      ],
+      "technicalNotes": {
+        "hosting": "GitHub Pages or dedicated docs site",
+        "format": "Markdown source, static site generator (Docusaurus, MkDocs)",
+        "structure": {
+          "getting-started/": ["installation", "quick-start", "first-projection"],
+          "guides/": ["assumptions-manager", "cloud-execution", "hybrid-mode"],
+          "reference/": ["configuration", "mga-syntax", "api"],
+          "troubleshooting/": ["common-errors", "faq"]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Onboarding Experience",
+      "story": "As a first-time user, I want a guided introduction so I can get started quickly",
+      "acceptanceCriteria": [
+        "Welcome message on first activation",
+        "'Get Started' walkthrough in VS Code",
+        "Step 1: Create sample project (one click)",
+        "Step 2: Open model file, explain syntax highlighting",
+        "Step 3: Run first projection (Cmd+Shift+R)",
+        "Step 4: Explore results panel",
+        "Step 5: Try changing an assumption",
+        "Sample project includes realistic but simple model",
+        "Sample project runs in < 3 seconds",
+        "Option to skip onboarding",
+        "Option to restart onboarding later",
+        "'What's New' on version updates",
+        "Contextual tips for advanced features (first time using cloud, etc.)"
+      ],
+      "technicalNotes": {
+        "walkthrough": {
+          "api": "VS Code Walkthrough Contribution",
+          "steps": 5,
+          "media": "SVG or PNG illustrations"
+        },
+        "sampleProject": {
+          "files": [
+            "livecalc.config.json",
+            "model.mga",
+            "assumptions/mortality.csv",
+            "assumptions/lapse.csv",
+            "assumptions/expenses.json",
+            "data/policies.csv (1000 rows)"
+          ]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Marketplace Publishing",
+      "story": "As a potential user, I want to find and install LiveCalc easily from the VS Code Marketplace",
+      "acceptanceCriteria": [
+        "Extension published to VS Code Marketplace",
+        "Publisher verified (Milliman or livecalc)",
+        "Listing includes:",
+        "  - Clear description of what LiveCalc does",
+        "  - Key features listed",
+        "  - Screenshots (syntax highlighting, results panel, cloud)",
+        "  - GIF showing workflow",
+        "  - Badges (version, downloads, rating)",
+        "Categories: 'Data Science', 'Other'",
+        "Keywords optimized for discovery: actuarial, insurance, projection, WASM",
+        "Minimum VS Code version specified",
+        "License clearly stated (proprietary or open source)",
+        "Support link to documentation/issues",
+        "Privacy policy link if telemetry enabled",
+        "Extension size < 10MB (fast install)"
+      ],
+      "technicalNotes": {
+        "packageJson": {
+          "publisher": "milliman",
+          "displayName": "LiveCalc",
+          "description": "Instant actuarial projections in VS Code",
+          "categories": ["Data Science", "Other"],
+          "keywords": ["actuarial", "insurance", "projection", "WASM", "valuation"],
+          "icon": "media/icon.png",
+          "galleryBanner": { "color": "#1e3a5f", "theme": "dark" },
+          "repository": "https://github.com/milliman/livecalc-vscode",
+          "bugs": "https://github.com/milliman/livecalc-vscode/issues"
+        },
+        "publishing": {
+          "tool": "vsce (Visual Studio Code Extension CLI)",
+          "ci": "GitHub Actions on tag push"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "CI/CD Pipeline",
+      "story": "As a developer, I want automated build and publish so releases are consistent and reliable",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow for CI",
+        "On every PR: lint, type-check, unit tests, build",
+        "On merge to main: integration tests",
+        "On tag (v*): build, test, publish to marketplace",
+        "Automated changelog generation from commits",
+        "Version bumped automatically based on conventional commits",
+        "VSIX artifact attached to GitHub release",
+        "Smoke test after publish (install and activate)",
+        "Rollback procedure documented",
+        "Branch protection: require CI pass before merge",
+        "Code coverage reported (target: 80%)",
+        "Bundle size tracked and alerted if grows significantly"
+      ],
+      "technicalNotes": {
+        "workflows": {
+          "ci.yml": "PR checks",
+          "release.yml": "Tag-triggered publish",
+          "nightly.yml": "Optional nightly builds"
+        },
+        "versionBump": {
+          "tool": "semantic-release or standard-version",
+          "pattern": "feat: → minor, fix: → patch, BREAKING: → major"
+        },
+        "secrets": [
+          "VSCE_PAT (marketplace publish token)",
+          "AZURE_CREDENTIALS (for integration tests)"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Telemetry and Feedback",
+      "story": "As a product owner, I want usage telemetry so I can understand how LiveCalc is used and improve it",
+      "acceptanceCriteria": [
+        "Telemetry opt-in only (respect user privacy)",
+        "Clear prompt explaining what is collected",
+        "Setting: livecalc.telemetry.enabled (default: false)",
+        "Collected (if opted in):",
+        "  - Extension activated (version, VS Code version, OS)",
+        "  - Feature used (run local, run cloud, compare versions)",
+        "  - Performance metrics (run time, policy count)",
+        "  - Errors (category, not details)",
+        "NOT collected: file contents, assumption values, results",
+        "Data sent to Azure Application Insights or similar",
+        "Dashboard for product team to view metrics",
+        "Feedback button: 'Send Feedback' opens form",
+        "Rate extension prompt after 10 successful runs",
+        "Privacy policy documented and linked"
+      ],
+      "technicalNotes": {
+        "telemetryService": {
+          "provider": "Azure Application Insights or Mixpanel",
+          "anonymization": "Hash user ID, no PII",
+          "batching": "Send events in batches, not real-time"
+        },
+        "events": [
+          { "name": "extension_activated", "properties": ["version", "os"] },
+          { "name": "run_completed", "properties": ["mode", "duration", "policyCount"] },
+          { "name": "error_occurred", "properties": ["category"] },
+          { "name": "feature_used", "properties": ["feature"] }
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Accessibility",
+      "story": "As a user with disabilities, I want LiveCalc to be accessible so I can use it effectively",
+      "acceptanceCriteria": [
+        "All UI elements have accessible names",
+        "Keyboard navigation works throughout",
+        "Focus indicators visible",
+        "Screen reader compatible (tested with NVDA/VoiceOver)",
+        "Color contrast meets WCAG AA (4.5:1 for text)",
+        "No information conveyed by color alone",
+        "Charts have text alternatives (data table view)",
+        "Animations can be disabled (respect prefers-reduced-motion)",
+        "Font sizes respect user settings",
+        "Error messages announced to screen readers",
+        "Documentation accessible",
+        "Accessibility statement published"
+      ],
+      "technicalNotes": {
+        "testing": {
+          "tools": ["axe DevTools", "Lighthouse", "screen reader manual testing"],
+          "checklist": "WCAG 2.1 Level AA"
+        },
+        "webviewAccessibility": {
+          "ariaLabels": "All interactive elements",
+          "ariaLive": "For dynamic content updates",
+          "tabIndex": "Logical tab order"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-010",
+      "title": "Security Review",
+      "story": "As an enterprise user, I want confidence that LiveCalc is secure so I can use it with sensitive data",
+      "acceptanceCriteria": [
+        "Security review completed by qualified reviewer",
+        "No secrets in code or logs",
+        "Dependencies scanned for vulnerabilities (npm audit)",
+        "WASM binary signed or hash verified",
+        "JWT validation secure (proper algorithm, expiry check)",
+        "Network calls use HTTPS only",
+        "No data sent to third parties (except opted-in telemetry)",
+        "User data stays on user's machine (local runs)",
+        "Cloud data encrypted in transit and at rest",
+        "Security policy documented",
+        "Vulnerability disclosure process established",
+        "SOC 2 considerations documented (for enterprise)",
+        "Penetration test for cloud service (PRD-LC-008)"
+      ],
+      "technicalNotes": {
+        "dependencyScanning": {
+          "tool": "npm audit, Snyk, or Dependabot",
+          "ci": "Fail build on high/critical vulnerabilities"
+        },
+        "securityChecklist": [
+          "No eval() or dynamic code execution",
+          "Input validation on all user input",
+          "Output encoding in webviews",
+          "CSP headers in webviews",
+          "Secure storage for secrets (VS Code SecretStorage)"
+        ]
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/docs/README.md",
+    "livecalc-vscode/docs/getting-started/installation.md",
+    "livecalc-vscode/docs/getting-started/quick-start.md",
+    "livecalc-vscode/docs/getting-started/first-projection.md",
+    "livecalc-vscode/docs/guides/assumptions-manager.md",
+    "livecalc-vscode/docs/guides/cloud-execution.md",
+    "livecalc-vscode/docs/guides/hybrid-mode.md",
+    "livecalc-vscode/docs/reference/configuration.md",
+    "livecalc-vscode/docs/reference/mga-syntax.md",
+    "livecalc-vscode/docs/troubleshooting/common-errors.md",
+    "livecalc-vscode/docs/troubleshooting/faq.md",
+    "livecalc-vscode/docs/CHANGELOG.md",
+    "livecalc-vscode/docs/SECURITY.md",
+    "livecalc-vscode/docs/PRIVACY.md",
+    "livecalc-vscode/.github/workflows/ci.yml",
+    "livecalc-vscode/.github/workflows/release.yml",
+    "livecalc-vscode/.github/ISSUE_TEMPLATE/bug_report.md",
+    "livecalc-vscode/.github/ISSUE_TEMPLATE/feature_request.md",
+    "livecalc-vscode/src/telemetry/telemetry-service.ts",
+    "livecalc-vscode/src/telemetry/events.ts",
+    "livecalc-vscode/src/onboarding/walkthrough.ts",
+    "livecalc-vscode/src/onboarding/sample-project.ts",
+    "livecalc-vscode/src/errors/error-handler.ts",
+    "livecalc-vscode/src/errors/error-types.ts",
+    "livecalc-vscode/src/errors/user-messages.ts",
+    "livecalc-vscode/src/progress/progress-reporter.ts",
+    "livecalc-vscode/src/progress/eta-calculator.ts",
+    "livecalc-vscode/media/walkthrough/step1.svg",
+    "livecalc-vscode/media/walkthrough/step2.svg",
+    "livecalc-vscode/media/walkthrough/step3.svg",
+    "livecalc-vscode/media/walkthrough/step4.svg",
+    "livecalc-vscode/media/walkthrough/step5.svg",
+    "livecalc-vscode/media/marketplace/screenshot1.png",
+    "livecalc-vscode/media/marketplace/screenshot2.png",
+    "livecalc-vscode/media/marketplace/screenshot3.png",
+    "livecalc-vscode/media/marketplace/demo.gif",
+    "livecalc-vscode/test/suite/error-handler.test.ts",
+    "livecalc-vscode/test/suite/progress-reporter.test.ts",
+    "livecalc-vscode/test/e2e/onboarding.test.ts",
+    "livecalc-vscode/test/e2e/full-workflow.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add marketplace metadata, walkthrough contribution, telemetry settings"
+    },
+    {
+      "file": "livecalc-vscode/src/extension.ts",
+      "changes": "Initialize telemetry, onboarding, error handler"
+    },
+    {
+      "file": "livecalc-vscode/README.md",
+      "changes": "Complete user-facing documentation"
+    },
+    {
+      "file": "All source files",
+      "changes": "Integrate centralized error handling"
+    }
+  ],
+  "packageJsonAdditions": {
+    "walkthroughs": [
+      {
+        "id": "livecalc.getStarted",
+        "title": "Get Started with LiveCalc",
+        "description": "Learn how to run your first actuarial projection",
+        "steps": [
+          {
+            "id": "createProject",
+            "title": "Create a Sample Project",
+            "description": "Create a sample project to explore LiveCalc",
+            "media": { "svg": "media/walkthrough/step1.svg" },
+            "completionEvents": ["onCommand:livecalc.createSampleProject"]
+          },
+          {
+            "id": "openModel",
+            "title": "Open the Model File",
+            "description": "See syntax highlighting in action",
+            "media": { "svg": "media/walkthrough/step2.svg" },
+            "completionEvents": ["onLanguage:mga"]
+          },
+          {
+            "id": "runProjection",
+            "title": "Run Your First Projection",
+            "description": "Press Cmd+Shift+R to run",
+            "media": { "svg": "media/walkthrough/step3.svg" },
+            "completionEvents": ["onCommand:livecalc.run"]
+          },
+          {
+            "id": "exploreResults",
+            "title": "Explore the Results",
+            "description": "See statistics and distribution",
+            "media": { "svg": "media/walkthrough/step4.svg" }
+          },
+          {
+            "id": "changeAssumption",
+            "title": "Try Changing an Assumption",
+            "description": "Edit and see instant results",
+            "media": { "svg": "media/walkthrough/step5.svg" }
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "livecalc.telemetry.enabled": {
+        "type": "boolean",
+        "default": false,
+        "description": "Enable anonymous usage telemetry to help improve LiveCalc"
+      },
+      "livecalc.showWelcome": {
+        "type": "boolean",
+        "default": true,
+        "description": "Show welcome message and walkthrough on first activation"
+      }
+    },
+    "commands": [
+      {
+        "command": "livecalc.createSampleProject",
+        "title": "Create Sample Project",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.openWalkthrough",
+        "title": "Open Getting Started Guide",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.sendFeedback",
+        "title": "Send Feedback",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.reportIssue",
+        "title": "Report Issue",
+        "category": "LiveCalc"
+      }
+    ]
+  },
+  "releaseChecklist": {
+    "preRelease": [
+      "All PRDs (001-010) complete and tested",
+      "Performance targets met",
+      "No critical or high severity bugs open",
+      "Documentation complete and reviewed",
+      "Security review passed",
+      "Accessibility review passed",
+      "Sample project tested on Windows, Mac, Linux",
+      "Cloud service deployed and stable",
+      "Telemetry dashboard configured",
+      "Legal review (if needed for licensing)"
+    ],
+    "release": [
+      "Version bumped to 1.0.0",
+      "CHANGELOG updated",
+      "Tag created: v1.0.0",
+      "CI/CD publishes to marketplace",
+      "Verify listing appears correctly",
+      "Install from marketplace and smoke test",
+      "Announcement prepared (blog post, social media)"
+    ],
+    "postRelease": [
+      "Monitor telemetry for errors",
+      "Monitor marketplace reviews",
+      "Respond to issues within 24 hours",
+      "Plan 1.0.1 patch if critical issues found"
+    ]
+  },
+  "successMetrics": {
+    "week1": {
+      "installs": ">100",
+      "rating": ">4.0 stars",
+      "criticalBugs": 0
+    },
+    "month1": {
+      "installs": ">500",
+      "activeUsers": ">100 weekly",
+      "rating": ">4.0 stars",
+      "retention": ">30% week-over-week"
+    },
+    "quarter1": {
+      "installs": ">2000",
+      "activeUsers": ">500 weekly",
+      "cloudJobs": ">1000",
+      "revenue": "Positive (if paid tier)"
+    }
+  },
+  "definitionOfDone": [
+    "Performance optimized (20% improvement validated)",
+    "All error paths have user-friendly messages",
+    "Progress reporting accurate and smooth",
+    "Documentation complete (all guides, reference, troubleshooting)",
+    "Onboarding walkthrough guides new users",
+    "Published to VS Code Marketplace",
+    "CI/CD pipeline automates releases",
+    "Telemetry operational (if opted in)",
+    "Accessibility WCAG AA compliant",
+    "Security review passed",
+    "All 10 user stories pass acceptance criteria",
+    "Release checklist completed"
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Marketplace rejection due to policy violation",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Review marketplace policies early, follow guidelines"
+    },
+    {
+      "risk": "Performance regression in final optimization",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Benchmark before and after every change"
+    },
+    {
+      "risk": "Documentation not complete by launch",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Prioritize quick start and tutorials, complete reference later"
+    },
+    {
+      "risk": "Security vulnerability discovered late",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Security review early in phase, not last minute"
+    }
+  ]
+}

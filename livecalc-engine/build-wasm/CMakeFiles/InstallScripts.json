@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

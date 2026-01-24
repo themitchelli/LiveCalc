@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-build/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-build/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

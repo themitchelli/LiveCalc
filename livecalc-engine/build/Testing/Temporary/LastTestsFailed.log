@@ -1,0 +1,3 @@
+124:CLI missing required args fails
+125:CLI invalid file path fails
+127:CLI full valuation runs successfully

@@ -1,0 +1,426 @@
+{
+  "id": "PRD-LC-006",
+  "title": "Assumptions Manager Integration",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Connect the VS Code extension to Assumptions Manager API for fetching governed, versioned assumption tables. This bridges the gap between rapid iteration (LiveCalc) and enterprise governance (Assumptions Manager), enabling actuaries to use approved assumptions with full audit trail.",
+  "problem": [
+    "Local assumption files have no governance or version control",
+    "No audit trail of which assumptions were used in a run",
+    "Actuaries must manually export from Assumptions Manager and copy files",
+    "Risk of using outdated or unapproved assumptions",
+    "No way to quickly test impact of pending assumption changes"
+  ],
+  "solution": [
+    "Authenticate with Assumptions Manager via OAuth/JWT",
+    "Resolve assumptions:// references to fetch governed tables",
+    "Cache fetched assumptions locally for offline use",
+    "Track exact versions used in each run for audit",
+    "Enable instant switching between assumption versions"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-003",
+      "title": "VS Code Extension Foundation",
+      "status": "required"
+    },
+    {
+      "id": "Assumptions Manager",
+      "title": "Assumptions Manager API (external)",
+      "status": "required",
+      "notes": "API already exists at assumptionsmanager.ddns.net"
+    }
+  ],
+  "technicalNotes": {
+    "apiBase": "https://assumptionsmanager.ddns.net",
+    "authMethod": "JWT Bearer token",
+    "cacheLocation": "VS Code globalStorageUri",
+    "offlineMode": "Use cached data when API unavailable"
+  },
+  "assumptionsManagerApiReference": {
+    "endpoints": {
+      "auth": {
+        "POST /auth/login": "Returns JWT token",
+        "POST /auth/refresh": "Refresh expired token"
+      },
+      "tables": {
+        "GET /tables": "List all tables for tenant",
+        "GET /tables/{id}": "Get table metadata",
+        "GET /tables/{id}/versions": "List versions for table",
+        "GET /tables/{id}/versions/{version}": "Get specific version metadata",
+        "GET /tables/{id}/versions/{version}/data": "Get table data as JSON"
+      }
+    },
+    "responseFormats": {
+      "tableData": {
+        "columns": ["age", "male", "female"],
+        "rows": [[0, 0.001, 0.0008], [1, 0.0005, 0.0004]]
+      }
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Authentication Flow",
+      "story": "As an actuary, I need to authenticate with Assumptions Manager so I can access my organization's governed assumptions",
+      "acceptanceCriteria": [
+        "Setting: livecalc.assumptionsManager.url (default: empty)",
+        "Command: 'LiveCalc: Login to Assumptions Manager'",
+        "Login opens browser for authentication (OAuth-style flow)",
+        "Alternatively: prompt for username/password in VS Code",
+        "JWT token stored securely in VS Code SecretStorage",
+        "Token automatically refreshed before expiry",
+        "Command: 'LiveCalc: Logout from Assumptions Manager'",
+        "Logout clears stored credentials",
+        "Status bar shows connection status icon",
+        "Status bar tooltip shows: 'Connected to AM as user@example.com'",
+        "Graceful handling of auth failures with clear messages",
+        "Setting: livecalc.assumptionsManager.autoLogin (default: true)"
+      ],
+      "technicalNotes": {
+        "secretStorage": "context.secrets.store('livecalc.amToken', token)",
+        "tokenRefresh": "Refresh when token expires in < 5 minutes",
+        "statusIcons": {
+          "connected": "$(cloud)",
+          "disconnected": "$(cloud-offline)",
+          "error": "$(cloud-error)"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Assumption Reference Syntax",
+      "story": "As an actuary, I want to reference assumptions by name and version so my model uses governed data",
+      "acceptanceCriteria": [
+        "Syntax: assumptions://table-name:version",
+        "Example: assumptions://mortality-standard:v2.1",
+        "Syntax: assumptions://table-name:latest for latest approved version",
+        "Syntax: assumptions://table-name:draft for current draft (if permitted)",
+        "References work in livecalc.config.json assumptions section",
+        "References work inline in .mga model files",
+        "Invalid references show error squiggles in editor",
+        "Hover on reference shows table metadata (name, version, approved date)",
+        "Ctrl+Click on reference opens table in Assumptions Manager (browser)",
+        "Autocomplete suggests available tables after typing 'assumptions://'",
+        "Autocomplete suggests versions after typing table name and colon"
+      ],
+      "technicalNotes": {
+        "regex": "assumptions:\\/\\/([a-zA-Z0-9-_]+):(v?[0-9.]+|latest|draft)",
+        "hoverProvider": "vscode.languages.registerHoverProvider",
+        "completionProvider": "vscode.languages.registerCompletionItemProvider"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Fetch Assumptions from API",
+      "story": "As a developer, I need to fetch assumptions from the API so they can be used in valuations",
+      "acceptanceCriteria": [
+        "AssumptionsManagerClient class wraps all API calls",
+        "listTables() returns available tables for tenant",
+        "getTable(name) returns table metadata",
+        "listVersions(name) returns all versions for a table",
+        "getVersion(name, version) returns version metadata",
+        "fetchData(name, version) returns table data as 2D array",
+        "All methods handle auth token automatically",
+        "All methods handle token refresh if expired",
+        "Timeout configurable: livecalc.assumptionsManager.timeoutMs (default: 30000)",
+        "Retry logic with exponential backoff (max 3 retries)",
+        "Clear error messages for: 401 (auth), 403 (permission), 404 (not found), 500 (server)",
+        "Request/response logged in debug mode"
+      ],
+      "technicalNotes": {
+        "implementation": "src/assumptions-manager/client.ts",
+        "httpClient": "VS Code fetch or axios",
+        "retryDelays": [1000, 2000, 4000]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Assumption Resolution Pipeline",
+      "story": "As a developer, I need to resolve all assumption references before running valuation",
+      "acceptanceCriteria": [
+        "AssumptionResolver class handles all reference resolution",
+        "Parse config for all assumptions:// references",
+        "Resolve 'latest' to specific version number at resolution time",
+        "Fetch all referenced tables in parallel for performance",
+        "Convert API response format to engine-compatible format",
+        "Fail fast if any assumption cannot be resolved",
+        "Error message specifies which assumption failed and why",
+        "Resolution logged: 'Resolved mortality-standard:latest → v2.1'",
+        "Resolved versions stored in run metadata for audit",
+        "Local file references (local://) still work alongside AM references"
+      ],
+      "technicalNotes": {
+        "parallelFetch": "Promise.all() for concurrent resolution",
+        "mixedSources": "Support both assumptions:// and local:// in same config",
+        "formatConversion": {
+          "apiFormat": { "columns": [], "rows": [] },
+          "engineFormat": "Float64Array or number[][]"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Local Caching",
+      "story": "As an actuary, I want assumptions cached locally so I can work offline and runs are faster",
+      "acceptanceCriteria": [
+        "Fetched assumptions cached in VS Code globalStorageUri",
+        "Cache key: {table-name}:{version} (version-specific, immutable)",
+        "Cache includes: data, metadata, fetch timestamp",
+        "Cache hit skips API call entirely",
+        "'latest' and 'draft' not cached (always fetch to get current)",
+        "Cache size limit configurable: livecalc.assumptionsManager.cacheSizeMb (default: 100)",
+        "LRU eviction when cache exceeds limit",
+        "Command: 'LiveCalc: Clear Assumptions Cache'",
+        "Cache statistics in output channel: hits, misses, size",
+        "Offline mode: use cache if API unavailable, warn user",
+        "Setting: livecalc.assumptionsManager.offlineMode (default: 'warn')",
+        "Options: 'warn' (use cache + show warning), 'fail' (error if offline)"
+      ],
+      "technicalNotes": {
+        "cacheDir": "context.globalStorageUri/assumptions-cache/",
+        "fileFormat": "JSON: { metadata: {}, data: [], fetchedAt: ISO8601 }",
+        "lruTracking": "Separate index.json with access timestamps"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Version Metadata in Results",
+      "story": "As an actuary, I want to see exactly which assumption versions were used so I have a complete audit trail",
+      "acceptanceCriteria": [
+        "Results panel shows 'Assumptions Used' section",
+        "Each assumption shows: name, version, source (AM or local)",
+        "For AM assumptions: approval status, approved by, approved date",
+        "For local files: file path, last modified date, content hash",
+        "Click on AM assumption opens in Assumptions Manager (browser)",
+        "Click on local file opens in VS Code editor",
+        "Export includes full assumption metadata",
+        "Run history includes assumption versions for each run",
+        "Warning if using draft or unapproved assumption"
+      ],
+      "technicalNotes": {
+        "metadataSchema": {
+          "name": "string",
+          "version": "string",
+          "source": "am | local",
+          "approvalStatus": "approved | draft | pending",
+          "approvedBy": "string | null",
+          "approvedAt": "ISO8601 | null",
+          "contentHash": "SHA256"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Connection Status Indicator",
+      "story": "As an actuary, I want to see Assumptions Manager connection status so I know if governed data is available",
+      "acceptanceCriteria": [
+        "Status bar item shows AM connection state",
+        "States: Connected, Disconnected, Error, Offline (cached)",
+        "Connected: green cloud icon, tooltip shows user and tenant",
+        "Disconnected: gray cloud icon, tooltip shows 'Click to login'",
+        "Error: red cloud icon, tooltip shows error message",
+        "Offline: yellow cloud icon, tooltip shows 'Using cached data'",
+        "Click on status bar item shows quick actions menu",
+        "Quick actions: Login, Logout, Clear Cache, Open AM in Browser",
+        "Connection checked on extension activation",
+        "Connection rechecked periodically (every 5 minutes)",
+        "Connection rechecked on network change event"
+      ],
+      "technicalNotes": {
+        "statusBarItem": "Separate from main LiveCalc status bar item",
+        "quickPick": "vscode.window.showQuickPick() for actions",
+        "networkChange": "VS Code doesn't expose this; use periodic check"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Assumptions Panel (Tree View)",
+      "story": "As an actuary, I want a panel showing available assumptions so I can browse and select what to use",
+      "acceptanceCriteria": [
+        "Tree view in Explorer sidebar: 'LiveCalc Assumptions'",
+        "Top-level nodes: Assumptions Manager tables, Local files",
+        "AM tables expand to show versions",
+        "Version nodes show: version number, status badge (approved/draft/pending)",
+        "Approved versions have green checkmark",
+        "Draft versions have yellow pencil icon",
+        "Pending approval versions have orange clock icon",
+        "Double-click version to insert reference at cursor in config",
+        "Right-click menu: Copy Reference, Open in AM, View Data",
+        "Refresh button to reload table list from API",
+        "Search/filter box to find tables by name",
+        "Show loading indicator while fetching",
+        "Show error state if API unavailable"
+      ],
+      "technicalNotes": {
+        "viewId": "livecalc.assumptionsExplorer",
+        "treeDataProvider": "src/assumptions-manager/tree-provider.ts",
+        "icons": {
+          "approved": "$(verified)",
+          "draft": "$(edit)",
+          "pending": "$(clock)",
+          "local": "$(file)"
+        }
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/src/assumptions-manager/client.ts",
+    "livecalc-vscode/src/assumptions-manager/auth.ts",
+    "livecalc-vscode/src/assumptions-manager/resolver.ts",
+    "livecalc-vscode/src/assumptions-manager/cache.ts",
+    "livecalc-vscode/src/assumptions-manager/tree-provider.ts",
+    "livecalc-vscode/src/assumptions-manager/hover-provider.ts",
+    "livecalc-vscode/src/assumptions-manager/completion-provider.ts",
+    "livecalc-vscode/src/assumptions-manager/status-bar.ts",
+    "livecalc-vscode/src/assumptions-manager/types.ts",
+    "livecalc-vscode/src/commands/am-login.ts",
+    "livecalc-vscode/src/commands/am-logout.ts",
+    "livecalc-vscode/src/commands/am-clear-cache.ts",
+    "livecalc-vscode/test/suite/assumptions-manager.test.ts",
+    "livecalc-vscode/test/suite/am-resolver.test.ts",
+    "livecalc-vscode/test/suite/am-cache.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/extension.ts",
+      "changes": "Initialize AM client, register providers and commands"
+    },
+    {
+      "file": "livecalc-vscode/src/data/assumption-loader.ts",
+      "changes": "Integrate AM resolver for assumptions:// references"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add assumption metadata display section"
+    },
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add settings, commands, tree view contribution"
+    }
+  ],
+  "packageJsonAdditions": {
+    "commands": [
+      {
+        "command": "livecalc.amLogin",
+        "title": "Login to Assumptions Manager",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amLogout",
+        "title": "Logout from Assumptions Manager",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amClearCache",
+        "title": "Clear Assumptions Cache",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amRefresh",
+        "title": "Refresh Assumptions List",
+        "category": "LiveCalc",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "livecalc.amOpenInBrowser",
+        "title": "Open in Assumptions Manager",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amCopyReference",
+        "title": "Copy Assumption Reference",
+        "category": "LiveCalc"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "livecalc.assumptionsExplorer",
+          "name": "LiveCalc Assumptions",
+          "when": "livecalc.hasConfig"
+        }
+      ]
+    },
+    "configuration": {
+      "livecalc.assumptionsManager.url": {
+        "type": "string",
+        "default": "",
+        "description": "Assumptions Manager API URL (e.g., https://assumptionsmanager.ddns.net)"
+      },
+      "livecalc.assumptionsManager.autoLogin": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically login on extension activation if credentials stored"
+      },
+      "livecalc.assumptionsManager.timeoutMs": {
+        "type": "number",
+        "default": 30000,
+        "description": "API request timeout in milliseconds"
+      },
+      "livecalc.assumptionsManager.cacheSizeMb": {
+        "type": "number",
+        "default": 100,
+        "description": "Maximum cache size in megabytes"
+      },
+      "livecalc.assumptionsManager.offlineMode": {
+        "type": "string",
+        "enum": ["warn", "fail"],
+        "default": "warn",
+        "description": "Behavior when Assumptions Manager is unavailable"
+      }
+    }
+  },
+  "securityConsiderations": [
+    "JWT tokens stored in VS Code SecretStorage (encrypted)",
+    "Tokens never logged, even in debug mode",
+    "HTTPS required for API communication",
+    "Cache files stored in user-specific directory",
+    "No credentials stored in workspace settings (only global)"
+  ],
+  "definitionOfDone": [
+    "Login/logout flow works with Assumptions Manager API",
+    "assumptions:// references resolve to actual data",
+    "Autocomplete and hover work for assumption references",
+    "Assumptions cached locally with LRU eviction",
+    "Offline mode uses cache with appropriate warnings",
+    "Results panel shows exact versions used",
+    "Tree view displays available tables and versions",
+    "All 8 user stories pass acceptance criteria",
+    "Integration tests pass against live AM instance",
+    "Documentation covers setup and usage"
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Assumptions Manager API changes",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Version API, integration tests, coordinate releases"
+    },
+    {
+      "risk": "Authentication complexity (OAuth vs simple)",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Start with simple JWT, add OAuth later if needed"
+    },
+    {
+      "risk": "Cache invalidation for 'latest' version",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Never cache 'latest', always fetch to get current"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+[
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/policy.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/policy.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/assumptions.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumptions.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumptions.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/assumptions.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/scenario.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/scenario.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/projection.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/projection.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/valuation.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/valuation.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/io/csv_reader.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/csv_reader.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/csv_reader.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/io/csv_reader.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/io/json_writer.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/json_writer.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/json_writer.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/io/json_writer.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-wasm-simd",
+  "command": "/usr/local/Cellar/emscripten/4.0.23/libexec/em++  @CMakeFiles/livecalc-simd.dir/includes_CXX.rsp -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -O3 -flto -msimd128 -o CMakeFiles/livecalc-simd.dir/src/wasm/exports.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/wasm/exports.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/wasm/exports.cpp",
+  "output": "CMakeFiles/livecalc-simd.dir/src/wasm/exports.cpp.o"
+}
+]

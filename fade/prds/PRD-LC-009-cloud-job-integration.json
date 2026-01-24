@@ -1,0 +1,598 @@
+{
+  "id": "PRD-LC-009",
+  "title": "Cloud Job Integration",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Extend the VS Code extension to submit jobs to the AKS WASM service when workloads exceed client-side capacity. This creates the seamless hybrid experience: instant local preview for small runs, cloud execution for production scale.",
+  "problem": [
+    "VS Code extension only runs locally (limited by laptop RAM)",
+    "No way to run large workloads (>100K policies) from the IDE",
+    "Users must switch to separate tools for production-scale runs",
+    "No unified experience across local and cloud execution"
+  ],
+  "solution": [
+    "Analyze workload size and recommend local vs cloud",
+    "Upload large policy files to Azure Blob",
+    "Submit jobs to AKS API and poll for status",
+    "Display cloud results in same panel as local results",
+    "Enable hybrid workflow: local preview + cloud full run"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-008",
+      "title": "AKS WASM Runtime Service",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-004",
+      "title": "Results Panel and Visualisation",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-006",
+      "title": "Assumptions Manager Integration",
+      "status": "required",
+      "notes": "Uses same auth for cloud API"
+    }
+  ],
+  "technicalNotes": {
+    "apiClient": "Reuse auth from Assumptions Manager integration",
+    "fileUpload": "Azure Blob SDK with SAS tokens",
+    "polling": "Exponential backoff, WebSocket upgrade if available",
+    "stateManagement": "Track active cloud jobs in extension state"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Workload Analyzer",
+      "story": "As an actuary, I want the extension to tell me whether my job will run locally or in the cloud so I understand what to expect",
+      "acceptanceCriteria": [
+        "Analyze policy file size before run",
+        "Estimate memory requirement: policies × bytesPerPolicy × scenarios",
+        "Detect available system memory (process.memoryUsage or navigator)",
+        "Decision thresholds configurable via settings",
+        "Default: local if <50% available RAM AND <100K policies",
+        "Display recommendation in pre-run dialog:",
+        "  - 'This will run locally (~3 seconds)'",
+        "  - 'This requires cloud compute (~45 seconds, ~£0.05)'",
+        "Show breakdown: policies, scenarios, estimated memory, estimated time",
+        "User can override recommendation (force local, force cloud)",
+        "Warning if forcing local on too-large workload",
+        "Setting: livecalc.cloud.autoRecommend (default: true)",
+        "Setting: livecalc.cloud.localMaxPolicies (default: 100000)",
+        "Setting: livecalc.cloud.localMaxMemoryPercent (default: 50)"
+      ],
+      "technicalNotes": {
+        "memoryEstimation": {
+          "bytesPerPolicy": 200,
+          "bytesPerScenario": 8,
+          "overhead": 1.5,
+          "formula": "(policies × bytesPerPolicy + scenarios × bytesPerScenario) × overhead"
+        },
+        "systemMemory": {
+          "node": "os.freemem()",
+          "browser": "navigator.deviceMemory (approximate)"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Cloud Run Command",
+      "story": "As an actuary, I want a command to run my model in the cloud so I can process large workloads",
+      "acceptanceCriteria": [
+        "Command: 'LiveCalc: Run in Cloud'",
+        "Keyboard shortcut: Cmd+Shift+C / Ctrl+Shift+C",
+        "Also available via button in run configuration UI",
+        "Pre-flight check: authenticated with cloud service",
+        "Pre-flight check: sufficient quota remaining",
+        "Pre-flight check: policy file accessible",
+        "Show cost estimate before submission",
+        "Confirmation dialog: 'Run in cloud? Estimated cost: £0.05'",
+        "Setting to skip confirmation: livecalc.cloud.skipConfirmation",
+        "Error handling for: not authenticated, quota exceeded, file too large"
+      ],
+      "technicalNotes": {
+        "commandId": "livecalc.runCloud",
+        "preflightChecks": [
+          "isAuthenticated()",
+          "hasQuota(estimatedCost)",
+          "fileExists(policyPath)",
+          "fileSizeWithinLimits(policyPath)"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Policy File Upload",
+      "story": "As an actuary, I want large policy files uploaded automatically so I don't have to manage cloud storage manually",
+      "acceptanceCriteria": [
+        "Request SAS upload URL from cloud API",
+        "Upload policy file directly to Azure Blob",
+        "Show upload progress: percentage, bytes transferred, speed",
+        "Support large files up to 10GB",
+        "Chunked upload for reliability (4MB chunks)",
+        "Resume interrupted uploads if possible",
+        "Verify upload with content hash",
+        "Cancel upload if user cancels job",
+        "Skip upload if file already exists in cloud (hash match)",
+        "Setting: livecalc.cloud.uploadChunkSizeMb (default: 4)",
+        "Error handling: network failure, storage full, permission denied"
+      ],
+      "technicalNotes": {
+        "sdk": "@azure/storage-blob for chunked upload",
+        "hashAlgorithm": "MD5 for blob verification",
+        "cacheCheck": "Store hash of uploaded files, skip if match",
+        "progressCallback": "Update every 1% or 1 second, whichever is more frequent"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Job Submission and Tracking",
+      "story": "As an actuary, I want to track my cloud job status so I know when results are ready",
+      "acceptanceCriteria": [
+        "Submit job to cloud API after upload completes",
+        "Receive job ID and initial status",
+        "Show job status in results panel:",
+        "  - Queued: 'Position 3 in queue, estimated start: 2 minutes'",
+        "  - Running: 'Processing... 45% complete (225K/500K policies)'",
+        "  - Completed: Show results (same as local)",
+        "  - Failed: Show error message with guidance",
+        "  - Cancelled: Confirm cancellation",
+        "Poll for status updates (exponential backoff: 1s, 2s, 4s, max 10s)",
+        "Cancel button available throughout",
+        "Cancel calls DELETE /jobs/{id} on cloud API",
+        "Multiple concurrent jobs supported (show list)",
+        "Notification when job completes (if panel not visible)",
+        "Setting: livecalc.cloud.pollIntervalMs (default: 2000)"
+      ],
+      "technicalNotes": {
+        "polling": {
+          "initial": 1000,
+          "backoffMultiplier": 1.5,
+          "maxInterval": 10000
+        },
+        "jobState": {
+          "storage": "Extension context.workspaceState",
+          "persistence": "Survive extension reload"
+        },
+        "statusMapping": {
+          "queued": "showQueuePosition()",
+          "starting": "showStarting()",
+          "running": "showProgress()",
+          "completed": "showResults()",
+          "failed": "showError()",
+          "cancelled": "showCancelled()"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Cloud Results Integration",
+      "story": "As an actuary, I want cloud results displayed the same as local results so I have a consistent experience",
+      "acceptanceCriteria": [
+        "Results panel shows cloud results identically to local",
+        "Source indicator: 'Local' or 'Cloud (job-abc123)'",
+        "Execution time shown (includes queue wait vs compute)",
+        "Cost shown for cloud runs: 'Cost: £0.05'",
+        "Link to full results file in cloud storage",
+        "Download full results as JSON/CSV",
+        "Results cached locally for quick re-viewing",
+        "Comparison works: local preview vs cloud full run",
+        "Results panel auto-updates when cloud job completes",
+        "Click job ID to see detailed job info"
+      ],
+      "technicalNotes": {
+        "resultsDisplay": "Same components as local, add source badge",
+        "caching": "Download results JSON, store in workspace storage",
+        "comparison": "Local preview treated as 'previous' for delta calculation"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Hybrid Run Mode (Preview + Full)",
+      "story": "As an actuary, I want to preview locally with a sample, then run full in cloud, so I get fast iteration AND accurate results",
+      "acceptanceCriteria": [
+        "Run mode selector: 'Preview' | 'Full Run' | 'Auto'",
+        "'Preview' button: runs sampled data locally (instant)",
+        "'Full Run' button: runs all data in cloud",
+        "'Auto' mode: preview on save, full run on explicit command",
+        "Preview clearly marked as approximate: '±2% at 95% confidence'",
+        "Side-by-side display: Preview (local) vs Full (cloud)",
+        "Delta shown between preview and full run",
+        "Accuracy tracking: 'Preview was within 1.8% of full run'",
+        "Setting: livecalc.hybrid.previewSampleSize (default: 10000)",
+        "Setting: livecalc.hybrid.autoPreviewOnSave (default: true)"
+      ],
+      "technicalNotes": {
+        "uiLayout": {
+          "selector": "Segmented control or dropdown in toolbar",
+          "sideBySide": "Two columns in results panel when both available"
+        },
+        "accuracyTracking": {
+          "storage": "Array of (preview, full) result pairs",
+          "metric": "abs(preview - full) / full × 100"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Job History and Management",
+      "story": "As an actuary, I want to see my cloud job history so I can review past runs and manage active jobs",
+      "acceptanceCriteria": [
+        "Jobs panel in sidebar: 'LiveCalc Cloud Jobs'",
+        "Shows: Active jobs (running, queued), Recent jobs (last 20)",
+        "Each job shows: ID, status, submitted time, policy count, cost",
+        "Click active job to see live status",
+        "Click completed job to load results",
+        "Right-click menu: Cancel, View Results, Copy ID, Delete",
+        "Filter: All, Active, Completed, Failed",
+        "Refresh button to update from API",
+        "Auto-refresh active jobs every 5 seconds",
+        "Clear old jobs (older than 7 days) option"
+      ],
+      "technicalNotes": {
+        "treeView": {
+          "viewId": "livecalc.cloudJobs",
+          "sections": ["Active", "Recent"]
+        },
+        "persistence": "Fetch from API, cache in workspace state",
+        "autoRefresh": "setInterval for active jobs only"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Cost and Quota Display",
+      "story": "As an actuary, I want to see my cloud usage so I can manage costs and stay within quota",
+      "acceptanceCriteria": [
+        "Usage summary in cloud jobs panel header",
+        "Shows: Jobs this month, Compute hours used, Estimated cost",
+        "Shows: Quota remaining (hours or percentage)",
+        "Progress bar for quota usage",
+        "Warning at 80% quota: yellow indicator",
+        "Warning at 95% quota: red indicator, suggest upgrade",
+        "Click to see detailed usage breakdown",
+        "Link to billing portal for full details",
+        "Cost estimate shown before every cloud run",
+        "Setting: livecalc.cloud.showCostEstimate (default: true)"
+      ],
+      "technicalNotes": {
+        "usageApi": "GET /v1/usage from cloud API",
+        "caching": "Cache usage for 5 minutes to reduce API calls",
+        "thresholds": {
+          "warning": 0.8,
+          "critical": 0.95
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Offline and Error Handling",
+      "story": "As an actuary, I want graceful handling of network issues so I'm not blocked when cloud is unavailable",
+      "acceptanceCriteria": [
+        "Detect cloud API availability on extension activation",
+        "Show status: 'Cloud: Available' or 'Cloud: Unavailable'",
+        "If unavailable: 'Run in Cloud' shows message, suggests local",
+        "If job in progress and connection lost: show warning, auto-retry",
+        "Retry job status polling on transient errors (3 attempts)",
+        "Upload resume if connection restored within timeout",
+        "Clear error messages for common issues:",
+        "  - 'Authentication expired - please login again'",
+        "  - 'Quota exceeded - upgrade or wait until next month'",
+        "  - 'File too large - maximum 10GB'",
+        "  - 'Service temporarily unavailable - try again later'",
+        "Offline mode: local runs always work",
+        "Queue jobs for later submission when offline (optional)"
+      ],
+      "technicalNotes": {
+        "healthCheck": "GET /health on cloud API",
+        "retryStrategy": {
+          "maxAttempts": 3,
+          "backoff": [1000, 2000, 4000]
+        },
+        "offlineQueue": {
+          "storage": "workspace state",
+          "submitOnReconnect": "optional, setting-controlled"
+        }
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/src/cloud/cloud-client.ts",
+    "livecalc-vscode/src/cloud/workload-analyzer.ts",
+    "livecalc-vscode/src/cloud/file-uploader.ts",
+    "livecalc-vscode/src/cloud/job-tracker.ts",
+    "livecalc-vscode/src/cloud/job-poller.ts",
+    "livecalc-vscode/src/cloud/results-fetcher.ts",
+    "livecalc-vscode/src/cloud/usage-tracker.ts",
+    "livecalc-vscode/src/cloud/jobs-tree-provider.ts",
+    "livecalc-vscode/src/cloud/types.ts",
+    "livecalc-vscode/src/commands/run-cloud.ts",
+    "livecalc-vscode/src/commands/cancel-cloud-job.ts",
+    "livecalc-vscode/src/commands/view-cloud-usage.ts",
+    "livecalc-vscode/src/ui/run-mode-selector.ts",
+    "livecalc-vscode/src/ui/upload-progress.ts",
+    "livecalc-vscode/src/ui/job-status.ts",
+    "livecalc-vscode/src/ui/cost-display.ts",
+    "livecalc-vscode/src/ui/hybrid-results.ts",
+    "livecalc-vscode/test/suite/cloud-client.test.ts",
+    "livecalc-vscode/test/suite/workload-analyzer.test.ts",
+    "livecalc-vscode/test/suite/job-tracker.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/extension.ts",
+      "changes": "Register cloud commands, jobs tree view, initialize cloud client"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add source indicator, cloud job status, hybrid mode display"
+    },
+    {
+      "file": "livecalc-vscode/src/commands/run.ts",
+      "changes": "Integrate workload analyzer, show recommendation"
+    },
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add cloud commands, settings, tree view"
+    }
+  ],
+  "packageJsonAdditions": {
+    "commands": [
+      {
+        "command": "livecalc.runCloud",
+        "title": "Run in Cloud",
+        "category": "LiveCalc",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "livecalc.cancelCloudJob",
+        "title": "Cancel Cloud Job",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.viewCloudUsage",
+        "title": "View Cloud Usage",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.refreshCloudJobs",
+        "title": "Refresh Cloud Jobs",
+        "category": "LiveCalc",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "livecalc.downloadCloudResults",
+        "title": "Download Results",
+        "category": "LiveCalc"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "livecalc.runCloud",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "livecalc.hasConfig"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "livecalc.cloudJobs",
+          "name": "LiveCalc Cloud Jobs",
+          "when": "livecalc.cloudEnabled"
+        }
+      ]
+    },
+    "configuration": {
+      "livecalc.cloud.apiUrl": {
+        "type": "string",
+        "default": "",
+        "description": "LiveCalc Cloud API URL"
+      },
+      "livecalc.cloud.autoRecommend": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically recommend local vs cloud based on workload size"
+      },
+      "livecalc.cloud.localMaxPolicies": {
+        "type": "number",
+        "default": 100000,
+        "description": "Maximum policies for local execution"
+      },
+      "livecalc.cloud.localMaxMemoryPercent": {
+        "type": "number",
+        "default": 50,
+        "description": "Maximum percentage of system memory for local execution"
+      },
+      "livecalc.cloud.skipConfirmation": {
+        "type": "boolean",
+        "default": false,
+        "description": "Skip confirmation dialog before cloud runs"
+      },
+      "livecalc.cloud.showCostEstimate": {
+        "type": "boolean",
+        "default": true,
+        "description": "Show cost estimate before cloud runs"
+      },
+      "livecalc.cloud.uploadChunkSizeMb": {
+        "type": "number",
+        "default": 4,
+        "description": "Upload chunk size in megabytes"
+      },
+      "livecalc.cloud.pollIntervalMs": {
+        "type": "number",
+        "default": 2000,
+        "description": "Job status polling interval in milliseconds"
+      },
+      "livecalc.hybrid.previewSampleSize": {
+        "type": "number",
+        "default": 10000,
+        "description": "Number of policies for local preview sample"
+      },
+      "livecalc.hybrid.autoPreviewOnSave": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically run local preview on file save"
+      }
+    }
+  },
+  "wireframes": {
+    "runModeSelector": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  Run Configuration                                             │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  Policies: 500,000 (policies.csv - 4.2GB)                      │",
+      "│  Scenarios: 1,000                                              │",
+      "│                                                                 │",
+      "│  ⚠️  This workload exceeds local capacity                      │",
+      "│      Estimated memory: 6.8GB (available: 4.2GB)                │",
+      "│                                                                 │",
+      "│  ┌─────────────────────┐  ┌─────────────────────────────────┐  │",
+      "│  │  ▶ Preview          │  │  ☁️ Full Run                    │  │",
+      "│  │                     │  │                                  │  │",
+      "│  │  10K sample (2%)    │  │  All 500K policies              │  │",
+      "│  │  Local, ~3 seconds  │  │  Cloud, ~45 seconds             │  │",
+      "│  │  FREE               │  │  Estimated: £0.08               │  │",
+      "│  │                     │  │                                  │  │",
+      "│  │  [ Run Preview ]    │  │  [ Run in Cloud ]               │  │",
+      "│  └─────────────────────┘  └─────────────────────────────────┘  │",
+      "│                                                                 │",
+      "│  [x] Auto-preview on save                                      │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ],
+    "cloudJobStatus": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  Cloud Job Status                                              │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  Job ID: job-abc123-def456                                     │",
+      "│  Status: Running                                                │",
+      "│                                                                 │",
+      "│  ┌─────────────────────────────────────────────────────────┐   │",
+      "│  │                                                         │   │",
+      "│  │  Progress: 67%                                          │   │",
+      "│  │  ████████████████████████░░░░░░░░░░░░  335K / 500K      │   │",
+      "│  │                                                         │   │",
+      "│  │  Elapsed: 28s                                           │   │",
+      "│  │  Estimated remaining: ~14s                              │   │",
+      "│  │                                                         │   │",
+      "│  └─────────────────────────────────────────────────────────┘   │",
+      "│                                                                 │",
+      "│  [ Cancel ]                                                    │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ],
+    "hybridResults": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  Results                                     [Export ▼] [×]    │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  ┌───────────────────────┐  ┌───────────────────────────────┐  │",
+      "│  │  PREVIEW (Local)      │  │  FULL RUN (Cloud)             │  │",
+      "│  │  10K sample, 2.1s     │  │  500K policies, 43s           │  │",
+      "│  │  ──────────────────   │  │  ─────────────────────────    │  │",
+      "│  │                       │  │                               │  │",
+      "│  │  Mean: £1.21M         │  │  Mean: £1.234M                │  │",
+      "│  │  P95:  £0.87M         │  │  P95:  £0.872M                │  │",
+      "│  │  CTE:  £0.74M         │  │  CTE:  £0.738M                │  │",
+      "│  │                       │  │                               │  │",
+      "│  │  ⚠️ Approximate       │  │  ✓ Final                      │  │",
+      "│  │  (±2% confidence)     │  │  Cost: £0.08                  │  │",
+      "│  │                       │  │                               │  │",
+      "│  └───────────────────────┘  └───────────────────────────────┘  │",
+      "│                                                                 │",
+      "│  Preview accuracy: 1.9% difference from full run              │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ],
+    "cloudJobsPanel": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  LIVECALC CLOUD JOBS                              [↻]          │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  Usage: 12.5 / 50 hours (25%)  ████░░░░░░░░░░░░                │",
+      "│  This month: 23 jobs, £4.50 estimated                          │",
+      "│                                                                 │",
+      "│  ▼ Active (2)                                                  │",
+      "│    ● job-abc123  Running 67%   500K policies   ~£0.08         │",
+      "│    ○ job-def456  Queued #2     1M policies     ~£0.15         │",
+      "│                                                                 │",
+      "│  ▼ Recent (5)                                                  │",
+      "│    ✓ job-ghi789  Completed     100K policies   £0.02  10m ago │",
+      "│    ✓ job-jkl012  Completed     500K policies   £0.08  2h ago  │",
+      "│    ✗ job-mno345  Failed        2M policies     £0.00  3h ago  │",
+      "│    ✓ job-pqr678  Completed     100K policies   £0.02  1d ago  │",
+      "│    ✓ job-stu901  Completed     500K policies   £0.08  1d ago  │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ]
+  },
+  "userFlow": {
+    "hybridWorkflow": [
+      "1. Actuary opens project with 500K policies",
+      "2. Edits mortality assumption",
+      "3. Presses Cmd+S (save)",
+      "4. Auto-preview triggers: 10K sample runs locally in 2.1s",
+      "5. Results panel shows: 'Preview: Mean £1.21M (±2%)'",
+      "6. Actuary satisfied with direction, wants exact numbers",
+      "7. Clicks 'Full Run' button",
+      "8. Confirmation: 'Run 500K policies in cloud? ~45s, ~£0.08'",
+      "9. Clicks 'Run'",
+      "10. Upload progress: 'Uploading... 78% (3.3GB / 4.2GB)'",
+      "11. Job submitted: 'Queued, position 1'",
+      "12. Status updates: 'Running... 45% complete'",
+      "13. Completes: Results panel shows full results next to preview",
+      "14. Comparison: 'Preview was within 1.9% of full run'",
+      "15. Actuary exports full results for governance report"
+    ]
+  },
+  "definitionOfDone": [
+    "Workload analyzer recommends local vs cloud correctly",
+    "Policy files upload with progress indication",
+    "Jobs submit and track through completion",
+    "Cloud results display in same panel as local",
+    "Hybrid mode shows preview + full side-by-side",
+    "Job history panel shows active and recent jobs",
+    "Cost and quota tracking displays accurately",
+    "Offline handling graceful with clear messages",
+    "All 9 user stories pass acceptance criteria",
+    "Integration tests pass against live cloud service",
+    "Documentation covers setup and usage"
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Upload performance for very large files",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Chunked upload, resume capability, progress feedback"
+    },
+    {
+      "risk": "Polling overhead for many active jobs",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Exponential backoff, WebSocket upgrade path"
+    },
+    {
+      "risk": "User confusion about local vs cloud state",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Clear visual indicators, source badges on results"
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+Policy struct contains required fields 1 0.0623455
+Policy equality comparison 1 0.0626736
+Policy binary serialization round-trip 1 0.0587169
+Policy serialized size is correct 1 0.0581488
+PolicySet basic operations 1 0.00736676
+PolicySet throws on invalid index 1 0.00773474
+PolicySet supports 100,000+ policies 1 0.010335
+PolicySet load from CSV 1 0.00763861
+PolicySet binary serialization round-trip 1 0.00779366
+PolicySet memory footprint calculation 1 0.00771522
+Empty CSV returns empty PolicySet 1 0.00761022
+CSV with only header returns empty PolicySet 1 0.0072404
+MortalityTable default constructor initializes all rates to zero 1 0.00732757
+MortalityTable set and get qx rates 1 0.00754438
+MortalityTable boundary age 0 1 0.00734868
+MortalityTable boundary age 120 1 0.00731439
+MortalityTable age out of range throws 1 0.00764383
+MortalityTable invalid qx value throws 1 0.00778813
+MortalityTable multiplier adjusts rates 1 0.00754583
+MortalityTable multiplier caps at 1.0 1 0.0075753
+MortalityTable CSV loading 1 0.00775213
+MortalityTable serialization round-trip 1 0.00765052
+MortalityTable serialized size is correct 1 0.00747352
+LapseTable default constructor initializes all rates to zero 1 0.00745301
+LapseTable set and get rates 1 0.00747107
+LapseTable boundary year 1 1 0.00754048
+LapseTable boundary year 50 1 0.00735776
+LapseTable year out of range throws 1 0.0074691
+LapseTable invalid rate throws 1 0.00726895
+LapseTable multiplier adjusts rates 1 0.0072141
+LapseTable multiplier caps at 1.0 1 0.00725179
+LapseTable CSV loading 1 0.00717574
+LapseTable serialization round-trip 1 0.00806695
+LapseTable serialized size is correct 1 0.00820533
+ExpenseAssumptions default constructor initializes to zero 1 0.0082108
+ExpenseAssumptions parameterized constructor 1 0.00808076
+ExpenseAssumptions equality operator 1 0.00744863
+ExpenseAssumptions first year expense calculation 1 0.00747055
+ExpenseAssumptions renewal expense calculation 1 0.00751622
+ExpenseAssumptions expense with multiplier 1 0.00753627
+ExpenseAssumptions CSV loading 1 0.00767323
+ExpenseAssumptions CSV loading with alternate names 1 0.00763868
+ExpenseAssumptions serialization round-trip 1 0.0076813
+ExpenseAssumptions serialized size is correct 1 0.00777245
+Scenario default constructor initializes all rates to zero 1 0.00739406
+Scenario set and get rates 1 0.00742924
+Scenario boundary year 1 1 0.00743297
+Scenario boundary year 50 1 0.00740585
+Scenario year out of range throws 1 0.00812655
+Scenario allows negative interest rates 1 0.00818255
+Scenario discount factor for year 1 1 0.00814777
+Scenario discount factor cumulative 1 0.00808537
+Scenario discount factor boundary year 50 1 0.00736795
+Scenario serialization round-trip 1 0.00733101
+Scenario serialized size is correct 1 0.00739158
+ScenarioGeneratorParams default constructor 1 0.00748372
+ScenarioGeneratorParams parameterized constructor 1 0.00726379
+ScenarioSet default constructor creates empty set 1 0.00729619
+ScenarioSet add and get scenarios 1 0.0073559
+ScenarioSet index out of range throws 1 0.00731938
+ScenarioSet reserve capacity 1 0.00769645
+ScenarioSet clear removes all scenarios 1 0.00774325
+ScenarioSet generate creates correct number of scenarios 1 0.00777191
+ScenarioSet generate with same seed produces identical results 1 0.00782905
+ScenarioSet generate with different seeds produces different results 1 0.0073564
+ScenarioSet generate respects min/max bounds 1 0.00754179
+ScenarioSet generate produces expected distribution mean 1 0.00808412
+ScenarioSet generate GBM produces reasonable distribution 1 0.00930929
+ScenarioSet generate can create 10000 scenarios 1 0.0264666
+ScenarioSet CSV loading wide format 1 0.00736949
+ScenarioSet CSV loading long format 1 0.00730385
+ScenarioSet CSV loading empty file throws 1 0.00741995
+ScenarioSet serialization round-trip 1 0.00796433
+ScenarioSet generated scenarios round-trip serialization 1 0.00835044
+ScenarioSet memory footprint helper 1 0.00777105
+ProjectionResult default constructor 1 0.0074277
+ProjectionResult NPV-only constructor 1 0.00749431
+ProjectionConfig defaults 1 0.00755303
+project_policy with zero term returns zero NPV 1 0.007589
+project_policy returns correct number of cash flows 1 0.00739123
+project_policy lives decrease each year 1 0.00770537
+project_policy discount factors decrease each year 1 0.00732247
+project_policy with age 0 1 0.0073068
+project_policy with age 120 1 0.0071919
+project_policy with term 1 1 0.00740623
+project_policy with term 50 1 0.00734034
+project_policy exceeding MAX_AGE uses MAX_AGE mortality 1 0.00737578
+project_policy matches hand calculation within 0.01% 1 0.00745694
+project_policy mortality multiplier increases death benefits 1 0.00725536
+project_policy lapse multiplier affects survivors 1 0.00723258
+project_policy expense multiplier increases expenses 1 0.00732528
+project_policy NPV equals sum of discounted cash flows 1 0.00722137
+project_policy without detailed cashflows returns same NPV 1 0.00717426
+project_policy uses correct gender mortality 1 0.00743872
+project_policy handles variable interest rates 1 0.00742447
+project_policy applies first year expense correctly 1 0.007287
+ValuationResult default construction 1 0.00733881
+Empty scenarios returns zero results 1 0.00747668
+Empty policies returns zero results 1 0.00766098
+Single scenario produces zero std dev 1 0.00764434
+Scenario NPV equals sum of policy NPVs 1 0.0075373
+Multiple identical scenarios produce same mean as single scenario 1 0.0145585
+Mean calculation is correct 1 0.0159809
+Standard deviation calculation is correct 1 0.0156564
+Percentiles are monotonically increasing 1 0.0312607
+Median is between min and max 1 0.0163397
+CTE_95 is less than or equal to P5 (lower tail) 1 0.0220282
+CTE_95 equals worst value when only 1 scenario in tail 1 0.0199363
+Mortality multiplier affects valuation results 1 0.0139215
+Lapse multiplier affects valuation results 1 0.0132302
+Expense multiplier affects valuation results 1 0.00841899
+Execution time is recorded 1 0.00953645
+Execution time scales with scenario count 1 0.00839642
+PolicySet overload produces same results as vector 1 0.00935011
+Scenario NPVs are stored when requested 1 0.0104906
+Scenario NPVs are not stored when not requested 1 0.00983049
+Valuation matches hand-calculated example 1 0.00913103
+Handles 100 policies × 100 scenarios 1 0.0119385
+Handles 1000 policies × 100 scenarios 1 0.0354063
+GBM scenarios produce distribution with expected characteristics 1 0.0102292
+Seed reproducibility produces identical valuation results 1 0.0096318
+CLI help shows usage 2 0.0085066
+CLI no args shows usage 2 0.00880157
+CLI missing required args fails 1 0.0457523
+CLI invalid file path fails 1 0.0156738
+CLI unknown option fails 2 0.00823503
+CLI full valuation runs successfully 1 0.0172627
+CLI output to file works 2 0.0107992
+CLI seed reproducibility 2 0.0135487
+CLI multipliers affect results 2 0.0136365
+CLI scenario generation parameters 2 0.00870087
+CLI validation errors 2 0.0263114
+---

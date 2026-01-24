@@ -1,0 +1,427 @@
+{
+  "id": "PRD-LC-010",
+  "title": "Stratified Sampling",
+  "type": "feature",
+  "priority": "medium",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Implement intelligent sampling for the preview mode. Rather than random sampling, stratify by key policy attributes to get representative results from a small sample. This ensures previews closely approximate full run results.",
+  "problem": [
+    "Random sampling can miss important policy segments",
+    "Preview results may not represent full portfolio",
+    "Actuaries can't trust preview if it's not representative",
+    "No confidence measure on preview accuracy"
+  ],
+  "solution": [
+    "Stratified sampling by age, product, sum assured",
+    "Proportional representation of each stratum",
+    "Confidence interval calculation based on sample size",
+    "Tracking of preview vs full run accuracy over time"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-009",
+      "title": "Cloud Job Integration",
+      "status": "required",
+      "notes": "Sampling used for hybrid preview mode"
+    },
+    {
+      "id": "PRD-LC-001",
+      "title": "C++ Projection Engine Core",
+      "status": "required",
+      "notes": "Policy data structure defines stratification fields"
+    }
+  ],
+  "technicalNotes": {
+    "algorithm": "Two-pass stratified reservoir sampling",
+    "performance": "Must handle 10M+ policies efficiently",
+    "implementation": "TypeScript for file reading, optional C++/WASM for speed"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Sampling Strategy Configuration",
+      "story": "As an actuary, I want to configure how samples are selected so previews are representative of my portfolio",
+      "acceptanceCriteria": [
+        "Default strategy: stratified by age bands and product type",
+        "Configurable strata in livecalc.config.json",
+        "Supported stratification fields: age, gender, product_type, term, sum_assured",
+        "Age bands configurable: e.g., [0, 30, 50, 65, 120]",
+        "Sum assured bands configurable: e.g., [0, 50000, 100000, 500000, Infinity]",
+        "Sample size configurable (default: 10,000)",
+        "Alternative strategies: 'random', 'first_n', 'stratified'",
+        "Strategy selectable per run or in config",
+        "Validation: error if stratification field not in policy data",
+        "UI to configure sampling in extension settings"
+      ],
+      "technicalNotes": {
+        "configSchema": {
+          "sampling": {
+            "strategy": "stratified | random | first_n",
+            "sampleSize": 10000,
+            "strata": [
+              { "field": "age", "bands": [0, 30, 50, 65, 120] },
+              { "field": "product_type" },
+              { "field": "sum_assured", "bands": [0, 50000, 100000, 500000] }
+            ],
+            "seed": 42
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Two-Pass Stratified Sampling Algorithm",
+      "story": "As a developer, I need an efficient sampling algorithm that produces representative samples from large files",
+      "acceptanceCriteria": [
+        "Pass 1: Stream through file, count policies per stratum",
+        "Calculate target count per stratum (proportional to population)",
+        "Pass 2: Reservoir sampling within each stratum",
+        "Total sample size within ±1% of target",
+        "Deterministic with seed (same seed = same sample)",
+        "Memory efficient: O(sample_size), not O(file_size)",
+        "Performance: <10 seconds for 10M policy file",
+        "Performance: <1 second for 1M policy file",
+        "Handle edge cases: stratum with fewer policies than target",
+        "Handle missing values in stratification fields",
+        "Output: array of policy indices or sampled policy objects"
+      ],
+      "technicalNotes": {
+        "algorithm": {
+          "pass1": "Count per stratum using hash map",
+          "targetCalculation": "target[s] = sampleSize × count[s] / totalCount",
+          "pass2": "Reservoir sampling with size target[s] per stratum",
+          "reservoir": "Vitter's Algorithm R for efficiency"
+        },
+        "pseudocode": [
+          "function stratifiedSample(policies, config):",
+          "  // Pass 1: Count",
+          "  stratumCounts = countPerStratum(policies, config.strata)",
+          "  targets = calculateTargets(stratumCounts, config.sampleSize)",
+          "  ",
+          "  // Pass 2: Sample",
+          "  reservoirs = initReservoirs(targets)",
+          "  for (i, policy) in enumerate(policies):",
+          "    stratum = getStratum(policy, config.strata)",
+          "    reservoirAdd(reservoirs[stratum], i, policy, targets[stratum])",
+          "  ",
+          "  return flatten(reservoirs)"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Stratum Assignment",
+      "story": "As a developer, I need logic to assign policies to strata based on their attributes",
+      "acceptanceCriteria": [
+        "Assign policy to stratum based on configured fields",
+        "Numeric fields with bands: find appropriate band",
+        "Categorical fields: use value directly",
+        "Multi-field strata: concatenate field values (e.g., 'age:30-50|product:term')",
+        "Handle missing/null values: assign to 'unknown' stratum",
+        "Stratum key format: 'field1:value1|field2:value2'",
+        "Efficient hashing for stratum lookup",
+        "Log stratum distribution in debug mode"
+      ],
+      "technicalNotes": {
+        "bandLookup": "Binary search for numeric bands",
+        "keyGeneration": "Sort fields for consistent key order",
+        "example": {
+          "policy": { "age": 45, "product_type": "term", "sum_assured": 75000 },
+          "strata": [
+            { "field": "age", "bands": [0, 30, 50, 65, 120] },
+            { "field": "product_type" }
+          ],
+          "result": "age:30-50|product_type:term"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Sample Metadata and Diagnostics",
+      "story": "As an actuary, I want to see sampling diagnostics so I understand how my sample was constructed",
+      "acceptanceCriteria": [
+        "Show sample summary after sampling completes",
+        "Total policies in file vs sample size",
+        "Number of strata identified",
+        "Distribution per stratum: population count, sample count, ratio",
+        "Flag under-represented strata (<10 samples)",
+        "Flag if any stratum is 0 in sample (data quality issue)",
+        "Sampling time displayed",
+        "Seed used displayed (for reproducibility)",
+        "Export sample diagnostics to JSON",
+        "Diagnostics visible in results panel collapsible section"
+      ],
+      "technicalNotes": {
+        "diagnosticsSchema": {
+          "totalPolicies": 500000,
+          "sampleSize": 10000,
+          "samplingTimeMs": 2340,
+          "seed": 42,
+          "strategy": "stratified",
+          "strata": [
+            {
+              "key": "age:30-50|product_type:term",
+              "population": 125000,
+              "sampled": 2500,
+              "ratio": 0.02
+            }
+          ],
+          "warnings": ["Stratum 'age:65+|product_type:whole' has only 8 samples"]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Confidence Interval Calculation",
+      "story": "As an actuary, I want confidence intervals on preview results so I know the margin of error",
+      "acceptanceCriteria": [
+        "Calculate standard error based on sample size and variance",
+        "Display 95% confidence interval for mean NPV",
+        "Format: 'Mean: £1.21M ± £24K (95% CI)'",
+        "Confidence interval width decreases with larger samples",
+        "Formula uses finite population correction when sample > 5% of population",
+        "Display confidence level (default 95%, configurable)",
+        "Warning if confidence interval > 5% of mean (low precision)",
+        "Compare CI to actual difference when full run available",
+        "Setting: livecalc.sampling.confidenceLevel (default: 0.95)"
+      ],
+      "technicalNotes": {
+        "formula": {
+          "standardError": "stdDev / sqrt(n)",
+          "finitePopulationCorrection": "sqrt((N - n) / (N - 1))",
+          "confidenceInterval": "mean ± z × SE × FPC",
+          "z95": 1.96,
+          "z99": 2.576
+        },
+        "display": "±£24K or ±2.0% (whichever is more intuitive)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Preview Accuracy Tracking",
+      "story": "As an actuary, I want to see historical preview accuracy so I can trust the preview results",
+      "acceptanceCriteria": [
+        "Track pairs of (preview result, full run result)",
+        "Calculate accuracy: |preview - full| / |full| × 100",
+        "Store last 20 preview/full pairs",
+        "Display average accuracy: 'Previews typically within 1.8% of full runs'",
+        "Display accuracy range: 'Range: 0.5% - 3.2%'",
+        "Show accuracy trend: improving or degrading",
+        "Badge on preview: 'Based on history, ±2% expected'",
+        "Accuracy tracked per assumption configuration",
+        "Reset accuracy history command available",
+        "Accuracy data stored in workspace state"
+      ],
+      "technicalNotes": {
+        "storage": {
+          "location": "context.workspaceState",
+          "key": "livecalc.previewAccuracyHistory",
+          "schema": [
+            {
+              "timestamp": "ISO8601",
+              "previewMean": 1210000,
+              "fullMean": 1234000,
+              "accuracy": 1.9,
+              "sampleSize": 10000,
+              "totalPolicies": 500000
+            }
+          ]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Adaptive Sample Size",
+      "story": "As an actuary, I want the sample size to adapt based on required precision so I get the right balance of speed and accuracy",
+      "acceptanceCriteria": [
+        "Setting: livecalc.sampling.targetPrecision (default: 0.02 = 2%)",
+        "Calculate required sample size for target precision",
+        "Formula based on estimated variance (from previous runs or first-pass stats)",
+        "Minimum sample size: 1,000 (statistical validity)",
+        "Maximum sample size: 100,000 (performance limit)",
+        "Display recommended sample size: 'For ±2% precision, use 15K samples'",
+        "Auto mode: automatically use calculated sample size",
+        "Manual override always available",
+        "Warn if requested precision unachievable with max sample size"
+      ],
+      "technicalNotes": {
+        "formula": {
+          "requiredN": "(z² × σ² × N) / (e² × (N-1) + z² × σ²)",
+          "where": {
+            "z": "1.96 for 95% confidence",
+            "σ": "estimated population standard deviation",
+            "N": "population size",
+            "e": "desired margin of error (e.g., 0.02 × mean)"
+          }
+        },
+        "varianceEstimation": "Use variance from previous run or pilot sample"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/src/sampling/sampler.ts",
+    "livecalc-vscode/src/sampling/stratifier.ts",
+    "livecalc-vscode/src/sampling/reservoir.ts",
+    "livecalc-vscode/src/sampling/confidence.ts",
+    "livecalc-vscode/src/sampling/accuracy-tracker.ts",
+    "livecalc-vscode/src/sampling/adaptive-size.ts",
+    "livecalc-vscode/src/sampling/diagnostics.ts",
+    "livecalc-vscode/src/sampling/types.ts",
+    "livecalc-vscode/test/suite/sampler.test.ts",
+    "livecalc-vscode/test/suite/stratifier.test.ts",
+    "livecalc-vscode/test/suite/confidence.test.ts",
+    "livecalc-vscode/test/fixtures/sample-policies-10k.csv",
+    "livecalc-vscode/test/fixtures/sample-policies-1m.csv"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/data/policy-loader.ts",
+      "changes": "Integrate sampler for preview mode"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Display confidence interval, sampling diagnostics, accuracy"
+    },
+    {
+      "file": "livecalc-vscode/src/cloud/workload-analyzer.ts",
+      "changes": "Use sampling for preview recommendations"
+    },
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add sampling configuration settings"
+    }
+  ],
+  "packageJsonAdditions": {
+    "configuration": {
+      "livecalc.sampling.strategy": {
+        "type": "string",
+        "enum": ["stratified", "random", "first_n"],
+        "default": "stratified",
+        "description": "Sampling strategy for preview mode"
+      },
+      "livecalc.sampling.sampleSize": {
+        "type": "number",
+        "default": 10000,
+        "minimum": 100,
+        "maximum": 100000,
+        "description": "Number of policies to sample for preview"
+      },
+      "livecalc.sampling.confidenceLevel": {
+        "type": "number",
+        "default": 0.95,
+        "enum": [0.90, 0.95, 0.99],
+        "description": "Confidence level for interval calculation"
+      },
+      "livecalc.sampling.targetPrecision": {
+        "type": "number",
+        "default": 0.02,
+        "description": "Target precision as decimal (0.02 = 2%)"
+      },
+      "livecalc.sampling.adaptiveSampleSize": {
+        "type": "boolean",
+        "default": false,
+        "description": "Automatically adjust sample size for target precision"
+      },
+      "livecalc.sampling.seed": {
+        "type": "number",
+        "default": null,
+        "description": "Random seed for reproducible sampling (null = random)"
+      }
+    }
+  },
+  "performanceTargets": {
+    "1mPolicies": {
+      "pass1Time": "<500ms",
+      "pass2Time": "<500ms",
+      "totalTime": "<1 second",
+      "memoryUsage": "<50MB"
+    },
+    "10mPolicies": {
+      "pass1Time": "<3 seconds",
+      "pass2Time": "<3 seconds",
+      "totalTime": "<10 seconds",
+      "memoryUsage": "<100MB"
+    }
+  },
+  "mathematicalBackground": {
+    "stratifiedSampling": {
+      "description": "Divide population into homogeneous subgroups (strata) and sample proportionally from each",
+      "advantage": "Reduces variance compared to simple random sampling",
+      "varianceReduction": "Up to 50% lower standard error for heterogeneous populations"
+    },
+    "reservoirSampling": {
+      "description": "Algorithm to sample k items from stream of unknown/large size",
+      "algorithm": "Algorithm R: each item has k/i probability of being in final sample",
+      "complexity": "O(n) time, O(k) space"
+    },
+    "confidenceInterval": {
+      "formula": "CI = x̄ ± z × (s/√n) × √((N-n)/(N-1))",
+      "interpretation": "95% confident true mean falls within this range",
+      "finitePopulationCorrection": "Applied when n > 5% of N"
+    }
+  },
+  "exampleOutput": {
+    "resultsPanel": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  PREVIEW RESULTS                                               │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  Mean NPV: £1,210,000 ± £24,000 (95% CI)                       │",
+      "│                                                                 │",
+      "│  Based on 10,000 of 500,000 policies (2.0%)                    │",
+      "│  Stratified by: age, product_type                              │",
+      "│                                                                 │",
+      "│  Historical accuracy: Previews within 1.8% of full runs        │",
+      "│                                                                 │",
+      "│  ▶ Sampling Details                                            │",
+      "│    • 12 strata identified                                      │",
+      "│    • Largest: age:30-50|product:term (2,500 samples)          │",
+      "│    • Smallest: age:65+|product:whole (45 samples)             │",
+      "│    • Sampling time: 0.8 seconds                                │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ]
+  },
+  "definitionOfDone": [
+    "Stratified sampling produces representative samples",
+    "Performance meets targets (1M < 1s, 10M < 10s)",
+    "Confidence intervals calculated and displayed",
+    "Preview accuracy tracked and displayed",
+    "Sampling diagnostics available in results panel",
+    "All 7 user stories pass acceptance criteria",
+    "Unit tests cover edge cases (empty strata, missing values)",
+    "Documentation covers configuration and interpretation",
+    "Validation: stratified preview closer to full than random"
+  ],
+  "estimatedSessions": "2 FADE sessions",
+  "risks": [
+    {
+      "risk": "Stratification doesn't improve accuracy for homogeneous portfolios",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Allow fallback to random sampling, document when each is best"
+    },
+    {
+      "risk": "Two-pass algorithm slow for very large files",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Streaming with minimal memory, optional WASM implementation"
+    },
+    {
+      "risk": "Complex configuration confuses users",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Good defaults, auto mode, clear documentation"
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+Start testing: Jan 23 23:10 GMT
+----------------------------------------------------------
+122/132 Testing: CLI help shows usage
+122/132 Test: CLI help shows usage
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI help shows usage"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI help shows usage" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI help shows usage"
+Randomness seeded to: 3611772721
+===============================================================================
+All tests passed (9 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI help shows usage" end time: Jan 23 23:10 GMT
+"CLI help shows usage" time elapsed: 00:00:00
+----------------------------------------------------------
+
+123/132 Testing: CLI no args shows usage
+123/132 Test: CLI no args shows usage
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI no args shows usage"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI no args shows usage" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI no args shows usage"
+Randomness seeded to: 3378227500
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI no args shows usage" end time: Jan 23 23:10 GMT
+"CLI no args shows usage" time elapsed: 00:00:00
+----------------------------------------------------------
+
+124/132 Testing: CLI missing required args fails
+124/132 Test: CLI missing required args fails
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI missing required args fails"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI missing required args fails" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI missing required args fails"
+Randomness seeded to: 1700712858
+===============================================================================
+All tests passed (8 assertions in 1 test case)
+
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"CLI missing required args fails" end time: Jan 23 23:10 GMT
+"CLI missing required args fails" time elapsed: 00:00:00
+----------------------------------------------------------
+
+125/132 Testing: CLI invalid file path fails
+125/132 Test: CLI invalid file path fails
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI invalid file path fails"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI invalid file path fails" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI invalid file path fails"
+Randomness seeded to: 1142603499
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI invalid file path fails" end time: Jan 23 23:10 GMT
+"CLI invalid file path fails" time elapsed: 00:00:00
+----------------------------------------------------------
+
+126/132 Testing: CLI unknown option fails
+126/132 Test: CLI unknown option fails
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI unknown option fails"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI unknown option fails" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI unknown option fails"
+Randomness seeded to: 258190431
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI unknown option fails" end time: Jan 23 23:10 GMT
+"CLI unknown option fails" time elapsed: 00:00:00
+----------------------------------------------------------
+
+127/132 Testing: CLI full valuation runs successfully
+127/132 Test: CLI full valuation runs successfully
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI full valuation runs successfully"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI full valuation runs successfully" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI full valuation runs successfully"
+Randomness seeded to: 3293536647
+===============================================================================
+All tests passed (24 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI full valuation runs successfully" end time: Jan 23 23:10 GMT
+"CLI full valuation runs successfully" time elapsed: 00:00:00
+----------------------------------------------------------
+
+128/132 Testing: CLI output to file works
+128/132 Test: CLI output to file works
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI output to file works"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI output to file works" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI output to file works"
+Randomness seeded to: 318747949
+===============================================================================
+All tests passed (5 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI output to file works" end time: Jan 23 23:10 GMT
+"CLI output to file works" time elapsed: 00:00:00
+----------------------------------------------------------
+
+129/132 Testing: CLI seed reproducibility
+129/132 Test: CLI seed reproducibility
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI seed reproducibility"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI seed reproducibility" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI seed reproducibility"
+Randomness seeded to: 978433320
+===============================================================================
+All tests passed (3 assertions in 1 test case)
+
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"CLI seed reproducibility" end time: Jan 23 23:10 GMT
+"CLI seed reproducibility" time elapsed: 00:00:00
+----------------------------------------------------------
+
+130/132 Testing: CLI multipliers affect results
+130/132 Test: CLI multipliers affect results
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI multipliers affect results"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI multipliers affect results" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI multipliers affect results"
+Randomness seeded to: 1298142795
+===============================================================================
+All tests passed (5 assertions in 1 test case)
+
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"CLI multipliers affect results" end time: Jan 23 23:10 GMT
+"CLI multipliers affect results" time elapsed: 00:00:00
+----------------------------------------------------------
+
+131/132 Testing: CLI scenario generation parameters
+131/132 Test: CLI scenario generation parameters
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI scenario generation parameters"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI scenario generation parameters" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI scenario generation parameters"
+Randomness seeded to: 2424879047
+===============================================================================
+All tests passed (2 assertions in 1 test case)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"CLI scenario generation parameters" end time: Jan 23 23:10 GMT
+"CLI scenario generation parameters" time elapsed: 00:00:00
+----------------------------------------------------------
+
+132/132 Testing: CLI validation errors
+132/132 Test: CLI validation errors
+Command: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests" "CLI validation errors"
+Directory: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build
+"CLI validation errors" start time: Jan 23 23:10 GMT
+Output:
+----------------------------------------------------------
+Filters: "CLI validation errors"
+Randomness seeded to: 3304909876
+===============================================================================
+All tests passed (10 assertions in 1 test case)
+
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"CLI validation errors" end time: Jan 23 23:10 GMT
+"CLI validation errors" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jan 23 23:10 GMT

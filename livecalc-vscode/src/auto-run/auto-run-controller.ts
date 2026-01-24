@@ -16,6 +16,16 @@ const STATE_KEYS = {
 };
 
 /**
+ * Pause state information
+ */
+export interface PauseState {
+  isPaused: boolean;
+  pendingChanges: Set<string>;
+  pauseStartTime: Date | null;
+  pauseTimeoutHandle: NodeJS.Timeout | null;
+}
+
+/**
  * Trigger information for the last auto-run
  */
 export interface AutoRunTrigger {
