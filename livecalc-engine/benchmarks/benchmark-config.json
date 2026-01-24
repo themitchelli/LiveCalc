@@ -33,6 +33,24 @@
       "description": "Large scale stress test"
     },
     {
+      "name": "xlarge",
+      "policies": 200000,
+      "scenarios": 1000,
+      "description": "Extra large scale stress test"
+    },
+    {
+      "name": "xxlarge",
+      "policies": 500000,
+      "scenarios": 1000,
+      "description": "500K policies stress test"
+    },
+    {
+      "name": "million",
+      "policies": 1000000,
+      "scenarios": 1000,
+      "description": "1M policies - billion projections"
+    },
+    {
       "name": "scenario-heavy",
       "policies": 1000,
       "scenarios": 10000,

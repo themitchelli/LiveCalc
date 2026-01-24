@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-01-24T12:33:32.548Z",
-  "commit": "0de9ed5",
-  "branch": "spike/engine-performance",
+  "timestamp": "2026-01-24T14:01:53.357Z",
+  "commit": "6c2ee6a",
+  "branch": "main",
   "nodeVersion": "v18.20.8",
   "platform": "darwin",
   "cpuCount": 6,
@@ -16,15 +16,15 @@
         "description": "Small scale for quick testing"
       },
       "nativeMs": null,
-      "wasmSingleMs": 16.829335,
-      "wasmMultiMs": 181.7741720676422,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 219.07609605789185,
       "wasmWorkers": 8,
-      "memoryMb": 0.3707427978515625,
-      "projectionsPerSecond": 550133.1617276616,
-      "policiesPerSecond": 5501.331617276616,
-      "scenariosPerSecond": 550.1331617276616,
-      "meanNpv": -35367369.43275086,
-      "stdDev": 313634.6523860214
+      "memoryMb": 0.6128158569335938,
+      "projectionsPerSecond": 456462.3973104512,
+      "policiesPerSecond": 4564.623973104512,
+      "scenariosPerSecond": 456.4623973104512,
+      "meanNpv": -35396677.644985504,
+      "stdDev": 325609.8848156132
     },
     {
       "config": {
@@ -34,15 +34,15 @@
         "description": "Medium scale benchmark"
       },
       "nativeMs": null,
-      "wasmSingleMs": 94.183215,
-      "wasmMultiMs": 199.25854003429413,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 233.48029494285583,
       "wasmWorkers": 8,
-      "memoryMb": 1.040985107421875,
-      "projectionsPerSecond": 5018605.475217731,
-      "policiesPerSecond": 5018.605475217731,
-      "scenariosPerSecond": 5018.605475217731,
-      "meanNpv": -35382205.77752981,
-      "stdDev": 321019.0197257963
+      "memoryMb": null,
+      "projectionsPerSecond": 4283016.689887039,
+      "policiesPerSecond": 4283.016689887039,
+      "scenariosPerSecond": 4283.016689887039,
+      "meanNpv": -35377356.129314564,
+      "stdDev": 328878.24988640303
     },
     {
       "config": {
@@ -51,16 +51,16 @@
         "scenarios": 1000,
         "description": "Target scale for single-threaded WASM"
       },
-      "nativeMs": 2.37,
-      "wasmSingleMs": 928.636398,
-      "wasmMultiMs": 382.0842379331589,
+      "nativeMs": 2.53,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 539.7864120006561,
       "wasmWorkers": 8,
-      "memoryMb": 0.0993194580078125,
-      "projectionsPerSecond": 26172239.017484363,
-      "policiesPerSecond": 26172.239017484364,
-      "scenariosPerSecond": 2617.223901748436,
-      "meanNpv": -353962194.05465686,
-      "stdDev": 3216904.3147888687
+      "memoryMb": null,
+      "projectionsPerSecond": 18525846.10815999,
+      "policiesPerSecond": 18525.84610815999,
+      "scenariosPerSecond": 1852.584610815999,
+      "meanNpv": -353913703.4518531,
+      "stdDev": 3295502.5644680164
     },
     {
       "config": {
@@ -70,15 +70,15 @@
         "description": "Target scale for multi-threaded WASM (8 workers)"
       },
       "nativeMs": null,
-      "wasmSingleMs": 931.602474,
-      "wasmMultiMs": 524.5876430273056,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 501.5327960252762,
       "wasmWorkers": 8,
-      "memoryMb": 0.0013275146484375,
-      "projectionsPerSecond": 19062591.60488743,
-      "policiesPerSecond": 19062.591604887428,
-      "scenariosPerSecond": 1906.259160488743,
-      "meanNpv": -353962194.05465686,
-      "stdDev": 3216904.3147888687
+      "memoryMb": 0.25173187255859375,
+      "projectionsPerSecond": 19938875.541642584,
+      "policiesPerSecond": 19938.875541642585,
+      "scenariosPerSecond": 1993.8875541642585,
+      "meanNpv": -353913703.4518531,
+      "stdDev": 3295502.5644680164
     },
     {
       "config": {
@@ -87,16 +87,70 @@
         "scenarios": 1000,
         "description": "Large scale stress test"
       },
-      "nativeMs": 2.36,
-      "wasmSingleMs": 16819.556472,
-      "wasmMultiMs": 3341.226289987564,
+      "nativeMs": 2.34,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 3543.3738780021667,
       "wasmWorkers": 8,
-      "memoryMb": 0.0013275146484375,
-      "projectionsPerSecond": 29929131.19942325,
-      "policiesPerSecond": 29929.13119942325,
-      "scenariosPerSecond": 299.2913119942325,
-      "meanNpv": -3540258646.1215224,
-      "stdDev": 32186917.909699164
+      "memoryMb": null,
+      "projectionsPerSecond": 28221690.242967594,
+      "policiesPerSecond": 28221.690242967594,
+      "scenariosPerSecond": 282.21690242967594,
+      "meanNpv": -3539773696.998104,
+      "stdDev": 32973058.379346166
+    },
+    {
+      "config": {
+        "name": "xlarge",
+        "policies": 200000,
+        "scenarios": 1000,
+        "description": "Extra large scale stress test"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 7234.508494019508,
+      "wasmWorkers": 8,
+      "memoryMb": 0.6765975952148438,
+      "projectionsPerSecond": 27645278.205883972,
+      "policiesPerSecond": 27645.278205883973,
+      "scenariosPerSecond": 138.22639102941986,
+      "meanNpv": -7079516077.359701,
+      "stdDev": 65945089.232150175
+    },
+    {
+      "config": {
+        "name": "xxlarge",
+        "policies": 500000,
+        "scenarios": 1000,
+        "description": "500K policies stress test"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 19035.028133034706,
+      "wasmWorkers": 8,
+      "memoryMb": 0.6858673095703125,
+      "projectionsPerSecond": 26267363.33172344,
+      "policiesPerSecond": 26267.36333172344,
+      "scenariosPerSecond": 52.53472666344688,
+      "meanNpv": -17698709830.880764,
+      "stdDev": 164860607.4838296
+    },
+    {
+      "config": {
+        "name": "million",
+        "policies": 1000000,
+        "scenarios": 1000,
+        "description": "1M policies - billion projections"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 36453.726413965225,
+      "wasmWorkers": 8,
+      "memoryMb": null,
+      "projectionsPerSecond": 27432037.774248105,
+      "policiesPerSecond": 27432.037774248103,
+      "scenariosPerSecond": 27.432037774248105,
+      "meanNpv": -35397399436.66547,
+      "stdDev": 329721315.39935845
     },
     {
       "config": {
@@ -106,15 +160,15 @@
         "description": "Many scenarios for distribution analysis"
       },
       "nativeMs": null,
-      "wasmSingleMs": 1687.52821,
-      "wasmMultiMs": 369.0005090236664,
+      "wasmSingleMs": null,
+      "wasmMultiMs": 441.90082800388336,
       "wasmWorkers": 8,
-      "memoryMb": 4.15185546875,
-      "projectionsPerSecond": 27100233.61880684,
-      "policiesPerSecond": 2710.0233618806838,
-      "scenariosPerSecond": 27100.23361880684,
-      "meanNpv": -35387333.03346798,
-      "stdDev": 315756.5351464203
+      "memoryMb": 1.0341720581054688,
+      "projectionsPerSecond": 22629511.796054207,
+      "policiesPerSecond": 2262.9511796054207,
+      "scenariosPerSecond": 22629.51179605421,
+      "meanNpv": -35382962.68217808,
+      "stdDev": 321791.9392496263
     }
   ],
   "summary": {

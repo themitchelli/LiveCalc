@@ -147,6 +147,87 @@
           "default": false
         }
       }
+    },
+    "pipeline": {
+      "type": "object",
+      "description": "Pipeline configuration for chaining multiple engines together via shared memory bus",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "description": "Array of pipeline nodes forming a Directed Acyclic Graph (DAG)",
+          "items": {
+            "type": "object",
+            "required": ["id", "engine"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this pipeline node",
+                "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+              },
+              "engine": {
+                "type": "string",
+                "description": "Engine reference (wasm://name or python://name)",
+                "pattern": "^(wasm|python)://[a-zA-Z][a-zA-Z0-9_-]*$"
+              },
+              "inputs": {
+                "type": "array",
+                "description": "Input bus references that this node reads from",
+                "items": {
+                  "type": "string",
+                  "description": "Bus reference (bus://category/name) or special inputs",
+                  "pattern": "^(bus://[a-zA-Z][a-zA-Z0-9_/-]*|\\$policies|\\$assumptions|\\$scenarios)$"
+                },
+                "default": []
+              },
+              "outputs": {
+                "type": "array",
+                "description": "Output bus references that this node writes to",
+                "items": {
+                  "type": "string",
+                  "description": "Bus reference (bus://category/name)",
+                  "pattern": "^bus://[a-zA-Z][a-zA-Z0-9_/-]*$"
+                },
+                "minItems": 1
+              },
+              "config": {
+                "type": "object",
+                "description": "Engine-specific configuration options",
+                "additionalProperties": true
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "debug": {
+          "type": "object",
+          "description": "Debug settings for pipeline execution",
+          "properties": {
+            "enableIntegrityChecks": {
+              "type": "boolean",
+              "description": "Enable CRC32 checksums on bus segments between node transitions",
+              "default": false
+            },
+            "enableTraceLogging": {
+              "type": "boolean",
+              "description": "Log all bus transitions with nanosecond precision",
+              "default": false
+            },
+            "breakpoints": {
+              "type": "array",
+              "description": "Node IDs where pipeline should pause for inspection",
+              "items": {
+                "type": "string"
+              },
+              "default": []
+            },
+            "zeroMemoryBetweenRuns": {
+              "type": "boolean",
+              "description": "Zero shared memory between runs for security",
+              "default": true
+            }
+          }
+        }
+      }
     }
   }
 }
