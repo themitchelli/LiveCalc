@@ -63,8 +63,20 @@ export async function runCommand(
 
         progress.report({ message: 'Loading data files...' });
 
-        // Load data files
-        const data = await loadData(config, configDir);
+        // Load data files with validation
+        const data = await loadData(config, configDir, { reportValidation: true });
+
+        // Log cache statistics
+        if (data.cacheStats.hits > 0) {
+          logger.debug(
+            `Data cache: ${data.cacheStats.hits} hits, ${data.cacheStats.misses} misses`
+          );
+        }
+
+        // Report validation warnings (errors would have thrown)
+        if (data.warnings.length > 0) {
+          logger.warn(`Data loaded with ${data.warnings.length} warnings - check Problems panel`);
+        }
 
         if (token.isCancellationRequested) {
           logger.info('Execution cancelled by user');
@@ -72,7 +84,7 @@ export async function runCommand(
           return;
         }
 
-        progress.report({ message: 'Running valuation...' });
+        progress.report({ message: `Running valuation (${data.policyCount} policies)...` });
 
         // Create progress callback
         const progressCallback = (percent: number) => {
@@ -95,8 +107,8 @@ export async function runCommand(
 
         const elapsed = Date.now() - startTime;
         statusBar.setCompleted(elapsed);
-        Notifications.completed(elapsed, undefined, result.scenarioCount);
-        logger.info(`Valuation completed in ${elapsed}ms`);
+        Notifications.completed(elapsed, data.policyCount, result.scenarioCount);
+        logger.info(`Valuation completed in ${elapsed}ms (${data.policyCount} policies, ${result.scenarioCount} scenarios)`);
         logger.info(
           `Results: Mean NPV = ${result.mean.toFixed(2)}, ` +
             `StdDev = ${result.stdDev.toFixed(2)}, ` +

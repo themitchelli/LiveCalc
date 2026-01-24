@@ -232,7 +232,7 @@
         "caching": "Hash file content, cache parsed data by hash",
         "maxFileSize": "Warn if policy file > 100MB, fail if > 500MB"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

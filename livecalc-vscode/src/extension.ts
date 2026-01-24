@@ -4,6 +4,8 @@ import { StatusBar } from './ui/status-bar';
 import { ConfigLoader } from './config/config-loader';
 import { registerCommands } from './commands';
 import { getEngineManager } from './engine/livecalc-engine';
+import { disposeDataCache } from './data/cache';
+import { disposeDataValidator } from './data/data-validator';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
@@ -96,6 +98,10 @@ function hasConfigInWorkspace(): boolean {
  */
 export function deactivate(): void {
   logger.info('LiveCalc extension deactivating...');
+
+  // Cleanup data loader components
+  disposeDataCache();
+  disposeDataValidator();
 
   // Cleanup is handled via context.subscriptions
   statusBar = undefined;

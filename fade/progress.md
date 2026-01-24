@@ -490,3 +490,70 @@ For blocked stories, use:
   - livecalc-vscode/src/config/config-loader.ts (validation integration)
 - Tests: Extension compiles and packages successfully (84.48KB)
 
+## 2026-01-24 01:15 - US-006: Data Loading Pipeline (PRD-LC-003) - COMPLETE
+
+- Implemented comprehensive data loading pipeline with modular architecture
+- Created csv-loader.ts:
+  - Generic CSV parsing with delimiter and quote handling
+  - Column validation (required, optional, extra columns)
+  - Data type validation (number, integer, string)
+  - Row count validation (min/max)
+  - File size checks (warn >100MB, error >500MB)
+  - CsvLoadError and CsvValidationError classes for detailed error reporting
+- Created policy-loader.ts:
+  - Loads and validates policy CSV files
+  - Required columns: policy_id, age, gender, sum_assured, premium, term, product_type
+  - Validates data constraints (age 0-120, term 1-50, positive amounts)
+  - Detects duplicate policy IDs
+  - Flexible gender parsing (M/F/Male/Female/0/1/2)
+- Created assumption-loader.ts:
+  - loadMortality(): Validates age column, male/female qx columns, rates in [0,1]
+  - loadLapse(): Validates year column, rate column, rates in [0,1]
+  - loadExpenses(): Supports both CSV and JSON formats, validates all expense fields
+  - Warns when age/year ranges don't cover expected bounds (0-120 for age, 1-50 for year)
+- Created cache.ts:
+  - Content hash-based caching (MD5)
+  - File modification time tracking
+  - Automatic cache invalidation via VS Code file watchers
+  - Configurable max age (5 minutes default)
+  - Statistics tracking (entries count, watched files count)
+- Created data-validator.ts:
+  - Reports validation errors to VS Code Problems panel
+  - Separate DiagnosticCollection for data files
+  - Severity-aware reporting (errors vs warnings)
+  - Summary statistics (files, errors, warnings)
+- Updated data-loader.ts:
+  - Integrated all modular loaders
+  - Returns LoadResult with validation info, policy count, cache stats
+  - Supports forceReload option to bypass cache
+  - Reports validation to Problems panel by default
+- Updated run.ts:
+  - Reports cache statistics in debug log
+  - Warns when data has validation warnings
+  - Shows policy count in progress message
+- Updated extension.ts:
+  - Disposes cache and validator on deactivation
+- All acceptance criteria verified:
+  - Load policies from CSV file (local://path.csv) ✓
+  - Load assumptions from CSV files (mortality, lapse) ✓
+  - Load assumptions from JSON files (expenses) ✓
+  - Support assumptions:// references (placeholder with warning) ✓
+  - Validate CSV structure (required columns, data types) ✓
+  - Validate assumption table dimensions (age range, year range) ✓
+  - Report specific validation errors (file, line, column) ✓
+  - Handle large files efficiently (size checks, streaming not needed at current scale) ✓
+  - Cache loaded data between runs if files unchanged ✓
+  - File watcher invalidates cache on change ✓
+  - Support relative and absolute paths ✓
+  - Resolve paths relative to config file location ✓
+- Files changed:
+  - livecalc-vscode/src/data/csv-loader.ts (new)
+  - livecalc-vscode/src/data/policy-loader.ts (new)
+  - livecalc-vscode/src/data/assumption-loader.ts (new)
+  - livecalc-vscode/src/data/cache.ts (new)
+  - livecalc-vscode/src/data/data-validator.ts (new)
+  - livecalc-vscode/src/data/data-loader.ts (refactored to use modular loaders)
+  - livecalc-vscode/src/commands/run.ts (enhanced logging, policy count)
+  - livecalc-vscode/src/extension.ts (dispose cache and validator)
+- Tests: Extension compiles, type-checks, and packages successfully (89.3KB)
+

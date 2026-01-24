@@ -2,14 +2,24 @@
  * Data Loader for LiveCalc VS Code Extension
  *
  * Handles loading policy and assumption data from files specified in config.
- * This is a basic implementation that will be enhanced in US-006.
+ * Uses modular loaders with caching and validation.
  */
 
-import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 import { logger } from '../logging/logger';
 import type { LiveCalcConfig } from '../types';
+import { CsvLoadError, CsvValidationError } from './csv-loader';
+import { loadPolicies, PolicyLoadResult } from './policy-loader';
+import {
+  loadMortality,
+  loadLapse,
+  loadExpenses,
+  MortalityLoadResult,
+  LapseLoadResult,
+  ExpensesLoadResult,
+} from './assumption-loader';
+import { getDataCache } from './cache';
+import { getDataValidator, createValidationResult } from './data-validator';
 
 /**
  * Loaded data ready for the engine
@@ -19,6 +29,22 @@ export interface LoadedData {
   mortalityCsv: string;
   lapseCsv: string;
   expensesCsv: string;
+}
+
+/**
+ * Extended load result with validation information
+ */
+export interface LoadResult extends LoadedData {
+  /** Number of policies loaded */
+  policyCount: number;
+  /** All validation errors across files */
+  errors: CsvValidationError[];
+  /** All validation warnings across files */
+  warnings: CsvValidationError[];
+  /** Whether data is valid (no errors) */
+  valid: boolean;
+  /** Cache statistics */
+  cacheStats: { hits: number; misses: number };
 }
 
 /**
@@ -36,64 +62,217 @@ export class DataLoadError extends Error {
 }
 
 /**
+ * Data loading options
+ */
+export interface DataLoadOptions {
+  /** Skip cache and force reload */
+  forceReload?: boolean;
+  /** Maximum policies to load */
+  maxPolicies?: number;
+  /** Report validation to Problems panel */
+  reportValidation?: boolean;
+}
+
+/**
  * Load all data files specified in the config
  *
  * @param config - LiveCalc configuration
  * @param configDir - Directory containing the config file (for resolving relative paths)
+ * @param options - Loading options
+ * @returns Loaded data with validation results
  */
 export async function loadData(
   config: LiveCalcConfig,
-  configDir: string
-): Promise<LoadedData> {
-  logger.debug(`Loading data from config directory: ${configDir}`);
+  configDir: string,
+  options: DataLoadOptions = {}
+): Promise<LoadResult> {
+  logger.info(`Loading data from config directory: ${configDir}`);
+
+  const cache = getDataCache();
+  const validator = options.reportValidation !== false ? getDataValidator() : undefined;
+  const allErrors: CsvValidationError[] = [];
+  const allWarnings: CsvValidationError[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
+
+  // Clear previous validation diagnostics
+  validator?.clearAll();
 
   // Load policies
   const policiesPath = resolveDataPath(config.policies, configDir);
   if (!policiesPath) {
-    throw new DataLoadError(
-      'No policies file specified in config',
-      'NO_POLICIES_PATH'
+    throw new DataLoadError('No policies file specified in config', 'NO_POLICIES_PATH');
+  }
+
+  let policiesResult: PolicyLoadResult;
+  const cachedPolicies = !options.forceReload
+    ? cache.get<PolicyLoadResult>(policiesPath)
+    : undefined;
+
+  if (cachedPolicies) {
+    logger.debug(`Using cached policies: ${policiesPath}`);
+    policiesResult = cachedPolicies;
+    cacheHits++;
+  } else {
+    try {
+      policiesResult = await loadPolicies(policiesPath, {
+        maxPolicies: options.maxPolicies ?? config.execution?.maxPolicies,
+      });
+      cache.set(policiesPath, policiesResult, policiesResult.csvContent);
+      cacheMisses++;
+    } catch (error) {
+      throw wrapError(error, 'policies', policiesPath);
+    }
+  }
+
+  allErrors.push(...policiesResult.errors);
+  allWarnings.push(...policiesResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(
+        policiesPath,
+        'policies',
+        policiesResult.errors,
+        policiesResult.warnings
+      )
     );
   }
-  const policiesCsv = await loadFile(policiesPath, 'policies');
 
   // Load mortality table
   const mortalityPath = resolveDataPath(config.assumptions.mortality, configDir);
   if (!mortalityPath) {
-    throw new DataLoadError(
-      'No mortality file specified in config',
-      'NO_MORTALITY_PATH'
+    throw new DataLoadError('No mortality file specified in config', 'NO_MORTALITY_PATH');
+  }
+
+  let mortalityResult: MortalityLoadResult;
+  const cachedMortality = !options.forceReload
+    ? cache.get<MortalityLoadResult>(mortalityPath)
+    : undefined;
+
+  if (cachedMortality) {
+    logger.debug(`Using cached mortality: ${mortalityPath}`);
+    mortalityResult = cachedMortality;
+    cacheHits++;
+  } else {
+    try {
+      mortalityResult = await loadMortality(mortalityPath);
+      cache.set(mortalityPath, mortalityResult, mortalityResult.csvContent);
+      cacheMisses++;
+    } catch (error) {
+      throw wrapError(error, 'mortality', mortalityPath);
+    }
+  }
+
+  allErrors.push(...mortalityResult.errors);
+  allWarnings.push(...mortalityResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(
+        mortalityPath,
+        'mortality',
+        mortalityResult.errors,
+        mortalityResult.warnings
+      )
     );
   }
-  const mortalityCsv = await loadFile(mortalityPath, 'mortality');
 
   // Load lapse table
   const lapsePath = resolveDataPath(config.assumptions.lapse, configDir);
   if (!lapsePath) {
-    throw new DataLoadError(
-      'No lapse file specified in config',
-      'NO_LAPSE_PATH'
+    throw new DataLoadError('No lapse file specified in config', 'NO_LAPSE_PATH');
+  }
+
+  let lapseResult: LapseLoadResult;
+  const cachedLapse = !options.forceReload
+    ? cache.get<LapseLoadResult>(lapsePath)
+    : undefined;
+
+  if (cachedLapse) {
+    logger.debug(`Using cached lapse: ${lapsePath}`);
+    lapseResult = cachedLapse;
+    cacheHits++;
+  } else {
+    try {
+      lapseResult = await loadLapse(lapsePath);
+      cache.set(lapsePath, lapseResult, lapseResult.csvContent);
+      cacheMisses++;
+    } catch (error) {
+      throw wrapError(error, 'lapse', lapsePath);
+    }
+  }
+
+  allErrors.push(...lapseResult.errors);
+  allWarnings.push(...lapseResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(lapsePath, 'lapse', lapseResult.errors, lapseResult.warnings)
     );
   }
-  const lapseCsv = await loadFile(lapsePath, 'lapse');
 
-  // Load expenses - handle both CSV and JSON formats
+  // Load expenses
   const expensesPath = resolveDataPath(config.assumptions.expenses, configDir);
   if (!expensesPath) {
-    throw new DataLoadError(
-      'No expenses file specified in config',
-      'NO_EXPENSES_PATH'
+    throw new DataLoadError('No expenses file specified in config', 'NO_EXPENSES_PATH');
+  }
+
+  let expensesResult: ExpensesLoadResult;
+  const cachedExpenses = !options.forceReload
+    ? cache.get<ExpensesLoadResult>(expensesPath)
+    : undefined;
+
+  if (cachedExpenses) {
+    logger.debug(`Using cached expenses: ${expensesPath}`);
+    expensesResult = cachedExpenses;
+    cacheHits++;
+  } else {
+    try {
+      expensesResult = await loadExpenses(expensesPath);
+      cache.set(expensesPath, expensesResult, expensesResult.csvContent);
+      cacheMisses++;
+    } catch (error) {
+      throw wrapError(error, 'expenses', expensesPath);
+    }
+  }
+
+  allErrors.push(...expensesResult.errors);
+  allWarnings.push(...expensesResult.warnings);
+
+  if (validator) {
+    validator.reportValidation(
+      createValidationResult(
+        expensesPath,
+        'expenses',
+        expensesResult.errors,
+        expensesResult.warnings
+      )
     );
   }
-  const expensesCsv = await loadExpenses(expensesPath);
 
-  logger.info('All data files loaded successfully');
+  // Log summary
+  const valid = allErrors.length === 0;
+  logger.info(
+    `Data loading complete: ${policiesResult.count} policies, ` +
+      `${allErrors.length} errors, ${allWarnings.length} warnings, ` +
+      `cache hits: ${cacheHits}, misses: ${cacheMisses}`
+  );
+
+  if (!valid) {
+    logger.warn(`Data validation failed with ${allErrors.length} errors`);
+  }
 
   return {
-    policiesCsv,
-    mortalityCsv,
-    lapseCsv,
-    expensesCsv,
+    policiesCsv: policiesResult.csvContent,
+    mortalityCsv: mortalityResult.csvContent,
+    lapseCsv: lapseResult.csvContent,
+    expensesCsv: expensesResult.csvContent,
+    policyCount: policiesResult.count,
+    errors: allErrors,
+    warnings: allWarnings,
+    valid,
+    cacheStats: { hits: cacheHits, misses: cacheMisses },
   };
 }
 
@@ -104,9 +283,9 @@ export async function loadData(
  * - local://path/to/file.csv - Relative to config directory
  * - Absolute paths
  * - Relative paths (relative to config directory)
- * - assumptions://name:version - Cloud assumption references (placeholder for US-006)
+ * - assumptions://name:version - Cloud assumption references (placeholder)
  */
-function resolveDataPath(
+export function resolveDataPath(
   configPath: string | undefined,
   configDir: string
 ): string | null {
@@ -139,91 +318,52 @@ function resolveDataPath(
 }
 
 /**
- * Load a file and return its contents as a string
+ * Wrap an error with DataLoadError for consistent error handling
  */
-async function loadFile(filePath: string, fileType: string): Promise<string> {
-  logger.debug(`Loading ${fileType} from: ${filePath}`);
-
-  if (!fs.existsSync(filePath)) {
-    throw new DataLoadError(
-      `${fileType} file not found: ${filePath}`,
-      'FILE_NOT_FOUND',
-      filePath
-    );
+function wrapError(error: unknown, fileType: string, filePath: string): DataLoadError {
+  if (error instanceof DataLoadError) {
+    return error;
   }
 
-  try {
-    const content = await fs.promises.readFile(filePath, 'utf-8');
-
-    // Check if file is empty
-    if (!content.trim()) {
-      throw new DataLoadError(
-        `${fileType} file is empty: ${filePath}`,
-        'FILE_EMPTY',
-        filePath
-      );
-    }
-
-    // Log file size
-    const lines = content.split('\n').length;
-    logger.debug(`Loaded ${fileType}: ${lines} lines`);
-
-    return content;
-  } catch (error) {
-    if (error instanceof DataLoadError) {
-      throw error;
-    }
-
-    const message = error instanceof Error ? error.message : String(error);
-    throw new DataLoadError(
-      `Failed to read ${fileType} file: ${message}`,
-      'FILE_READ_ERROR',
-      filePath
-    );
+  if (error instanceof CsvLoadError) {
+    return new DataLoadError(error.message, error.code, error.filePath ?? filePath);
   }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return new DataLoadError(
+    `Failed to load ${fileType} file: ${message}`,
+    'LOAD_ERROR',
+    filePath
+  );
 }
 
 /**
- * Load expenses file - supports both CSV and JSON formats
+ * Invalidate cache for a specific file
  */
-async function loadExpenses(filePath: string): Promise<string> {
-  const content = await loadFile(filePath, 'expenses');
-
-  // Check if it's a JSON file
-  if (filePath.endsWith('.json')) {
-    return convertExpensesJsonToCsv(content, filePath);
-  }
-
-  // Assume CSV format
-  return content;
+export function invalidateCache(filePath: string): void {
+  const cache = getDataCache();
+  cache.invalidate(filePath);
 }
 
 /**
- * Convert expenses JSON to CSV format expected by the engine
+ * Invalidate all cached data
  */
-function convertExpensesJsonToCsv(jsonContent: string, filePath: string): string {
-  try {
-    const expenses = JSON.parse(jsonContent);
-
-    // Build CSV format
-    const lines = [
-      'parameter,value',
-      `per_policy_acquisition,${expenses.perPolicyAcquisition ?? expenses.PER_POLICY ?? 0}`,
-      `per_policy_maintenance,${expenses.perPolicyMaintenance ?? expenses.PERCENT_PREMIUM ?? 0}`,
-      `percent_of_premium,${expenses.percentOfPremium ?? 0}`,
-      `claim_expense,${expenses.claimExpense ?? 0}`,
-    ];
-
-    return lines.join('\n');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new DataLoadError(
-      `Invalid JSON in expenses file: ${message}`,
-      'INVALID_JSON',
-      filePath
-    );
-  }
+export function invalidateAllCache(): void {
+  const cache = getDataCache();
+  cache.invalidateAll();
 }
+
+/**
+ * Get current cache statistics
+ */
+export function getCacheStats(): { entries: number; watchedFiles: number } {
+  const cache = getDataCache();
+  return cache.getStats();
+}
+
+// ============================================================================
+// Sample Data Generators (for testing)
+// ============================================================================
 
 /**
  * Generate sample policies CSV for testing
@@ -248,14 +388,14 @@ export function generateSamplePoliciesCsv(count: number = 100): string {
  * Generate sample mortality CSV for testing
  */
 export function generateSampleMortalityCsv(): string {
-  const header = 'age,male_qx,female_qx';
+  const header = 'age,male,female';
   const rows: string[] = [header];
 
   // Simplified mortality rates - actual tables would be more detailed
   for (let age = 0; age <= 120; age++) {
     // Simple Gompertz-like mortality: qx = A * exp(B * age)
     const maleQx = Math.min(0.00025 * Math.exp(0.08 * age), 1.0);
-    const femaleQx = Math.min(0.00020 * Math.exp(0.08 * age), 1.0);
+    const femaleQx = Math.min(0.0002 * Math.exp(0.08 * age), 1.0);
     rows.push(`${age},${maleQx.toFixed(8)},${femaleQx.toFixed(8)}`);
   }
 
@@ -266,12 +406,12 @@ export function generateSampleMortalityCsv(): string {
  * Generate sample lapse CSV for testing
  */
 export function generateSampleLapseCsv(): string {
-  const header = 'year,lapse_rate';
+  const header = 'year,rate';
   const rows: string[] = [header];
 
   // Typical lapse pattern: high in early years, declining over time
   const lapseRates = [
-    0.10, 0.08, 0.06, 0.05, 0.04, // Years 1-5
+    0.1, 0.08, 0.06, 0.05, 0.04, // Years 1-5
     0.035, 0.03, 0.028, 0.025, 0.022, // Years 6-10
     0.02, 0.02, 0.02, 0.02, 0.02, // Years 11-15
     0.015, 0.015, 0.015, 0.015, 0.015, // Years 16-20
@@ -296,3 +436,8 @@ per_policy_maintenance,50
 percent_of_premium,0.02
 claim_expense,100`;
 }
+
+// Re-export types and classes from modular loaders
+export { CsvLoadError, CsvValidationError } from './csv-loader';
+export type { PolicyLoadResult } from './policy-loader';
+export type { MortalityLoadResult, LapseLoadResult, ExpensesLoadResult } from './assumption-loader';
