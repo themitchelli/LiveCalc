@@ -269,6 +269,10 @@ export {
   createFailedResult,
   createSuccessResult,
   createEmptyNodeTiming,
+  // Integrity checker
+  IntegrityChecker,
+  createIntegrityChecker,
+  computeCRC32,
 } from './orchestrator/index.js';
 export type {
   MemoryBlock,
@@ -290,4 +294,7 @@ export type {
   PipelineExecutionResult,
   NodeExecutionResult,
   NodeTiming,
+  // Integrity checker types
+  IntegrityCheckResult,
+  IntegrityReport,
 } from './orchestrator/index.js';

@@ -63,3 +63,15 @@ export type {
   NodeExecutionResult,
   NodeTiming,
 } from './pipeline-error.js';
+
+// Integrity checker for bus resources
+export {
+  IntegrityChecker,
+  createIntegrityChecker,
+  computeCRC32,
+} from './integrity-checker.js';
+
+export type {
+  IntegrityCheckResult,
+  IntegrityReport,
+} from './integrity-checker.js';

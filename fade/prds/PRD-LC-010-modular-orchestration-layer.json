@@ -217,7 +217,7 @@
         "storageLocation": "Checksum stored in MemoryOffsetMap metadata",
         "overhead": "~1ms per MB when enabled"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

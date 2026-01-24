@@ -32,3 +32,10 @@ export {
   IntermediateDataStatistics,
   IntermediateHistogramData,
 } from './data-inspector';
+
+export {
+  CulpritIdentifier,
+  createCulpritIdentifier,
+  IntegrityFailure,
+  IntegritySummary,
+} from './culprit-identifier';

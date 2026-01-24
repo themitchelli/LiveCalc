@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { PipelineConfig, PipelineNode } from '../types';
 import { logger } from '../logging/logger';
+import { IntegrityFailure, IntegritySummary } from './culprit-identifier';
 
 /**
  * Node execution status for visualization
@@ -26,6 +27,10 @@ export interface PipelineNodeState {
     totalMs?: number;
   };
   checksums?: Record<string, number>;
+  /** Whether this node is identified as a culprit for integrity failures */
+  isCulprit?: boolean;
+  /** Integrity failures caused by this node */
+  integrityFailures?: IntegrityFailure[];
 }
 
 /**
@@ -47,6 +52,8 @@ export interface PipelineExecutionState {
   currentNode?: string;
   startTime?: number;
   endTime?: number;
+  /** Integrity summary for all bus resources */
+  integritySummary?: IntegritySummary;
 }
 
 /**
@@ -56,7 +63,8 @@ export type PipelineViewMessage =
   | { type: 'nodeClicked'; nodeId: string }
   | { type: 'ready' }
   | { type: 'exportSvg' }
-  | { type: 'refresh' };
+  | { type: 'refresh' }
+  | { type: 'exportIntegrityReport' };
 
 /**
  * Message types from extension to webview
@@ -65,6 +73,8 @@ export type PipelineWebviewMessage =
   | { type: 'setState'; state: PipelineExecutionState }
   | { type: 'updateNodeStatus'; nodeId: string; status: NodeStatus; timing?: PipelineNodeState['timing']; checksums?: Record<string, number>; error?: string }
   | { type: 'setCurrentNode'; nodeId: string | null }
+  | { type: 'setIntegritySummary'; summary: IntegritySummary }
+  | { type: 'highlightCulprit'; nodeId: string; failures: IntegrityFailure[] }
   | { type: 'clear' };
 
 /**
@@ -118,7 +128,7 @@ export class PipelineView implements vscode.Disposable {
     this.panel.webview.html = this.getHtmlContent(this.panel.webview);
 
     // Handle messages from webview
-    this.panel.webview.onMessage(
+    this.panel.webview.onDidReceiveMessage(
       (message: PipelineViewMessage) => {
         if (this.onMessageHandler) {
           this.onMessageHandler(message);
@@ -216,6 +226,35 @@ export class PipelineView implements vscode.Disposable {
   public markComplete(): void {
     if (this.currentState) {
       this.currentState.endTime = Date.now();
+    }
+  }
+
+  /**
+   * Set integrity summary for pipeline execution
+   *
+   * @param summary - Integrity summary from CulpritIdentifier
+   */
+  public setIntegritySummary(summary: IntegritySummary): void {
+    if (this.currentState) {
+      this.currentState.integritySummary = summary;
+
+      // Update node states to mark culprits
+      for (const node of this.currentState.nodes) {
+        const isCulprit = summary.culpritNodeIds.includes(node.id);
+        if (isCulprit) {
+          node.isCulprit = true;
+          node.integrityFailures = summary.failures.filter((f) => f.culpritNodeId === node.id);
+          // Highlight culprit visually
+          this.postMessage({
+            type: 'highlightCulprit',
+            nodeId: node.id,
+            failures: node.integrityFailures,
+          });
+        }
+      }
+
+      // Send summary to webview
+      this.postMessage({ type: 'setIntegritySummary', summary });
     }
   }
 

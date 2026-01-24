@@ -298,6 +298,11 @@
           "default": true,
           "description": "Cache policy and assumption data between runs. When enabled, only changed files are reloaded."
         },
+        "livecalc.enableIntegrityChecks": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable CRC32 integrity checks for pipeline bus resources. Automatically identifies which node corrupted shared memory. May impact performance (~1ms per MB)."
+        },
         "livecalc.notifyOnAutoRun": {
           "type": "string",
           "enum": ["none", "statusBar", "toast", "sound"],

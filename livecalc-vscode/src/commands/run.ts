@@ -12,7 +12,7 @@ import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
-import { PipelineView } from '../pipeline';
+import { PipelineView, PipelineDataInspector } from '../pipeline';
 import { hasPipeline } from '../pipeline/pipeline-validator';
 
 /**

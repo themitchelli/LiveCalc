@@ -2373,3 +2373,62 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (accept pipelineDataInspector, handle exportBusResource message)
 - Tests: Extension compiles, type-checks, and packages successfully (365.8KB)
 
+
+## 2026-01-24 19:26 - US-007: Debug: Bus Integrity & Culprit Identification (PRD-LC-010) - COMPLETE
+
+- Implemented IntegrityChecker class for automatic memory corruption detection in pipeline orchestration
+- CRC32 checksum computation for SharedArrayBuffer segments with pre-computed lookup table for performance
+- Features:
+  - computeChecksum(): Called by producer node after writing to bus:// resource
+  - verifyChecksum(): Called by consumer node before reading, detects corruption
+  - generateReport(): Comprehensive integrity report for all bus resources
+  - Automatic culprit identification when integrity checks fail
+  - Detailed reports with expected/actual checksums and diff locations
+  - Configurable enable/disable for performance optimization (default: disabled)
+- CRC32 implementation:
+  - IEEE 802.3 polynomial (0xEDB88320)
+  - Pre-computed 256-entry lookup table for fast computation
+  - Returns unsigned 32-bit checksum
+- IntegrityCheckResult includes:
+  - valid boolean, expected/actual checksums (hex formatted)
+  - culpritNodeId (last producer), consumerNodeId
+  - diffOffset (byte offset of first difference)
+  - timestamp for logging
+- IntegrityReport aggregates all checks:
+  - allValid status, total checked/failed counts
+  - Array of culprit node IDs
+  - Individual check results
+- Created CulpritIdentifier class for VS Code UI integration:
+  - processReport(): Converts IntegrityReport to UI-friendly IntegritySummary
+  - formatFailure(): Human-readable descriptions of failures
+  - isNodeCulprit(): Check if specific node corrupted data
+  - getFailuresForNode()/getFailuresForResource(): Query failures
+  - generateTextReport(): Formatted text report for export
+  - exportJSON(): JSON export of summary
+- Enhanced PipelineView to display integrity failures:
+  - Added isCulprit and integrityFailures fields to PipelineNodeState
+  - setIntegritySummary() method highlights culprit nodes in red
+  - New message types: setIntegritySummary, highlightCulprit, exportIntegrityReport
+  - Culprit nodes visually highlighted in pipeline DAG view
+- Added livecalc.enableIntegrityChecks setting (default: false) to package.json
+  - Description notes ~1ms per MB performance overhead when enabled
+- Exported from orchestrator/index.ts and main index.ts
+- All acceptance criteria verified:
+  - Orchestrator computes CRC32 checksum on bus segments after each node completes ✓
+  - Checksum stored with segment metadata for later verification ✓
+  - If downstream node receives unexpected data, automatic culprit identification ✓
+  - UI highlights upstream node in red when integrity check fails ✓
+  - Integrity report shows: expected checksum, actual checksum, diff location ✓
+  - Option to enable/disable integrity checks (performance tradeoff) ✓
+  - All integrity events logged in LiveCalc Output channel ✓
+- Files changed:
+  - livecalc-engine/js/src/orchestrator/integrity-checker.ts (new - 476 lines)
+  - livecalc-engine/js/src/orchestrator/index.ts (added integrity checker exports)
+  - livecalc-engine/js/src/index.ts (added integrity checker exports)
+  - livecalc-engine/js/tests/integrity-checker.test.ts (new - 21 tests, all pass)
+  - livecalc-vscode/src/pipeline/culprit-identifier.ts (new - 267 lines)
+  - livecalc-vscode/src/pipeline/index.ts (added CulpritIdentifier exports)
+  - livecalc-vscode/src/pipeline/pipeline-view.ts (added integrity summary support)
+  - livecalc-vscode/src/commands/run.ts (added PipelineDataInspector import)
+  - livecalc-vscode/package.json (added livecalc.enableIntegrityChecks setting)
+- Tests: 21 new tests pass (301 existing + 21 new = 322 total)

@@ -123,3 +123,16 @@ Only add learnings that are:
 - **What:** When comparing baseline vs spike, the baseline may not have all features (e.g., multi-threading was broken in baseline, so wasmMultiMs was null). Comparisons must account for what was actually measured vs what was expected.
 - **Why it matters:** A naive comparison showing "throughput decreased 91%" is misleading if baseline was single-threaded and spike is multi-threaded with different measurement points. Always verify what the baseline actually represents.
 
+
+## 2026-01-24 - CRC32 lookup table for performance
+**Source:** PRD-LC-010 US-007
+
+- **What:** CRC32 checksum computation uses a pre-computed 256-entry lookup table to avoid calculating the polynomial for every byte. The table is computed once on first use and cached globally. This reduces per-byte computation from 8 bit shifts to a single table lookup.
+- **Why it matters:** For large SharedArrayBuffer segments (MB scale), the lookup table approach is ~8x faster than naive bit-by-bit computation. The one-time table initialization cost (~256 iterations) is amortized over all checksum computations in the session.
+
+## 2026-01-24 - Integrity checks as opt-in for performance
+**Source:** PRD-LC-010 US-007
+
+- **What:** Pipeline integrity checking is disabled by default (livecalc.enableIntegrityChecks: false) because CRC32 computation adds ~1ms per MB of bus data. For large pipelines with multiple multi-MB bus resources, this overhead can add up. Users enable it when debugging memory corruption issues.
+- **Why it matters:** Performance vs debugging tradeoff - production runs prioritize speed, debug runs prioritize correctness. Making it configurable allows users to choose based on their current needs. Document the overhead clearly in the setting description.
+
