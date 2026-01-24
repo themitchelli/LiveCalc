@@ -3,7 +3,7 @@
   "title": "Assumptions Manager Integration",
   "type": "feature",
   "priority": "high",
-  "status": "planned",
+  "status": "completed",
   "created": "2026-01-23",
   "project": "LiveCalc",
   "phase": 3,
@@ -273,7 +273,7 @@
           "local": "$(file)"
         }
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

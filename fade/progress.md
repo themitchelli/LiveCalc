@@ -2040,3 +2040,59 @@ For blocked stories, use:
 - Files changed:
   - livecalc-vscode/src/assumptions-manager/status-bar.ts (updated STATUS_COLORS for proper color coding)
 - Tests: Extension compiles, type-checks, and packages successfully (334.61KB)
+
+## 2026-01-24 - US-008: Assumptions Panel (Tree View) (PRD-LC-006) - COMPLETE
+
+- Implemented tree view in Explorer sidebar showing available assumptions from AM and local files
+- Created AssumptionTreeDataProvider class (src/assumptions-manager/tree-provider.ts):
+  - Implements TreeDataProvider interface for VS Code tree view
+  - Two top-level nodes: "Assumptions Manager" and "Local Files"
+  - AM tables expand to show versions with status badges
+  - Caches table and version data to reduce API calls
+  - Supports filtering by table name, description, or type
+  - Handles auth state changes (refresh on login/logout)
+  - Error states for disconnected, unconfigured, and API errors
+- Created AssumptionTreeItem class with context-aware icons:
+  - Tables: icon by type (pulse for mortality, arrow-right for lapse, credit-card for expense)
+  - Versions: status badges (verified=approved, edit=draft, clock=pending, close=rejected)
+  - Local files: icon by type with file path in tooltip
+  - Loading and error states with appropriate icons
+- Registered tree view in package.json:
+  - View ID: livecalc.assumptionsExplorer
+  - Conditional visibility: when livecalc.hasConfig
+  - Welcome view for uninitialized projects
+- Added commands for tree view actions:
+  - livecalc.amInsertReference: Insert reference at cursor (double-click on version)
+  - livecalc.amCopyReference: Copy reference to clipboard
+  - livecalc.amOpenInBrowser: Open table/version in Assumptions Manager
+  - livecalc.amViewData: Show table data preview in new document
+  - livecalc.amFilterTables: Show filter input box
+- Added context menus (view/item/context):
+  - Version items: Copy Reference, Insert Reference, Open in AM, View Data
+  - Table items: Open in AM
+  - Root-am: Refresh
+- Added view title actions (view/title):
+  - Refresh button with $(refresh) icon
+  - Filter button with $(filter) icon
+- Set livecalc.hasConfig context when config file exists
+- All acceptance criteria verified:
+  - Tree view in Explorer sidebar: 'LiveCalc Assumptions' ✓
+  - Top-level nodes: Assumptions Manager tables, Local files ✓
+  - AM tables expand to show versions ✓
+  - Version nodes show: version number, status badge (approved/draft/pending) ✓
+  - Approved versions have green checkmark ✓
+  - Draft versions have yellow pencil icon ✓
+  - Pending approval versions have orange clock icon ✓
+  - Double-click version to insert reference at cursor in config ✓
+  - Right-click menu: Copy Reference, Open in AM, View Data ✓
+  - Refresh button to reload table list from API ✓
+  - Search/filter box to find tables by name ✓
+  - Show loading indicator while fetching ✓
+  - Show error state if API unavailable ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/tree-provider.ts (new - TreeDataProvider)
+  - livecalc-vscode/src/assumptions-manager/index.ts (added tree provider exports)
+  - livecalc-vscode/src/extension.ts (register tree view, set context)
+  - livecalc-vscode/src/commands/index.ts (tree view commands: insert, copy, open, view data, filter)
+  - livecalc-vscode/package.json (views, viewsWelcome, commands, menus)
+- Tests: Extension compiles, type-checks, and packages successfully (338.1KB)

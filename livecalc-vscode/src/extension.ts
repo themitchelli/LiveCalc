@@ -24,6 +24,8 @@ import {
   AssumptionDefinitionProvider,
   AssumptionDocumentLinkProvider,
   AssumptionDiagnosticProvider,
+  AssumptionTreeDataProvider,
+  createAssumptionTreeView,
 } from './assumptions-manager';
 
 let statusBar: StatusBar | undefined;
@@ -36,6 +38,7 @@ let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
 let amCache: AMCache | undefined;
 let assumptionDiagnosticProvider: AssumptionDiagnosticProvider | undefined;
+let assumptionTreeProvider: AssumptionTreeDataProvider | undefined;
 
 /**
  * Extension activation
@@ -157,6 +160,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
   logger.debug('Assumption reference language providers registered');
 
+  // Create Assumptions tree view in Explorer sidebar
+  const { treeView, provider: treeProvider } = createAssumptionTreeView(
+    context,
+    authManager,
+    configLoader
+  );
+  assumptionTreeProvider = treeProvider;
+  logger.debug('Assumptions tree view registered');
+
   // Listen for pause state changes to update status bar
   context.subscriptions.push(
     autoRunController.onPauseStateChanged((pauseState) => {
@@ -174,7 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar, amCache);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar, amCache, assumptionTreeProvider);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -208,10 +220,14 @@ function updateStatusBarVisibility(): void {
   }
 
   const editor = vscode.window.activeTextEditor;
+  const hasConfig = hasConfigInWorkspace();
   const shouldShow =
     editor?.document.languageId === 'mga' ||
     editor?.document.fileName.endsWith('livecalc.config.json') ||
-    hasConfigInWorkspace();
+    hasConfig;
+
+  // Set context for tree view visibility
+  vscode.commands.executeCommand('setContext', 'livecalc.hasConfig', hasConfig);
 
   if (shouldShow) {
     statusBar.show();
@@ -266,6 +282,7 @@ export function deactivate(): void {
   amStatusBar = undefined;
   amCache = undefined;
   assumptionDiagnosticProvider = undefined;
+  assumptionTreeProvider = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }

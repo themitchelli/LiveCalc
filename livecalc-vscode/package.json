@@ -123,6 +123,35 @@
         "title": "Refresh Assumptions List",
         "category": "LiveCalc",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "livecalc.amInsertReference",
+        "title": "Insert Assumption Reference",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amCopyReference",
+        "title": "Copy Assumption Reference",
+        "category": "LiveCalc",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "livecalc.amOpenInBrowser",
+        "title": "Open in Assumptions Manager",
+        "category": "LiveCalc",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "livecalc.amViewData",
+        "title": "View Data",
+        "category": "LiveCalc",
+        "icon": "$(table)"
+      },
+      {
+        "command": "livecalc.amFilterTables",
+        "title": "Filter Tables",
+        "category": "LiveCalc",
+        "icon": "$(filter)"
       }
     ],
     "keybindings": [
@@ -163,6 +192,23 @@
       {
         "fileMatch": "livecalc.config.json",
         "url": "./schemas/livecalc.config.schema.json"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "livecalc.assumptionsExplorer",
+          "name": "LiveCalc Assumptions",
+          "when": "livecalc.hasConfig",
+          "contextualTitle": "LiveCalc"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "livecalc.assumptionsExplorer",
+        "contents": "No LiveCalc project found.\n[Initialize Project](command:livecalc.initialize)",
+        "when": "!livecalc.hasConfig"
       }
     ],
     "configuration": {
@@ -312,6 +358,45 @@
           "command": "livecalc.run",
           "when": "editorLangId == mga",
           "group": "1_run"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "livecalc.amRefresh",
+          "when": "view == livecalc.assumptionsExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "livecalc.amFilterTables",
+          "when": "view == livecalc.assumptionsExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "livecalc.amCopyReference",
+          "when": "view == livecalc.assumptionsExplorer && viewItem == version",
+          "group": "1_reference@1"
+        },
+        {
+          "command": "livecalc.amInsertReference",
+          "when": "view == livecalc.assumptionsExplorer && viewItem == version",
+          "group": "1_reference@2"
+        },
+        {
+          "command": "livecalc.amOpenInBrowser",
+          "when": "view == livecalc.assumptionsExplorer && viewItem =~ /^(table|version)$/",
+          "group": "2_actions@1"
+        },
+        {
+          "command": "livecalc.amViewData",
+          "when": "view == livecalc.assumptionsExplorer && viewItem == version",
+          "group": "2_actions@2"
+        },
+        {
+          "command": "livecalc.amRefresh",
+          "when": "view == livecalc.assumptionsExplorer && viewItem == root-am",
+          "group": "3_manage@1"
         }
       ]
     }

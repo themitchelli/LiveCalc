@@ -25,3 +25,10 @@ export {
   type ResolutionResult,
   type FullResolutionResult,
 } from './resolver';
+export {
+  AssumptionTreeDataProvider,
+  AssumptionTreeItem,
+  createAssumptionTreeView,
+  type TreeItemType,
+  type AssumptionTreeItemData,
+} from './tree-provider';
