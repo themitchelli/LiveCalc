@@ -62,6 +62,11 @@
         "command": "livecalc.clearOutput",
         "title": "Clear Output",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.toggleAutoRun",
+        "title": "Toggle Auto-Run",
+        "category": "LiveCalc"
       }
     ],
     "keybindings": [
@@ -105,6 +110,21 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically run valuation when files are saved"
+        },
+        "livecalc.autoRunDebounceMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "maximum": 5000,
+          "description": "Debounce delay for auto-run in milliseconds"
+        },
+        "livecalc.watchExclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
+          "description": "Glob patterns to exclude from file watching"
         },
         "livecalc.logLevel": {
           "type": "string",

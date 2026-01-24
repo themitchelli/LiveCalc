@@ -8,11 +8,14 @@ import { disposeDataCache } from './data/cache';
 import { disposeDataValidator } from './data/data-validator';
 import { ResultsPanel } from './ui/results-panel';
 import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
+import { AutoRunController } from './auto-run';
+import { runCommand } from './commands/run';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
 let resultsPanel: ResultsPanel | undefined;
 let comparisonManager: ComparisonManager | undefined;
+let autoRunController: AutoRunController | undefined;
 
 /**
  * Extension activation
@@ -52,8 +55,22 @@ export function activate(context: vscode.ExtensionContext): void {
   comparisonManager = ComparisonManager.getInstance(context);
   context.subscriptions.push(comparisonManager);
 
+  // Create auto-run controller
+  autoRunController = new AutoRunController(context, configLoader, statusBar);
+  context.subscriptions.push(autoRunController);
+
+  // Set up auto-run to execute the run command
+  autoRunController.setRunCommand(async () => {
+    if (statusBar && configLoader && resultsPanel && comparisonManager) {
+      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager);
+    }
+  });
+
+  // Update status bar with initial auto-run state
+  statusBar.setAutoRunEnabled(autoRunController.isEnabled());
+
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, autoRunController);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -130,6 +147,7 @@ export function deactivate(): void {
   configLoader = undefined;
   resultsPanel = undefined;
   comparisonManager = undefined;
+  autoRunController = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }

@@ -5,6 +5,7 @@ import { StatusBar } from '../ui/status-bar';
 import { ConfigLoader } from '../config/config-loader';
 import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
+import { AutoRunController } from '../auto-run';
 import { logger } from '../logging/logger';
 
 /**
@@ -15,7 +16,8 @@ export function registerCommands(
   statusBar: StatusBar,
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
-  comparisonManager: ComparisonManager
+  comparisonManager: ComparisonManager,
+  autoRunController: AutoRunController
 ): void {
   // Register run command
   context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager));
@@ -53,6 +55,19 @@ export function registerCommands(
     vscode.commands.registerCommand('livecalc.clearOutput', () => {
       logger.clear();
       vscode.window.showInformationMessage('LiveCalc: Output channel cleared');
+    })
+  );
+
+  // Register toggle auto-run command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.toggleAutoRun', async () => {
+      await autoRunController.toggle();
+      const enabled = autoRunController.isEnabled();
+      statusBar.setAutoRunEnabled(enabled);
+      logger.info(`Auto-run ${enabled ? 'enabled' : 'disabled'}`);
+      vscode.window.showInformationMessage(
+        `LiveCalc: Auto-run ${enabled ? 'enabled' : 'disabled'}`
+      );
     })
   );
 

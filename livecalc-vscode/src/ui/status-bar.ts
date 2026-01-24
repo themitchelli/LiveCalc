@@ -11,6 +11,7 @@ interface StatusBarState {
   lastError?: string;
   engineInitialized: boolean;
   configPath?: string;
+  autoRunEnabled: boolean;
 }
 
 /**
@@ -25,6 +26,7 @@ export class StatusBar {
   private state: StatusBarState = {
     status: 'ready',
     engineInitialized: false,
+    autoRunEnabled: true,
   };
 
   constructor() {
@@ -52,10 +54,42 @@ export class StatusBar {
     this.updateTooltip();
   }
 
+  /**
+   * Update auto-run enabled state
+   */
+  public setAutoRunEnabled(enabled: boolean): void {
+    this.state.autoRunEnabled = enabled;
+    this.updateStatusBarText();
+    this.updateTooltip();
+  }
+
+  /**
+   * Get auto-run enabled state
+   */
+  public isAutoRunEnabled(): boolean {
+    return this.state.autoRunEnabled;
+  }
+
+  /**
+   * Update status bar text based on current state
+   */
+  private updateStatusBarText(): void {
+    // Only update if in ready state (other states have their own text)
+    if (this.state.status !== 'ready') {
+      return;
+    }
+
+    if (this.state.autoRunEnabled) {
+      this.statusBarItem.text = '$(beaker) LiveCalc';
+    } else {
+      this.statusBarItem.text = '$(beaker) LiveCalc (Auto: OFF)';
+    }
+  }
+
   public setReady(): void {
     this.stopSpinner();
     this.state.status = 'ready';
-    this.statusBarItem.text = '$(beaker) LiveCalc';
+    this.updateStatusBarText();
     this.statusBarItem.backgroundColor = undefined;
     this.updateTooltip();
   }
@@ -155,6 +189,10 @@ export class StatusBar {
     // Engine state
     const engineState = this.state.engineInitialized ? 'Initialized' : 'Not initialized';
     lines.push(`\n---\nEngine: ${engineState}`);
+
+    // Auto-run state
+    const autoRunState = this.state.autoRunEnabled ? 'ON' : 'OFF';
+    lines.push(`Auto-run: ${autoRunState}`);
 
     // Config path
     if (this.state.configPath) {

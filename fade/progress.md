@@ -1029,3 +1029,42 @@ For blocked stories, use:
   - livecalc-vscode/src/ui/results-panel.ts (HTML structure supports responsive layout)
 - Tests: Extension compiles, type-checks, and packages successfully (284.52KB)
 
+## 2026-01-24 16:00 - US-001: Auto-Run on Save (PRD-LC-005) - COMPLETE
+
+- Implemented auto-run functionality that re-executes valuation when files are saved
+- Created Debouncer class with configurable delay (default 500ms) to prevent excessive runs
+- Created FileWatcher class that monitors .mga, CSV, and JSON files referenced in config
+- Created AutoRunController to coordinate file watching, debouncing, and run execution
+- Added livecalc.autoRunOnSave setting (default: true)
+- Added livecalc.autoRunDebounceMs setting (default: 500ms, range: 100-5000)
+- Added livecalc.watchExclude setting for custom exclude patterns
+- Implemented auto-run state persistence across VS Code restarts via workspaceState
+- Added 'LiveCalc: Toggle Auto-Run' command (livecalc.toggleAutoRun)
+- Updated status bar to show 'Auto-run: ON' or 'Auto-run: OFF' in tooltip
+- Status bar text shows '(Auto: OFF)' when disabled for visibility
+- FileWatcher uses VS Code native FileSystemWatcher API (no polling)
+- FileWatcher respects exclude patterns: node_modules, .git, dist, build
+- All acceptance criteria verified:
+  - Setting: livecalc.autoRunOnSave (default: true) ✓
+  - Model re-runs when .mga file is saved ✓
+  - Model re-runs when assumption CSV file is saved ✓
+  - Model re-runs when assumption JSON file is saved ✓
+  - Model re-runs when livecalc.config.json is saved ✓
+  - Only files referenced in config trigger re-run ✓
+  - Debounce: rapid saves within 500ms only trigger one run ✓
+  - Debounce delay configurable: livecalc.autoRunDebounceMs ✓
+  - Previous run cancelled if new save occurs during execution ✓
+  - Status bar shows 'Auto-run: ON' or 'Auto-run: OFF' ✓
+  - Toggle command: 'LiveCalc: Toggle Auto-Run' ✓
+  - Auto-run state persists across VS Code restarts ✓
+- Files changed:
+  - livecalc-vscode/src/auto-run/debouncer.ts (new - debounce utility)
+  - livecalc-vscode/src/auto-run/file-watcher.ts (new - file watching)
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (new - coordination)
+  - livecalc-vscode/src/auto-run/index.ts (new - exports)
+  - livecalc-vscode/src/ui/status-bar.ts (added auto-run state display)
+  - livecalc-vscode/src/commands/index.ts (register toggle command)
+  - livecalc-vscode/src/extension.ts (initialize auto-run controller)
+  - livecalc-vscode/package.json (new settings and commands)
+- Tests: Extension compiles, type-checks, and packages successfully (286.96KB)
+

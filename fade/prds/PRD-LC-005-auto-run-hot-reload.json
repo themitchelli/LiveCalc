@@ -1,0 +1,408 @@
+{
+  "id": "PRD-LC-005",
+  "title": "Auto-Run and Hot Reload",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Implement automatic re-execution when model or assumption files change, providing instant feedback without manual triggering. This is the 'hot reload' experience that transforms actuarial development from batch-oriented to interactive.",
+  "problem": [
+    "Actuaries must manually trigger runs after every change",
+    "Easy to forget to re-run after editing assumptions",
+    "No immediate feedback on whether a change improved or worsened results",
+    "Iteration friction slows down model development"
+  ],
+  "solution": [
+    "Watch all relevant files for changes",
+    "Automatically re-run valuation on save",
+    "Debounce rapid changes to avoid wasted computation",
+    "Show clear comparison of results vs previous run",
+    "Allow toggle on/off for auto-run behavior"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-003",
+      "title": "VS Code Extension Foundation",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-004",
+      "title": "Results Panel and Visualisation",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "fileWatching": "VS Code FileSystemWatcher API",
+    "debouncing": "500ms default, configurable",
+    "cancellation": "Cancel in-flight run if new save occurs",
+    "comparison": "Store previous results in memory for delta calculation"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Auto-Run on Save",
+      "story": "As an actuary, I want the model to re-run automatically when I save so I don't have to manually trigger runs",
+      "acceptanceCriteria": [
+        "Setting: livecalc.autoRunOnSave (default: true)",
+        "Model re-runs when .mga file is saved",
+        "Model re-runs when assumption CSV file is saved",
+        "Model re-runs when assumption JSON file is saved",
+        "Model re-runs when livecalc.config.json is saved",
+        "Only files referenced in config trigger re-run (not unrelated files)",
+        "Debounce: rapid saves within 500ms only trigger one run",
+        "Debounce delay configurable: livecalc.autoRunDebounceMs",
+        "Previous run cancelled if new save occurs during execution",
+        "Status bar shows 'Auto-run: ON' or 'Auto-run: OFF'",
+        "Toggle command: 'LiveCalc: Toggle Auto-Run'",
+        "Toggle via status bar click",
+        "Auto-run state persists across VS Code restarts"
+      ],
+      "technicalNotes": {
+        "implementation": "FileSystemWatcher + debounce + CancellationTokenSource",
+        "persistence": "context.workspaceState for auto-run toggle state"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "File Watcher Configuration",
+      "story": "As a developer, I need intelligent file watching so only relevant changes trigger re-runs",
+      "acceptanceCriteria": [
+        "Watch all files referenced in livecalc.config.json",
+        "Watch the config file itself",
+        "Watch pattern includes: **/*.mga, **/*.csv, **/*.json in workspace",
+        "Exclude patterns: node_modules/**, .git/**, dist/**, build/**",
+        "Custom excludes configurable: livecalc.watchExclude",
+        "Handle file rename gracefully (treat as delete + create)",
+        "Handle file delete gracefully (show error, don't crash)",
+        "Handle external changes (edits from other applications)",
+        "Efficient watching (no polling, use native FS events)",
+        "Watcher recreated when config file changes",
+        "Log watched files in debug mode"
+      ],
+      "technicalNotes": {
+        "api": "vscode.workspace.createFileSystemWatcher()",
+        "events": "onDidChange, onDidCreate, onDidDelete",
+        "glob": "Use RelativePattern for workspace-scoped watching"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Run Cancellation",
+      "story": "As an actuary, I want in-progress runs to cancel when I make new changes so I'm not waiting for stale results",
+      "acceptanceCriteria": [
+        "New save during execution cancels current run",
+        "Cancellation is graceful (workers terminate cleanly)",
+        "Cancelled run shows 'Cancelled' status briefly",
+        "New run starts immediately after cancellation",
+        "No orphaned workers or memory leaks from cancellation",
+        "Manual cancel button still works during auto-run",
+        "Cancellation logged in output channel",
+        "Results panel shows 'Cancelled - new run starting...' message"
+      ],
+      "technicalNotes": {
+        "implementation": "CancellationTokenSource.cancel() before starting new run",
+        "workerTermination": "worker.terminate() or postMessage({ type: 'cancel' })",
+        "cleanup": "Ensure all Promises resolve/reject on cancellation"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Results Comparison Mode",
+      "story": "As an actuary, I want to see how results changed compared to the previous run so I understand the impact of my edits",
+      "acceptanceCriteria": [
+        "Previous run results automatically stored when new run starts",
+        "Delta shown for each statistic: current - previous",
+        "Percentage change shown: ((current - previous) / |previous|) * 100",
+        "Positive delta styled green with ▲ indicator",
+        "Negative delta styled red with ▼ indicator",
+        "Near-zero delta (<0.1%) styled neutral with ≈ indicator",
+        "Delta values formatted consistently with main values",
+        "Comparison baseline is always the immediately previous run",
+        "'Clear Comparison' button resets to no comparison",
+        "Comparison mode toggle: 'LiveCalc: Toggle Comparison'",
+        "Setting: livecalc.showComparison (default: true)",
+        "First run shows no deltas (no previous to compare)"
+      ],
+      "technicalNotes": {
+        "storage": "In-memory only (previousResults variable)",
+        "threshold": "const NEUTRAL_THRESHOLD = 0.001 (0.1%)",
+        "formatting": {
+          "positive": "+£12,345 (+1.2%)",
+          "negative": "-£5,432 (-0.5%)",
+          "neutral": "≈ £0 (0.0%)"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Change Indicator",
+      "story": "As an actuary, I want to see which files changed since last run so I understand what triggered the re-run",
+      "acceptanceCriteria": [
+        "Results panel shows 'Triggered by: model.mga' after auto-run",
+        "Multiple files shown if saved together: 'Triggered by: mortality.csv, lapse.csv'",
+        "Change indicator clears after a few seconds or on next interaction",
+        "File name is clickable to open the file",
+        "Change type indicated: modified, created, deleted",
+        "Only show for auto-triggered runs, not manual runs"
+      ],
+      "technicalNotes": {
+        "display": "Subtle banner at top of results panel",
+        "timeout": "Auto-hide after 5 seconds",
+        "clickHandler": "vscode.window.showTextDocument()"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Run History",
+      "story": "As an actuary, I want to see recent run history so I can track how results evolved during my session",
+      "acceptanceCriteria": [
+        "Last 10 runs stored in memory",
+        "History shows: timestamp, trigger (manual/auto), execution time, mean NPV",
+        "History visible in collapsible section of results panel",
+        "Click on history item shows full results for that run",
+        "Compare current with any historical run (not just previous)",
+        "History cleared on extension reload",
+        "Setting: livecalc.historySize (default: 10, max: 50)",
+        "Export history to CSV option"
+      ],
+      "technicalNotes": {
+        "storage": "Array in memory, shift oldest when exceeds limit",
+        "schema": {
+          "runId": "UUID",
+          "timestamp": "ISO8601",
+          "trigger": "manual | auto",
+          "triggerFile": "string | null",
+          "executionTimeMs": "number",
+          "results": "ValuationResult"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Pause/Resume Auto-Run",
+      "story": "As an actuary, I want to temporarily pause auto-run when making many changes so I don't waste computation",
+      "acceptanceCriteria": [
+        "Command: 'LiveCalc: Pause Auto-Run'",
+        "Command: 'LiveCalc: Resume Auto-Run'",
+        "Keyboard shortcut: Cmd+Shift+P / Ctrl+Shift+P (pause toggle)",
+        "Status bar shows 'Auto-run: PAUSED' when paused",
+        "Status bar icon changes when paused (e.g., pause icon)",
+        "Paused state shows count of pending changes: 'Paused (3 changes)'",
+        "Resume triggers immediate run if changes pending",
+        "Pause state does NOT persist across VS Code restarts",
+        "Pause auto-expires after configurable time: livecalc.pauseTimeoutMinutes (default: 30)"
+      ],
+      "technicalNotes": {
+        "state": "isPaused boolean + pendingChanges Set<string>",
+        "timeout": "setTimeout to auto-resume after pauseTimeoutMinutes"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Smart Re-Run Optimization",
+      "story": "As a developer, I want the engine to skip unnecessary work when only certain files change",
+      "acceptanceCriteria": [
+        "If only scenario seed changes: regenerate scenarios, keep policies cached",
+        "If only assumption file changes: keep policies cached, reload assumptions",
+        "If only policy file changes: reload policies, keep assumptions cached",
+        "If model.mga changes: full reload (model structure may have changed)",
+        "If config changes: full reload (dependencies may have changed)",
+        "Cache invalidation logged in debug mode",
+        "Cache hit/miss statistics available in output channel",
+        "Setting: livecalc.enableCaching (default: true)"
+      ],
+      "technicalNotes": {
+        "cacheKeys": {
+          "policies": "hash of policy file content",
+          "assumptions": "hash of each assumption file",
+          "scenarios": "seed + count + parameters"
+        },
+        "invalidation": "Compare hashes before run, reload only changed"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Notification Preferences",
+      "story": "As an actuary, I want to control how I'm notified about auto-run completions so I'm not distracted",
+      "acceptanceCriteria": [
+        "Setting: livecalc.notifyOnAutoRun (default: 'statusBar')",
+        "Options: 'none', 'statusBar', 'toast', 'sound'",
+        "'none': Results panel updates silently",
+        "'statusBar': Status bar shows completion time briefly",
+        "'toast': VS Code notification toast on completion",
+        "'sound': System notification sound (platform-dependent)",
+        "Errors always show toast regardless of setting",
+        "Setting: livecalc.notifyOnError (default: true)"
+      ],
+      "technicalNotes": {
+        "toast": "vscode.window.showInformationMessage()",
+        "sound": "Use vscode.env.playSound if available, else no-op"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/src/auto-run/file-watcher.ts",
+    "livecalc-vscode/src/auto-run/debouncer.ts",
+    "livecalc-vscode/src/auto-run/auto-run-controller.ts",
+    "livecalc-vscode/src/auto-run/run-history.ts",
+    "livecalc-vscode/src/auto-run/cache-manager.ts",
+    "livecalc-vscode/src/auto-run/change-tracker.ts",
+    "livecalc-vscode/src/commands/toggle-auto-run.ts",
+    "livecalc-vscode/src/commands/pause-auto-run.ts",
+    "livecalc-vscode/src/commands/clear-comparison.ts",
+    "livecalc-vscode/test/suite/auto-run.test.ts",
+    "livecalc-vscode/test/suite/file-watcher.test.ts",
+    "livecalc-vscode/test/suite/cache-manager.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/extension.ts",
+      "changes": "Initialize auto-run controller, register commands"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/status-bar.ts",
+      "changes": "Add auto-run state display, pause indicator"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add comparison display, history section, trigger indicator"
+    },
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add new settings, commands, keybindings"
+    }
+  ],
+  "packageJsonAdditions": {
+    "commands": [
+      {
+        "command": "livecalc.toggleAutoRun",
+        "title": "Toggle Auto-Run",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.pauseAutoRun",
+        "title": "Pause Auto-Run",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.resumeAutoRun",
+        "title": "Resume Auto-Run",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.clearComparison",
+        "title": "Clear Results Comparison",
+        "category": "LiveCalc"
+      }
+    ],
+    "configuration": {
+      "livecalc.autoRunOnSave": {
+        "type": "boolean",
+        "default": true,
+        "description": "Automatically run valuation when files are saved"
+      },
+      "livecalc.autoRunDebounceMs": {
+        "type": "number",
+        "default": 500,
+        "description": "Debounce delay for auto-run in milliseconds"
+      },
+      "livecalc.showComparison": {
+        "type": "boolean",
+        "default": true,
+        "description": "Show comparison with previous run results"
+      },
+      "livecalc.historySize": {
+        "type": "number",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 50,
+        "description": "Number of runs to keep in history"
+      },
+      "livecalc.enableCaching": {
+        "type": "boolean",
+        "default": true,
+        "description": "Cache policy and assumption data between runs"
+      },
+      "livecalc.notifyOnAutoRun": {
+        "type": "string",
+        "enum": ["none", "statusBar", "toast", "sound"],
+        "default": "statusBar",
+        "description": "How to notify on auto-run completion"
+      },
+      "livecalc.pauseTimeoutMinutes": {
+        "type": "number",
+        "default": 30,
+        "description": "Auto-resume auto-run after this many minutes"
+      },
+      "livecalc.watchExclude": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": ["**/node_modules/**", "**/.git/**"],
+        "description": "Glob patterns to exclude from file watching"
+      }
+    }
+  },
+  "userFlowDiagram": {
+    "description": "Auto-run flow from file save to results update",
+    "flow": [
+      "1. User edits mortality.csv",
+      "2. User presses Cmd+S (save)",
+      "3. FileWatcher detects change",
+      "4. Debouncer waits 500ms for more changes",
+      "5. No more changes → trigger run",
+      "6. AutoRunController checks if run in progress",
+      "7. If yes → cancel current run",
+      "8. CacheManager checks what changed",
+      "9. Only mortality changed → reload assumptions, keep policies cached",
+      "10. Engine runs valuation",
+      "11. Results compared with previous",
+      "12. Results panel updates with deltas",
+      "13. Status bar shows '2.1s' completion time",
+      "14. Previous results stored for next comparison"
+    ]
+  },
+  "definitionOfDone": [
+    "Auto-run triggers on save for all relevant file types",
+    "Debouncing prevents excessive runs on rapid saves",
+    "In-progress runs cancel cleanly when new changes arrive",
+    "Comparison mode shows deltas with correct formatting",
+    "Run history tracks last 10 runs with full results",
+    "Pause/resume works with pending change count",
+    "Caching reduces reload time for unchanged data",
+    "All 9 user stories pass acceptance criteria",
+    "No memory leaks from file watchers or cancelled runs",
+    "Settings documented in README"
+  ],
+  "estimatedSessions": "2-3 FADE sessions",
+  "risks": [
+    {
+      "risk": "File watcher performance with many files",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Use specific globs, respect exclude patterns"
+    },
+    {
+      "risk": "Race conditions with rapid save/cancel/run cycles",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Careful async/await handling, cancellation tokens"
+    },
+    {
+      "risk": "Memory growth from run history",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Limit history size, only store summary for old runs"
+    }
+  ]
+}
