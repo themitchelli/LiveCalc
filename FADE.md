@@ -1,6 +1,6 @@
 <!-- FADE FADE.md v0.3.1 -->
 
-# Project Name
+# LiveCalc
 
 <!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
 
@@ -8,21 +8,31 @@
 
 ## Project Overview
 
-<!--
-Describe what this project does and its purpose. Include:
-- What problem does it solve?
-- Who are the users?
-- What's the current state (MVP, production, legacy)?
--->
+LiveCalc provides **instant actuarial model feedback** through a VS Code extension powered by a high-performance WASM calculation engine.
 
-Brief description of this project.
+**What problem does it solve?**
+- Eliminates the traditional actuarial workflow delay: write model → export to Excel/Python → wait for results → iterate
+- Provides sub-second feedback for model changes with auto-run on save
+- Scales from desktop (1K scenarios) to cloud (1M+ scenarios) seamlessly
+- Enables collaborative modeling with centralized assumption management
+
+**Who are the users?**
+- Actuaries building and testing life insurance projection models
+- Actuarial teams collaborating on shared assumption libraries
+- Platform engineers deploying cloud-scale actuarial computations
+
+**Current state:**
+- **MVP Complete**: Core engine (C++/WASM), VS Code extension with results visualization, assumptions manager integration, modular pipeline orchestration
+- **In Progress**: Cloud execution infrastructure (Azure Batch), remote debugging capabilities
+- **Planned**: Model versioning, collaborative features, production deployment
 
 **Tech Stack:**
-- Language:
-- Framework:
-- Database:
+- **Core Engine**: C++ compiled to WASM via Emscripten (with SIMD support)
+- **Desktop**: TypeScript (VS Code extension), Web Workers for parallelism
+- **Cloud API**: Python (FastAPI), Azure services (Blob Storage, Batch, Key Vault)
+- **Infrastructure**: Terraform (Azure), Kubernetes (AKS), GitHub Actions (CI/CD)
 
-**Repository:** [link]
+**Repository:** https://github.com/themitchelli/LiveCalc
 
 ---
 
@@ -57,84 +67,114 @@ on relevant tasks. Add your own project-specific standards as needed.
 
 | Standard | Description |
 |----------|-------------|
-| [API Security](standards/api-security.md) | Authentication, authorization, input validation, secure error handling |
+| [API Security](standards/api-security.md) | API-first strategy, security by design, JWT auth, tenant isolation |
 | [Git](standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
-| [Coding](standards/coding.md) | Naming, formatting, error handling, code organization |
-| [Testing](standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
+| [Coding](standards/coding.md) | Naming, comments philosophy, error handling, code organization |
+| [Testing](standards/testing.md) | Test pyramid, performance benchmarks, regression protection |
+| [Infrastructure](standards/infrastructure.md) | Everything as code (Terraform, Helm, config) |
 | [Documentation](standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
 
 ---
 
 ## Architecture References
 
-<!--
-Document the high-level architecture and link to detailed design docs.
-Include diagrams, ADRs (Architecture Decision Records), or external references.
-This helps agents understand where new code should go and how components interact.
--->
-
 ### System Overview
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│   API       │────▶│  Database   │
-│   (React)   │     │  (Express)  │     │  (Postgres) │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       VS Code Extension                          │
+│  ┌─────────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ Results Panel   │  │ Pipeline     │  │ Assumptions      │  │
+│  │ (Webview)       │  │ Debugger     │  │ Manager Client   │  │
+│  └─────────────────┘  └──────────────┘  └──────────────────┘  │
+│           │                    │                    │            │
+│           └────────────────────┴────────────────────┘            │
+│                              ↓                                   │
+│                  ┌───────────────────────┐                       │
+│                  │  LiveCalc Engine Mgr  │                       │
+│                  │  (TypeScript)         │                       │
+│                  └───────────────────────┘                       │
+│                              ↓                                   │
+│         ┌────────────────────┴────────────────────┐             │
+│         ↓                                          ↓             │
+│  ┌─────────────┐                          ┌──────────────┐     │
+│  │   Main      │    SharedArrayBuffer     │ Worker Pool  │     │
+│  │   Thread    │◄────────(bus://)────────►│ (N workers)  │     │
+│  │             │                          │              │     │
+│  │  ┌────────┐ │                          │ ┌──────────┐ │     │
+│  │  │ WASM   │ │                          │ │ WASM     │ │     │
+│  │  │ Module │ │                          │ │ Module   │ │     │
+│  │  └────────┘ │                          │ └──────────┘ │     │
+│  └─────────────┘                          └──────────────┘     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↑
+                              │ JWT Auth + REST API
+                              ↓
+                 ┌────────────────────────┐
+                 │ Assumptions Manager    │
+                 │ (Cloud Service)        │
+                 │ - Table/Version Mgmt   │
+                 │ - Approval Workflow    │
+                 │ - Caching              │
+                 └────────────────────────┘
+                              ↑
+                              │ Job Submit API
+                              ↓
+                 ┌────────────────────────┐
+                 │ Cloud Execution        │
+                 │ (Azure Batch)          │
+                 │ - Large-scale runs     │
+                 │ - Blob storage I/O     │
+                 │ - Distributed workers  │
+                 └────────────────────────┘
 ```
+
+**Key Architectural Patterns:**
+- **Zero-copy parallelism**: SharedArrayBuffer with bus:// protocol eliminates data copying between workers
+- **CalcEngine interface**: Pluggable calculation engines (WASM, Python, future: Milliman Integrate)
+- **API-first**: All cloud services expose REST APIs consumed by VS Code extension
+- **Modular pipelines**: DAG-based orchestration for multi-engine calculations
 
 ### Key Documents
 
 | Document | Location | Description |
 |----------|----------|-------------|
-| API Design | `docs/api.md` | REST endpoint specifications |
-| Data Model | `docs/schema.md` | Database schema and relationships |
-| Auth Flow | `docs/auth.md` | Authentication and authorization |
+| Data Flow & Scaling | `docs/architecture/data-flow-and-scaling.md` | Memory budgets, tiered execution (local vs cloud) |
+| SIMD Alignment | `livecalc-engine/docs/simd-alignment.md` | 16-byte alignment requirements for SIMD |
+| CalcEngine Interface | `livecalc-engine/README.md` | Interface for pluggable engines |
+| Pipeline Orchestration | PRD-LC-010 | Modular DAG execution with bus:// resources |
 
 ---
 
 ## Target Architecture
 
-<!--
-Where we're heading. Bias toward these patterns in all work, even when
-the current PRD doesn't directly address them. Remove items when achieved.
--->
+**Bias toward these patterns in all work, even when the current PRD doesn't directly address them:**
 
-- Example: Stateless JWT auth (moving away from sessions)
-- Example: All writes through service layer (no direct DB in routes)
-- Example: Config-driven values (no hardcoding)
+- **API-first design**: Design OpenAPI spec before implementation. All cloud services expose REST APIs.
+- **bus:// protocol**: All pipeline data flows through SharedArrayBuffer bus resources (no copying).
+- **CalcEngine interface**: All calculation engines implement the standardized interface (initialize, runChunk, dispose).
+- **Zero-copy parallelism**: Use SharedArrayBuffer and Atomics for inter-worker communication (no postMessage data copying).
+- **16-byte alignment**: All SharedArrayBuffer allocations must be 16-byte aligned for SIMD compatibility.
+- **Everything as code**: Infrastructure (Terraform), config (JSON/YAML), docs (Markdown), monitoring (Prometheus rules).
+- **Security by design**: Authentication, authorization, encryption, and audit logging considered from the start (not retrofitted).
+- **Config-driven**: Feature flags, environment-specific values, and behavior in config files (not hardcoded).
 
 ---
-
-## Fragile Areas
-
-<!--
-Known problem spots. Exercise extra caution here - smaller commits, more
-verification, ask before major refactoring. Remove when cleaned up.
--->
-
-| Area | Why it's fragile |
-|------|------------------|
-| `example/path/` | Example: Changes cascade unpredictably |
-| `another/module.py` | Example: Looks simple, always takes 5x longer |
 
 ---
 
 ## Off-Limits Modules
 
-<!--
-List modules, files, or directories that agents should NOT modify.
-Common reasons: legacy code pending rewrite, external vendor code,
-security-sensitive modules requiring human review, or code with
-complex implicit dependencies.
-
-Note: For areas that are risky but not forbidden, see **Fragile Areas** above.
--->
+**These directories should NOT be modified by agents:**
 
 | Path | Reason | Contact |
 |------|--------|---------|
-| `src/legacy/` | Legacy code scheduled for rewrite in Q2 | @backend-team |
-| `src/auth/crypto.ts` | Security-critical, requires human review | @security |
-| `vendor/` | Third-party code, do not modify | n/a |
+| `livecalc-engine/build/` | Generated files from CMake/Make | n/a |
+| `livecalc-engine/build-wasm*/` | Generated WASM build outputs | n/a |
+| `*/node_modules/` | Third-party dependencies managed by npm | n/a |
+| `livecalc-vscode/dist/` | Build output from esbuild | n/a |
+| `livecalc-vscode/media/vendor/` | Vendored Chart.js and plugins | n/a |
+| `.github/workflows/*.yml` | CI/CD configuration (requires human approval) | @platform |
 
 **If you need to modify an off-limits module:** Stop and ask the human for guidance.
 
@@ -142,81 +182,65 @@ Note: For areas that are risky but not forbidden, see **Fragile Areas** above.
 
 ## Session Boundaries
 
-<!--
-Define constraints for AI coding sessions. This helps agents understand
-what they can and cannot do, and when to ask for human input.
--->
-
 ### Allowed Actions
 
-- Create, modify, delete files in `src/`, `tests/`, `docs/`
-- Run tests and linters
-- Install dev dependencies
-- Create feature branches
+**Agents may freely perform these actions:**
+- Create, modify, delete files in `livecalc-engine/src/`, `livecalc-vscode/src/`, `tests/`, `docs/`, `standards/`
+- Add/modify unit and integration tests
+- Run tests and linters (`npm test`, `npm run compile`, `make test`)
+- Install dev dependencies (`npm install --save-dev`)
+- Create feature branches (`feature/PRD-LC-XXX-description`)
+- Update PRD files (set `passes: true` after completion)
+- Append to `progress.md` and `learned.md`
+- Create/modify documentation files (README, standards, architecture docs)
 
 ### Requires Human Approval
 
-- Changes to CI/CD configuration (`.github/`, `Dockerfile`)
-- Database migrations
+**Ask before proceeding with:**
+- Changes to CI/CD configuration (`.github/workflows/`, `Dockerfile`)
+- Cloud infrastructure changes (Terraform, Kubernetes manifests)
 - Changes to authentication or authorization logic
 - Dependency upgrades (major versions)
 - Deleting more than 5 files in one session
+- Adding new npm/pip dependencies (production dependencies)
+- Creating new Azure services or resources
 
 ### Never Do
 
-- Push directly to `main` or `master`
-- Modify `.env` files or commit secrets
-- Run destructive database commands in production
-- Disable security features or linters
+**Agents must NEVER:**
+- Push directly to `main` branch (always use feature branches)
+- Commit secrets, API keys, or credentials (use Azure Key Vault references)
+- Modify files in `build/`, `dist/`, `node_modules/` directories
+- Disable security features (CORS, authentication, TLS validation)
+- Run destructive commands on cloud resources
+- Disable or skip tests to "make things pass"
 
 ---
 
 ## System Context
 
-<!--
-Provide awareness of where this work fits in the broader project landscape.
-This helps agents understand sequencing, dependencies, and what else is happening.
--->
-
 ### Current Challenges
 
-<!--
-What problems or constraints is the team currently dealing with?
-Examples: technical debt, scaling issues, team transitions, deadline pressure
--->
-
-- Challenge 1: description
-- Challenge 2: description
+- **Performance targets**: Multi-threaded execution must meet <3s for 10K×1K (currently: 370ms ✓)
+- **Memory constraints**: Browser-based execution limited by SharedArrayBuffer and WASM memory
+- **Cloud integration**: Azure Batch infrastructure in progress (PRD-LC-008)
+- **Security hardening**: Assumptions Manager authentication complete, but SAS token scoping needs implementation
 
 ### Transition Plan
 
-<!--
-If the project is undergoing a migration, refactor, or multi-phase initiative,
-document the phases here. Use status indicators:
-  - Link to doc (if detailed plan exists elsewhere)
-  - NOT WRITTEN (planned but not documented)
-  - ✅ COMPLETE (done)
-  - ← CURRENT (active phase)
--->
-
 | Phase | Description | Status |
 |-------|-------------|--------|
-| Phase 1 | Description | ✅ COMPLETE |
-| Phase 2 | Description | ← CURRENT |
-| Phase 3 | Description | NOT WRITTEN |
+| Phase 1 | Core Engine & VS Code MVP | ✅ COMPLETE |
+| Phase 2 | Assumptions Manager & Pipeline Orchestration | ✅ COMPLETE |
+| Phase 3 | Cloud Execution (Azure Batch) | ← CURRENT |
+| Phase 4 | Production Deployment & Monitoring | NOT STARTED |
 
 ### Active Work Items
 
-<!--
-What else is in flight? This helps agents avoid conflicts and understand priorities.
-Include different work types: features, bugs, chores, spikes
-Format: [TYPE] Brief description - Owner/Status
--->
-
-- [FEATURE] Example feature being built - @developer / in progress
-- [BUG] Example bug being investigated - @developer / blocked
-- [CHORE] Example operational task - unassigned
-- [SPIKE] Example research/investigation - @developer / complete
+- [FEATURE] Cloud execution infrastructure (PRD-LC-008) - in progress
+- [FEATURE] Remote debugging capabilities (PRD-LC-012) - planned
+- [DOCS] Standards documentation (PRD-LC-014) - in progress
+- [SPIKE] Multi-threading performance optimization (SPIKE-LC-007) - ✅ complete
 
 ---
 
@@ -224,22 +248,86 @@ Format: [TYPE] Brief description - Owner/Status
 
 ### Local Development
 
-- How to run locally
-- Required environment variables
-- Test commands
+**LiveCalc Engine (C++/WASM):**
+```bash
+cd livecalc-engine
+
+# Native build for testing
+mkdir build && cd build
+cmake ..
+make
+./livecalc_tests
+
+# WASM build (requires Emscripten)
+mkdir build-wasm && cd build-wasm
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+emmake make
+```
+
+**VS Code Extension (TypeScript):**
+```bash
+cd livecalc-vscode
+npm install
+npm run compile     # TypeScript compilation
+npm test           # Run tests
+npm run package    # Create .vsix package
+
+# Debug: Press F5 in VS Code to launch Extension Development Host
+```
+
+**JavaScript Wrapper (for engine):**
+```bash
+cd livecalc-engine/js
+npm install
+npm test                    # Unit and integration tests
+npm run benchmark          # Performance benchmarks
+```
+
+**Required Tools:**
+- Node.js 18+ (for TypeScript and npm)
+- Emscripten SDK (for WASM builds)
+- CMake 3.20+ (for C++ builds)
+- VS Code 1.85.0+ (for extension development)
+
+**Environment Variables:**
+- None required for local development
+- Cloud API credentials stored in VS Code SecretStorage (encrypted)
 
 ### Production/Deployment
 
-- Deployment process
-- Production environment details
+**VS Code Extension:**
+- Packaged as `.vsix` file via `npm run package`
+- Published to VS Code Marketplace (manual process, requires publisher account)
+- Version managed in `package.json`
+
+**Cloud API (future):**
+- Deployed to Azure Kubernetes Service (AKS) via Helm charts
+- Infrastructure managed via Terraform
+- CI/CD via GitHub Actions (`.github/workflows/`)
+- Secrets stored in Azure Key Vault
 
 ---
 
 ## Additional Context
 
-<!--
-Add any other information that helps agents work effectively:
-- Known gotchas or quirks
-- Recent major changes
-- Upcoming planned changes that affect current work
--->
+### Known Gotchas
+
+- **SIMD builds require 16-byte alignment**: All SharedArrayBuffer allocations must use `alignUp(size, 16)` not just 8-byte alignment
+- **BigInt for uint64_t**: WASM functions with `uint64_t` parameters require `BigInt(value)` in JavaScript
+- **SharedArrayBuffer requires headers**: Browsers need `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`
+- **Worker pool overhead**: Cold start includes ~200ms (init + load). Use warm timing for production benchmarks.
+- **CRC32 performance**: Integrity checking adds ~1ms per MB. Disabled by default, enable for debugging.
+
+### Recent Major Changes
+
+- **2026-01-24**: Completed modular pipeline orchestration (PRD-LC-010) with bus:// protocol and breakpoint debugging
+- **2026-01-24**: Integrated Assumptions Manager (PRD-LC-006) with JWT auth and local caching
+- **2026-01-24**: Implemented auto-run on save (PRD-LC-005) with smart re-run optimization
+- **2026-01-24**: Added comprehensive results visualization (PRD-LC-004) with comparison and export
+- **2026-01-23**: Multi-threading via work-stealing scheduler (SPIKE-LC-007) achieving 5.6x speedup
+
+### Upcoming Changes
+
+- **PRD-LC-008**: Cloud execution infrastructure with Azure Batch for large-scale runs (100K+ policies)
+- **PRD-LC-012**: Remote debugging API for step-through debugging of cloud-executed models
+- **Production deployment**: Monitoring, alerting, and operational readiness for cloud services

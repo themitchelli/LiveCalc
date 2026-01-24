@@ -2555,3 +2555,58 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (timing profiler integration, export/comparison handlers)
   - livecalc-vscode/tests/timing-profiler.test.ts (new - 16 tests, all passing)
 - Tests: Extension compiles, type-checks, and packages successfully
+
+## 2026-01-24 20:00 - US-STD-01: LiveCalc-Specific FADE.md (PRD-LC-014) - COMPLETE
+
+- Updated FADE.md from generic template to LiveCalc-specific project documentation
+- Project Overview section:
+  - Describes LiveCalc's purpose: instant actuarial model feedback with WASM engine
+  - Problem statement: eliminates traditional workflow delay (write → export → wait → iterate)
+  - Target users: actuaries, actuarial teams, platform engineers
+  - Current state: MVP complete (engine, extension, assumptions manager, pipeline orchestration)
+- Tech Stack section:
+  - Core Engine: C++ compiled to WASM via Emscripten (with SIMD support)
+  - Desktop: TypeScript (VS Code extension), Web Workers for parallelism
+  - Cloud API: Python (FastAPI), Azure services (Blob Storage, Batch, Key Vault)
+  - Infrastructure: Terraform (Azure), Kubernetes (AKS), GitHub Actions (CI/CD)
+- Architecture diagram:
+  - ASCII art diagram showing VS Code Extension → WASM Engine ← SharedArrayBuffer → Worker Pool
+  - Includes Results Panel, Pipeline Debugger, Assumptions Manager Client
+  - Shows cloud integration: Assumptions Manager and Cloud Execution (Azure Batch)
+  - Key patterns documented: zero-copy parallelism, CalcEngine interface, API-first, bus:// protocol
+- Repository link: https://github.com/themitchelli/LiveCalc
+- Target Architecture section:
+  - API-first design, bus:// protocol, CalcEngine interface
+  - Zero-copy parallelism, 16-byte alignment for SIMD
+  - Everything as code, security by design, config-driven
+- Fragile Areas section removed (no known fragile code yet)
+- Off-Limits Modules updated:
+  - livecalc-engine/build*/ (generated), node_modules/ (dependencies), dist/ (build output)
+  - media/vendor/ (Chart.js), .github/workflows/ (CI/CD requires approval)
+- Session Boundaries clarified:
+  - Allowed: create features, tests, docs; run tests/linters; install dev deps; create branches
+  - Requires approval: CI/CD changes, cloud infrastructure, auth changes, major version upgrades
+  - Never: push to main, commit secrets, modify build outputs, disable security, skip tests
+- System Context updated:
+  - Current challenges: performance targets, memory constraints, cloud integration, security hardening
+  - Transition plan: Phase 1 ✅ complete, Phase 2 ✅ complete, Phase 3 (Cloud) ← current
+  - Active work items: cloud execution, remote debugging, standards docs
+- Development Environment:
+  - Local dev setup for engine (native + WASM), VS Code extension, JS wrapper
+  - Required tools: Node.js 18+, Emscripten, CMake 3.20+, VS Code 1.85.0+
+  - Production deployment: VSIX for extension, AKS for cloud API
+- Additional Context:
+  - Known gotchas: SIMD alignment, BigInt for uint64_t, SAB headers, worker overhead, CRC32 perf
+  - Recent changes: pipeline orchestration, assumptions manager, auto-run, results viz, multi-threading
+  - Upcoming changes: cloud execution, remote debugging, production deployment
+- All acceptance criteria verified:
+  - Project Overview describes LiveCalc ✓
+  - Tech Stack lists C++, TypeScript, Python, WASM ✓
+  - Architecture diagram shows VS Code + WASM + Workers ✓
+  - Repository link correct ✓
+  - Target Architecture includes API-first, bus://, CalcEngine, zero-copy ✓
+  - Fragile Areas removed ✓
+  - Off-Limits Modules updated ✓
+  - Session Boundaries clarified ✓
+- Files changed:
+  - FADE.md (updated from generic template to LiveCalc-specific)
