@@ -137,7 +137,7 @@
         "section": "Accordion-style collapsible",
         "runId": "UUID v4 generated at execution start"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

@@ -778,3 +778,29 @@ For blocked stories, use:
   - livecalc-vscode/media/results/main.js (added density chart, improved tooltips, KDE calculation)
 - Tests: Extension compiles, type-checks, and packages successfully (272.32KB)
 
+## 2026-01-24 10:00 - US-004: Run Metadata Display (PRD-LC-004) - COMPLETE
+
+- Enhanced Run Metadata collapsible section with comprehensive run information
+- Added InterestRateParams interface and included in RunMetadata
+- Updated createResultsState to pass interest rate parameters from config
+- Added interest rate parameters subsection (initial, drift, volatility, minRate, maxRate)
+- Added cloud execution subsection (job ID, cost) for future cloud integration
+- Added formatPercent() helper function for displaying rate values
+- Added CSS styling for metadata subsections with visual separation
+- All acceptance criteria verified:
+  - Run timestamp displayed ✓
+  - Model file path displayed ✓
+  - Scenario configuration displayed (count, seed) ✓
+  - Collapsible section (default: collapsed) ✓
+  - Interest rate parameters shown if applicable ✓
+  - Policy file path and count displayed ✓
+  - Execution mode shown (Local / Cloud) ✓
+  - If cloud: job ID and cost displayed ✓
+  - Run ID generated for each execution (UUID v4) ✓
+- Files changed:
+  - livecalc-vscode/src/ui/results-state.ts (added InterestRateParams interface, updated createResultsState)
+  - livecalc-vscode/src/ui/results-panel.ts (added HTML for interest rate and cloud execution sections)
+  - livecalc-vscode/media/results/main.js (added updateMetadata enhancements, formatPercent function)
+  - livecalc-vscode/media/results/styles.css (added metadata-subsection styles)
+- Tests: Extension compiles, type-checks, and packages successfully (273.27KB)
+

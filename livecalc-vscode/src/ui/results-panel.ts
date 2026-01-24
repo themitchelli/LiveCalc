@@ -435,6 +435,32 @@ export class ResultsPanel implements vscode.Disposable {
               <dt>Execution Mode</dt>
               <dd id="meta-mode">Local</dd>
             </dl>
+            <!-- Interest Rate Parameters (shown when applicable) -->
+            <div id="interest-rate-section" class="metadata-subsection hidden">
+              <h4>Interest Rate Parameters</h4>
+              <dl class="metadata-list">
+                <dt>Initial Rate</dt>
+                <dd id="meta-ir-initial">-</dd>
+                <dt>Drift</dt>
+                <dd id="meta-ir-drift">-</dd>
+                <dt>Volatility</dt>
+                <dd id="meta-ir-volatility">-</dd>
+                <dt>Min Rate</dt>
+                <dd id="meta-ir-min">-</dd>
+                <dt>Max Rate</dt>
+                <dd id="meta-ir-max">-</dd>
+              </dl>
+            </div>
+            <!-- Cloud Execution Info (shown when execution mode is cloud) -->
+            <div id="cloud-execution-section" class="metadata-subsection hidden">
+              <h4>Cloud Execution</h4>
+              <dl class="metadata-list">
+                <dt>Job ID</dt>
+                <dd id="meta-job-id">-</dd>
+                <dt>Cost</dt>
+                <dd id="meta-cost">-</dd>
+              </dl>
+            </div>
           </div>
         </details>
 

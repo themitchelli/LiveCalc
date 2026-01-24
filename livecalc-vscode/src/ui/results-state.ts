@@ -28,6 +28,17 @@ export interface StatisticsData {
 }
 
 /**
+ * Interest rate parameters for display
+ */
+export interface InterestRateParams {
+  initial: number;
+  drift: number;
+  volatility: number;
+  minRate?: number;
+  maxRate?: number;
+}
+
+/**
  * Run metadata for display
  */
 export interface RunMetadata {
@@ -38,6 +49,7 @@ export interface RunMetadata {
   policyCount: number;
   scenarioCount: number;
   seed: number;
+  interestRate?: InterestRateParams;
   executionMode: 'local' | 'cloud';
   jobId?: string;
   cost?: number;
@@ -139,6 +151,15 @@ export function createResultsState(
     policyCount,
     scenarioCount: result.scenarioCount,
     seed: config.scenarios.seed,
+    interestRate: config.scenarios.interestRate
+      ? {
+          initial: config.scenarios.interestRate.initial,
+          drift: config.scenarios.interestRate.drift,
+          volatility: config.scenarios.interestRate.volatility,
+          minRate: config.scenarios.interestRate.minRate,
+          maxRate: config.scenarios.interestRate.maxRate,
+        }
+      : undefined,
     executionMode: 'local',
   };
 

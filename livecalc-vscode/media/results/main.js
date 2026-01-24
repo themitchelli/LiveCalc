@@ -399,6 +399,38 @@ function updateMetadata(metadata) {
   document.getElementById('meta-scenario-count').textContent = metadata.scenarioCount.toLocaleString();
   document.getElementById('meta-seed').textContent = metadata.seed;
   document.getElementById('meta-mode').textContent = metadata.executionMode === 'cloud' ? 'Cloud' : 'Local';
+
+  // Update interest rate parameters if available
+  const irSection = document.getElementById('interest-rate-section');
+  if (irSection && metadata.interestRate) {
+    document.getElementById('meta-ir-initial').textContent = formatPercent(metadata.interestRate.initial);
+    document.getElementById('meta-ir-drift').textContent = formatPercent(metadata.interestRate.drift);
+    document.getElementById('meta-ir-volatility').textContent = formatPercent(metadata.interestRate.volatility);
+    document.getElementById('meta-ir-min').textContent =
+      metadata.interestRate.minRate !== undefined ? formatPercent(metadata.interestRate.minRate) : '-';
+    document.getElementById('meta-ir-max').textContent =
+      metadata.interestRate.maxRate !== undefined ? formatPercent(metadata.interestRate.maxRate) : '-';
+    irSection.classList.remove('hidden');
+  } else if (irSection) {
+    irSection.classList.add('hidden');
+  }
+
+  // Update cloud execution info if applicable
+  const cloudSection = document.getElementById('cloud-execution-section');
+  if (cloudSection && metadata.executionMode === 'cloud') {
+    document.getElementById('meta-job-id').textContent = metadata.jobId || '-';
+    document.getElementById('meta-cost').textContent = metadata.cost !== undefined ? formatCurrency(metadata.cost) : '-';
+    cloudSection.classList.remove('hidden');
+  } else if (cloudSection) {
+    cloudSection.classList.add('hidden');
+  }
+}
+
+/**
+ * Format a value as a percentage
+ */
+function formatPercent(value) {
+  return (value * 100).toFixed(2) + '%';
 }
 
 /**

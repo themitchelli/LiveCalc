@@ -515,6 +515,26 @@ details[open] .expand-icon::after {
   word-break: break-all;
 }
 
+/* Metadata subsections (interest rate, cloud execution) */
+.metadata-subsection {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+
+.metadata-subsection h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vscode-foreground, #cccccc);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-subsection .metadata-list {
+  margin-top: 8px;
+}
+
 /* Assumptions list */
 .assumptions-list {
   list-style: none;
