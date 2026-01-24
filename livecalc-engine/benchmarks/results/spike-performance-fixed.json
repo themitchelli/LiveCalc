@@ -1,0 +1,126 @@
+{
+  "timestamp": "2026-01-24T12:12:59.216Z",
+  "commit": "bfbfc52",
+  "branch": "spike/engine-performance",
+  "nodeVersion": "v18.20.8",
+  "platform": "darwin",
+  "cpuCount": 6,
+  "cpuModel": "Intel(R) Core(TM) i5-9600K CPU @ 3.70GHz",
+  "configVersion": "1.0.0",
+  "results": [
+    {
+      "config": {
+        "name": "small",
+        "policies": 1000,
+        "scenarios": 100,
+        "description": "Small scale for quick testing"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 16.821508,
+      "wasmMultiMs": 191.56980204582214,
+      "wasmWorkers": 8,
+      "memoryMb": 0.37355804443359375,
+      "projectionsPerSecond": 522002.9406100274,
+      "policiesPerSecond": 5220.029406100274,
+      "scenariosPerSecond": 522.0029406100274,
+      "meanNpv": -35367369.43275086,
+      "stdDev": 313634.6523860214
+    },
+    {
+      "config": {
+        "name": "medium",
+        "policies": 1000,
+        "scenarios": 1000,
+        "description": "Medium scale benchmark"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 93.192177,
+      "wasmMultiMs": 197.70270097255707,
+      "wasmWorkers": 8,
+      "memoryMb": 1.0225143432617188,
+      "projectionsPerSecond": 5058099.839206593,
+      "policiesPerSecond": 5058.099839206593,
+      "scenariosPerSecond": 5058.099839206593,
+      "meanNpv": -35382205.77752981,
+      "stdDev": 321019.0197257963
+    },
+    {
+      "config": {
+        "name": "target-single",
+        "policies": 10000,
+        "scenarios": 1000,
+        "description": "Target scale for single-threaded WASM"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 927.008542,
+      "wasmMultiMs": 371.0945690870285,
+      "wasmWorkers": 8,
+      "memoryMb": 0.00269317626953125,
+      "projectionsPerSecond": 26947308.9423058,
+      "policiesPerSecond": 26947.3089423058,
+      "scenariosPerSecond": 2694.73089423058,
+      "meanNpv": -353962194.05465686,
+      "stdDev": 3216904.3147888687
+    },
+    {
+      "config": {
+        "name": "target-multi",
+        "policies": 10000,
+        "scenarios": 1000,
+        "description": "Target scale for multi-threaded WASM (8 workers)"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 936.933401,
+      "wasmMultiMs": 354.3334709405899,
+      "wasmWorkers": 8,
+      "memoryMb": 0.001312255859375,
+      "projectionsPerSecond": 28222002.2101064,
+      "policiesPerSecond": 28222.0022101064,
+      "scenariosPerSecond": 2822.20022101064,
+      "meanNpv": -353962194.05465686,
+      "stdDev": 3216904.3147888687
+    },
+    {
+      "config": {
+        "name": "large",
+        "policies": 100000,
+        "scenarios": 1000,
+        "description": "Large scale stress test"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 9467.666315,
+      "wasmMultiMs": 3063.2905670404434,
+      "wasmWorkers": 8,
+      "memoryMb": 0.0013275146484375,
+      "projectionsPerSecond": 32644634.196949083,
+      "policiesPerSecond": 32644.634196949082,
+      "scenariosPerSecond": 326.44634196949085,
+      "meanNpv": -3540258646.1215224,
+      "stdDev": 32186917.909699164
+    },
+    {
+      "config": {
+        "name": "scenario-heavy",
+        "policies": 1000,
+        "scenarios": 10000,
+        "description": "Many scenarios for distribution analysis"
+      },
+      "nativeMs": null,
+      "wasmSingleMs": 1642.486419,
+      "wasmMultiMs": 357.1623250246048,
+      "wasmWorkers": 8,
+      "memoryMb": 4.097785949707031,
+      "projectionsPerSecond": 27998473.80126418,
+      "policiesPerSecond": 2799.847380126418,
+      "scenariosPerSecond": 27998.47380126418,
+      "meanNpv": -35387333.03346798,
+      "stdDev": 315756.5351464203
+    }
+  ],
+  "summary": {
+    "targetsChecked": 4,
+    "targetsPassed": 4,
+    "targetsFailed": [],
+    "regressions": []
+  }
+}

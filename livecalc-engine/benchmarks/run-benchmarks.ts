@@ -16,7 +16,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { performance } from 'node:perf_hooks';
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { isMainThread } from 'node:worker_threads';
+import { NodeWorkerPool } from '@livecalc/engine';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -337,128 +338,88 @@ async function runWasmSingleThreadBenchmark(
   };
 }
 
+interface MultiThreadResult {
+  timeMs: number;
+  warmTimeMs: number; // Time without init/load overhead
+  initTimeMs: number;
+  loadTimeMs: number;
+  valuationTimeMs: number;
+  result: ValuationResult;
+  memoryMb: number | null;
+}
+
 async function runWasmMultiThreadBenchmark(
   config: BenchmarkConfig,
   wasmModulePath: string,
+  workerScriptPath: string,
   scenarioParams: ScenarioParams,
   seed: number,
   numWorkers: number
-): Promise<{ timeMs: number; result: ValuationResult; memoryMb: number | null }> {
-  // Divide scenarios among workers
-  const scenariosPerWorker = Math.ceil(config.scenarios / numWorkers);
-  const workerFile = fileURLToPath(import.meta.url);
-
-  const memBefore = process.memoryUsage().heapUsed;
-  const startTime = performance.now();
-
-  // Create workers to run parallel valuations
-  const workerPromises: Promise<{ npvs: number[]; timeMs: number }>[] = [];
-
-  for (let i = 0; i < numWorkers; i++) {
-    const startScenario = i * scenariosPerWorker;
-    const endScenario = Math.min((i + 1) * scenariosPerWorker, config.scenarios);
-    const workerScenarios = endScenario - startScenario;
-
-    if (workerScenarios <= 0) continue;
-
-    workerPromises.push(
-      new Promise((resolve, reject) => {
-        const worker = new Worker(workerFile, {
-          workerData: {
-            wasmModulePath,
-            policies: config.policies,
-            scenarios: workerScenarios,
-            seed: seed + i,
-            scenarioParams,
-          },
-        });
-
-        worker.on('message', (msg: { npvs: number[]; timeMs: number }) => {
-          resolve(msg);
-          worker.terminate();
-        });
-
-        worker.on('error', (err) => {
-          reject(err);
-          worker.terminate();
-        });
-      })
-    );
-  }
-
-  const workerResults = await Promise.all(workerPromises);
-  const endTime = performance.now();
-
-  // Aggregate results
-  const allNpvs: number[] = [];
-  let totalCoreTime = 0;
-  for (const wr of workerResults) {
-    // For multi-threaded, we don't have per-scenario NPVs in this simplified version
-    // We track the mean NPV from each worker
-    totalCoreTime += wr.timeMs;
-  }
-
-  const memAfter = process.memoryUsage().heapUsed;
-  const memoryMb = (memAfter - memBefore) / (1024 * 1024);
-
-  // The wall clock time is what matters for multi-threaded
-  const wallClockMs = endTime - startTime;
-
-  // For statistics, we run a single full valuation to get proper stats
-  // The multi-threaded time is what we measure
-  const module = await loadWasmModule(wasmModulePath);
+): Promise<MultiThreadResult> {
+  // Generate test data
   const policiesCsv = generatePoliciesCsv(config.policies);
   const mortalityCsv = generateMortalityCsv();
   const lapseCsv = generateLapseCsv();
   const expensesCsv = generateExpensesCsv();
 
-  loadCsvData(module, policiesCsv, module._load_policies_csv.bind(module));
-  loadCsvData(module, mortalityCsv, module._load_mortality_csv.bind(module));
-  loadCsvData(module, lapseCsv, module._load_lapse_csv.bind(module));
-  loadCsvData(module, expensesCsv, module._load_expenses_csv.bind(module));
+  const memBefore = process.memoryUsage().heapUsed;
+  const startTime = performance.now();
 
-  // Quick validation run for stats (uses first worker's seed)
-  const statsResult = runSingleValuation(module, Math.min(100, config.scenarios), seed, scenarioParams);
-  module._clear_policies();
+  // Use NodeWorkerPool for proper parallel execution
+  const pool = new NodeWorkerPool({
+    numWorkers,
+    workerScript: workerScriptPath,
+    wasmPath: wasmModulePath,
+  });
 
-  return {
-    timeMs: wallClockMs,
-    result: {
-      ...statsResult,
-      executionTimeMs: wallClockMs,
-      scenarioCount: config.scenarios,
-    },
-    memoryMb: memoryMb > 0 ? memoryMb : null,
-  };
-}
+  try {
+    const initStart = performance.now();
+    await pool.initialize();
+    const initTimeMs = performance.now() - initStart;
 
-// =============================================================================
-// Worker Thread Handler
-// =============================================================================
+    const loadStart = performance.now();
+    await pool.loadData(policiesCsv, mortalityCsv, lapseCsv, expensesCsv);
+    const loadTimeMs = performance.now() - loadStart;
 
-if (!isMainThread && workerData) {
-  (async () => {
-    const { wasmModulePath, policies, scenarios, seed, scenarioParams } = workerData;
-
-    const module = await loadWasmModule(wasmModulePath);
-
-    const policiesCsv = generatePoliciesCsv(policies);
-    const mortalityCsv = generateMortalityCsv();
-    const lapseCsv = generateLapseCsv();
-    const expensesCsv = generateExpensesCsv();
-
-    loadCsvData(module, policiesCsv, module._load_policies_csv.bind(module));
-    loadCsvData(module, mortalityCsv, module._load_mortality_csv.bind(module));
-    loadCsvData(module, lapseCsv, module._load_lapse_csv.bind(module));
-    loadCsvData(module, expensesCsv, module._load_expenses_csv.bind(module));
-
-    const result = runSingleValuation(module, scenarios, seed, scenarioParams);
-
-    parentPort!.postMessage({
-      npvs: [],
-      timeMs: result.executionTimeMs,
+    const valuationStart = performance.now();
+    const poolResult = await pool.runValuation({
+      numScenarios: config.scenarios,
+      seed,
+      scenarioParams: {
+        initialRate: scenarioParams.initialRate,
+        drift: scenarioParams.drift,
+        volatility: scenarioParams.volatility,
+        minRate: scenarioParams.minRate,
+        maxRate: scenarioParams.maxRate,
+      },
     });
-  })();
+    const valuationTimeMs = performance.now() - valuationStart;
+
+    const endTime = performance.now();
+    const memAfter = process.memoryUsage().heapUsed;
+    const memoryMb = (memAfter - memBefore) / (1024 * 1024);
+
+    return {
+      timeMs: endTime - startTime,
+      warmTimeMs: valuationTimeMs, // Just valuation, no init/load
+      initTimeMs,
+      loadTimeMs,
+      valuationTimeMs,
+      result: {
+        statistics: {
+          meanNpv: poolResult.statistics.meanNpv,
+          stdDev: poolResult.statistics.stdDev,
+          percentiles: poolResult.statistics.percentiles,
+          cte95: poolResult.statistics.cte95,
+        },
+        executionTimeMs: endTime - startTime,
+        scenarioCount: config.scenarios,
+      },
+      memoryMb: memoryMb > 0 ? memoryMb : null,
+    };
+  } finally {
+    pool.terminate();
+  }
 }
 
 // =============================================================================
@@ -486,10 +447,17 @@ async function runBenchmarks(
   const projectRoot = resolve(__dirname, '..');
   const nativeBinaryPath = join(projectRoot, 'build', 'benchmark');
   const wasmModulePath = join(projectRoot, 'build-wasm', 'livecalc.mjs');
+  const workerScriptPath = join(projectRoot, 'js', 'dist', 'node-worker.mjs');
 
   if (!existsSync(wasmModulePath)) {
     console.error(`WASM module not found at: ${wasmModulePath}`);
     console.error('Build with: cd livecalc-engine && mkdir build-wasm && cd build-wasm && emcmake cmake .. && emmake make');
+    process.exit(1);
+  }
+
+  if (!existsSync(workerScriptPath)) {
+    console.error(`Worker script not found at: ${workerScriptPath}`);
+    console.error('Build with: cd livecalc-engine/js && npm run build');
     process.exit(1);
   }
 
@@ -550,6 +518,7 @@ async function runBenchmarks(
         const multiResult = await runWasmMultiThreadBenchmark(
           config,
           wasmModulePath,
+          workerScriptPath,
           configFile.scenarioParams,
           configFile.defaultSeed,
           configFile.defaultWorkers
@@ -564,12 +533,13 @@ async function runBenchmarks(
         }
 
         const projPerSec = totalProjections / (wasmMultiMs / 1000);
-        console.log(`  Time: ${wasmMultiMs.toFixed(0)}ms`);
+        console.log(`  Total time: ${wasmMultiMs.toFixed(0)}ms (init: ${multiResult.initTimeMs.toFixed(0)}ms, load: ${multiResult.loadTimeMs.toFixed(0)}ms, valuation: ${multiResult.valuationTimeMs.toFixed(0)}ms)`);
         console.log(`  Throughput: ${formatNumber(Math.round(projPerSec))} proj/sec`);
 
         if (wasmSingleMs !== null && wasmMultiMs > 0) {
-          const speedup = wasmSingleMs / wasmMultiMs;
-          console.log(`  Speedup vs single: ${speedup.toFixed(1)}x`);
+          const coldSpeedup = wasmSingleMs / wasmMultiMs;
+          const warmSpeedup = wasmSingleMs / multiResult.warmTimeMs;
+          console.log(`  Speedup vs single: ${coldSpeedup.toFixed(1)}x (cold), ${warmSpeedup.toFixed(1)}x (warm - valuation only)`);
         }
       } catch (error) {
         console.log(`  Failed: ${error instanceof Error ? error.message : error}`);

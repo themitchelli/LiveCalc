@@ -1225,3 +1225,28 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (trigger banner styling with animation)
 - Tests: Extension compiles, type-checks, and packages successfully (291.13KB)
 
+## 2026-01-24 12:30 - US-S01: Fix Multi-Threading Regression (SPIKE-LC-007) - COMPLETE
+
+- Investigated reported "77% performance regression" for multi-threaded execution
+- Root cause identified: broken benchmark implementation, NOT the worker pool
+  - `run-benchmarks.ts` used `.ts` file as worker script (Node.js can't load TS workers)
+  - Result: `wasmMultiMs` was always null, both benchmarks ran single-threaded
+  - The "77% regression" was just variance between two single-threaded runs
+- The actual `NodeWorkerPool` implementation in `@livecalc/engine` was already correct
+- Fixed `run-benchmarks.ts` to use `NodeWorkerPool` from `@livecalc/engine`
+- Added detailed timing breakdown (init, load, valuation phases)
+- Performance results after fix:
+  - 10K×1K: 2.6x cold speedup, **5.6x warm speedup** (target: 4x)
+  - 100K×1K: 3.1x cold speedup, 3.5x warm speedup
+  - 1K×10K: 4.6x cold speedup, **9.1x warm speedup**
+- Created discovery document: `fade/discoveries/SPIKE-LC-007-US-S01-multithreading-regression.md`
+- All performance targets now pass:
+  - 10K×1K single: 927ms / 15000ms - PASS
+  - 10K×1K 8-threads: 371ms / 3000ms - PASS
+  - 100K×1K 8-threads: 3063ms / 30000ms - PASS
+- Files changed:
+  - livecalc-engine/benchmarks/run-benchmarks.ts (fixed multi-thread implementation)
+  - fade/discoveries/SPIKE-LC-007-US-S01-multithreading-regression.md (new - root cause analysis)
+  - livecalc-engine/benchmarks/results/spike-performance-fixed.json (new - benchmark results)
+- Tests: All benchmarks pass, speedup targets met
+

@@ -78,7 +78,7 @@
         ],
         "successMetric": "8 workers >= 4x single-threaded throughput"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-S02",
