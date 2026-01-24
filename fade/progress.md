@@ -1250,3 +1250,52 @@ For blocked stories, use:
   - livecalc-engine/benchmarks/results/spike-performance-fixed.json (new - benchmark results)
 - Tests: All benchmarks pass, speedup targets met
 
+## 2026-01-24 14:00 - US-S02: Calc Engine Interface Abstraction (SPIKE-LC-007) - COMPLETE
+
+- Defined CalcEngine TypeScript interface for pluggable engine abstraction
+- Created src/calc-engine.ts with comprehensive interface:
+  - CalcEngine interface with initialize(), runChunk(), loadPolicies(), loadAssumptions(), dispose()
+  - AssumptionBuffers type for passing mortality/lapse/expenses data
+  - ChunkConfig type for configuring scenario runs (numScenarios, seed, params, multipliers)
+  - ChunkResult type returning Float64Array of NPVs and execution time
+  - EngineInfo type for engine metadata (name, version, maxPolicies, supportsBinaryInput)
+  - CalcEngineFactory type for creating engine instances in workers
+- Created LiveCalcEngineAdapter (src/livecalc-adapter.ts):
+  - Wraps existing LiveCalc WASM module with CalcEngine interface
+  - Supports both CSV string and ArrayBuffer binary data loading
+  - LiveCalcAdapterError class for adapter-specific errors
+  - createLiveCalcEngineFactory() for worker pool usage
+- Created MockCalcEngine (src/mock-engine.ts) for testing:
+  - Generates deterministic results using seeded random (Mulberry32)
+  - Configurable simulation: msPerScenario, baseMeanNpv, stdDev
+  - Factory functions: createFastMockEngine(), createRealisticMockEngine()
+  - Failure testing: createFailingInitMockEngine(), createFailingRunMockEngine()
+- Created EngineWorkerContext (src/engine-worker.ts):
+  - Generic worker context that uses CalcEngine interface
+  - Handles engine-init, engine-load-data, engine-run-chunk, engine-dispose messages
+  - Dynamic engine creation based on type: 'livecalc' or 'mock'
+- Updated index.ts exports to include all new types and classes
+- Comprehensive test suite (tests/calc-engine.test.ts):
+  - 23 tests covering MockCalcEngine, factories, large scale (10K scenarios)
+  - Tests determinism, multipliers, initialization, error states
+  - Interface compliance verification
+- Documentation added to README.md:
+  - CalcEngine interface overview and usage examples
+  - Implementation guidelines for new adapters
+  - Example Milliman Integrate adapter implementation pattern
+- All acceptance criteria verified:
+  - CalcEngine TypeScript interface defined with runChunk() method ✓
+  - Current LiveCalc WASM engine implements the interface ✓
+  - Worker pool can call engine through interface (EngineWorkerContext) ✓
+  - MockCalcEngine for testing scheduler without real engine ✓
+  - Documentation for how to implement a new engine adapter ✓
+- Files changed:
+  - livecalc-engine/js/src/calc-engine.ts (new - CalcEngine interface)
+  - livecalc-engine/js/src/livecalc-adapter.ts (new - LiveCalcEngineAdapter)
+  - livecalc-engine/js/src/mock-engine.ts (new - MockCalcEngine)
+  - livecalc-engine/js/src/engine-worker.ts (new - EngineWorkerContext)
+  - livecalc-engine/js/src/index.ts (added exports)
+  - livecalc-engine/js/tests/calc-engine.test.ts (new - 23 tests)
+  - livecalc-engine/README.md (added CalcEngine documentation)
+- Tests: 144 total tests pass (121 existing + 23 new)
+

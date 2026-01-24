@@ -1456,3 +1456,312 @@ az container create \
         NODE_OPTIONS="--max-old-space-size=1536" \
         WORKER_COUNT=2
 ```
+
+---
+
+## CalcEngine Interface (Pluggable Engines)
+
+The `CalcEngine` interface provides an abstraction layer for pluggable calculation engines. This allows swapping different engines (LiveCalc WASM, Milliman Integrate, Milliman MIND, etc.) without changing the scheduler or worker pool implementation.
+
+### Interface Overview
+
+```typescript
+import type { CalcEngine, ChunkConfig, ChunkResult, AssumptionBuffers } from '@livecalc/engine';
+
+interface CalcEngine {
+  // Lifecycle
+  initialize(): Promise<void>;
+  dispose(): void;
+
+  // Information
+  getInfo(): EngineInfo;
+  readonly isInitialized: boolean;
+  readonly hasPolicies: boolean;
+  readonly hasAssumptions: boolean;
+
+  // Data loading
+  loadPolicies(data: string | ArrayBuffer): Promise<number>;
+  loadAssumptions(assumptions: AssumptionBuffers): Promise<void>;
+  clearPolicies(): void;
+
+  // Computation
+  runChunk(config: ChunkConfig): Promise<ChunkResult>;
+}
+```
+
+### Available Implementations
+
+| Engine | Description | Use Case |
+|--------|-------------|----------|
+| `LiveCalcEngineAdapter` | Wraps LiveCalc WASM module | Production, real projections |
+| `MockCalcEngine` | Generates deterministic mock results | Testing, development |
+
+### Using LiveCalcEngineAdapter
+
+```typescript
+import { LiveCalcEngineAdapter, createLiveCalcEngineFactory } from '@livecalc/engine';
+import createModule from './livecalc.mjs';
+
+// Direct instantiation
+const adapter = new LiveCalcEngineAdapter({ createModule });
+await adapter.initialize();
+
+// Or use factory pattern (for worker pools)
+const factory = createLiveCalcEngineFactory(createModule);
+const engine1 = factory();
+const engine2 = factory();
+```
+
+### Using MockCalcEngine
+
+```typescript
+import {
+  MockCalcEngine,
+  createMockEngineFactory,
+  createFastMockEngine,
+  createRealisticMockEngine,
+} from '@livecalc/engine';
+
+// Fast mock for unit tests (no delay)
+const fastEngine = createFastMockEngine();
+
+// Realistic mock (~10M projections/sec)
+const realisticEngine = createRealisticMockEngine();
+
+// Custom configuration
+const customEngine = new MockCalcEngine({
+  msPerScenario: 0.01,    // Simulate 0.01ms per scenario
+  baseMeanNpv: 1_000_000, // Mean NPV to generate
+  stdDev: 100_000,        // Standard deviation
+});
+
+// Factory for worker pools
+const factory = createMockEngineFactory({ msPerScenario: 0 });
+```
+
+### Running a Chunk
+
+```typescript
+import { DEFAULT_SCENARIO_PARAMS } from '@livecalc/engine';
+
+// Load data
+const policyCount = await engine.loadPolicies(policiesCsv);
+await engine.loadAssumptions({
+  mortality: mortalityCsv,
+  lapse: lapseCsv,
+  expenses: expensesCsv,
+});
+
+// Run chunk
+const result = await engine.runChunk({
+  numScenarios: 1000,
+  seed: 42,
+  scenarioParams: DEFAULT_SCENARIO_PARAMS,
+  mortalityMultiplier: 1.0,
+  lapseMultiplier: 1.0,
+  expenseMultiplier: 1.0,
+});
+
+console.log('NPVs:', result.scenarioNpvs);
+console.log('Time:', result.executionTimeMs, 'ms');
+```
+
+### Implementing a New Engine Adapter
+
+To add support for a new calculation engine (e.g., Milliman Integrate), implement the `CalcEngine` interface:
+
+```typescript
+import type {
+  CalcEngine,
+  AssumptionBuffers,
+  ChunkConfig,
+  ChunkResult,
+  EngineInfo,
+  CalcEngineFactory,
+} from '@livecalc/engine';
+
+/**
+ * Adapter for Milliman Integrate engine.
+ */
+class MillimanIntegrateAdapter implements CalcEngine {
+  private api: IntegrateAPI | null = null;
+  private initialized = false;
+  private policiesLoaded = false;
+  private assumptionsLoaded = false;
+
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      throw new Error('Already initialized');
+    }
+
+    // Initialize connection to Milliman Integrate
+    this.api = await connectToIntegrate();
+    this.initialized = true;
+  }
+
+  getInfo(): EngineInfo {
+    return {
+      name: 'Milliman Integrate',
+      version: '5.0.0',
+      maxPolicies: 10_000_000,
+      maxScenariosPerChunk: 1_000_000,
+      supportsBinaryInput: true,
+    };
+  }
+
+  get isInitialized(): boolean {
+    return this.initialized && this.api !== null;
+  }
+
+  get hasPolicies(): boolean {
+    return this.policiesLoaded;
+  }
+
+  get hasAssumptions(): boolean {
+    return this.assumptionsLoaded;
+  }
+
+  async loadPolicies(data: string | ArrayBuffer): Promise<number> {
+    this.ensureInitialized();
+
+    // Convert data to Integrate format and load
+    const policies = parseToIntegrateFormat(data);
+    await this.api!.loadPolicies(policies);
+
+    this.policiesLoaded = true;
+    return policies.length;
+  }
+
+  async loadAssumptions(assumptions: AssumptionBuffers): Promise<void> {
+    this.ensureInitialized();
+
+    // Map assumptions to Integrate format
+    await this.api!.loadAssumptions({
+      mortality: parseToIntegrateFormat(assumptions.mortality),
+      lapse: parseToIntegrateFormat(assumptions.lapse),
+      expenses: parseToIntegrateFormat(assumptions.expenses),
+    });
+
+    this.assumptionsLoaded = true;
+  }
+
+  clearPolicies(): void {
+    this.ensureInitialized();
+    this.api!.clearData();
+    this.policiesLoaded = false;
+  }
+
+  async runChunk(config: ChunkConfig): Promise<ChunkResult> {
+    this.ensureInitialized();
+    this.ensureDataLoaded();
+
+    const startTime = performance.now();
+
+    // Call Integrate engine
+    const npvs = await this.api!.runProjection({
+      scenarios: config.numScenarios,
+      seed: config.seed,
+      interestRates: config.scenarioParams,
+      multipliers: {
+        mortality: config.mortalityMultiplier ?? 1.0,
+        lapse: config.lapseMultiplier ?? 1.0,
+        expense: config.expenseMultiplier ?? 1.0,
+      },
+    });
+
+    return {
+      scenarioNpvs: new Float64Array(npvs),
+      executionTimeMs: performance.now() - startTime,
+    };
+  }
+
+  dispose(): void {
+    if (this.api) {
+      this.api.disconnect();
+      this.api = null;
+    }
+    this.initialized = false;
+    this.policiesLoaded = false;
+    this.assumptionsLoaded = false;
+  }
+
+  private ensureInitialized(): void {
+    if (!this.initialized || !this.api) {
+      throw new Error('Engine not initialized');
+    }
+  }
+
+  private ensureDataLoaded(): void {
+    if (!this.policiesLoaded) {
+      throw new Error('Policies not loaded');
+    }
+    if (!this.assumptionsLoaded) {
+      throw new Error('Assumptions not loaded');
+    }
+  }
+}
+
+// Factory function for worker pools
+function createMillimanIntegrateFactory(): CalcEngineFactory {
+  return () => new MillimanIntegrateAdapter();
+}
+```
+
+### Implementation Guidelines
+
+When implementing a new engine adapter, follow these principles:
+
+1. **Stateless Design**: The engine should not maintain state between `runChunk` calls. All necessary data should be passed as parameters.
+
+2. **Thread Safety**: Implementations will be used from multiple workers. Each worker has its own engine instance, so no shared state synchronization is needed, but the implementation must be reentrant.
+
+3. **Error Handling**: Throw descriptive errors on failure. The worker pool will catch and report these errors.
+
+4. **Memory Management**: Engines are responsible for their own memory. Call `dispose()` when done to free resources.
+
+5. **Binary Support**: If your engine supports binary data, set `supportsBinaryInput: true` in `getInfo()` and handle both `string` and `ArrayBuffer` inputs in `loadPolicies` and `loadAssumptions`.
+
+6. **Determinism**: Using the same seed should produce the same results for reproducibility.
+
+### Testing Your Adapter
+
+Use the `MockCalcEngine` test suite as a reference:
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type { CalcEngine } from '@livecalc/engine';
+
+describe('MyCustomAdapter', () => {
+  let engine: CalcEngine;
+
+  beforeEach(async () => {
+    engine = new MyCustomAdapter();
+    await engine.initialize();
+  });
+
+  afterEach(() => {
+    engine.dispose();
+  });
+
+  it('should initialize successfully', () => {
+    expect(engine.isInitialized).toBe(true);
+  });
+
+  it('should load policies', async () => {
+    const count = await engine.loadPolicies(policiesCsv);
+    expect(count).toBeGreaterThan(0);
+    expect(engine.hasPolicies).toBe(true);
+  });
+
+  it('should run chunks with deterministic results', async () => {
+    await engine.loadPolicies(policiesCsv);
+    await engine.loadAssumptions(assumptions);
+
+    const result1 = await engine.runChunk({ ...config, seed: 42 });
+    const result2 = await engine.runChunk({ ...config, seed: 42 });
+
+    // Same seed should produce same results
+    expect(result1.scenarioNpvs).toEqual(result2.scenarioNpvs);
+  });
+});
+```

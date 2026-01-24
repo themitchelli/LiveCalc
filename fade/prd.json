@@ -106,7 +106,7 @@
           "MillimanMINDAdapter (future)"
         ]
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-S03",

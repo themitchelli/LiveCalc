@@ -73,6 +73,54 @@
 // Main engine class (single-threaded)
 export { LiveCalcEngine, LiveCalcError } from './engine.js';
 
+// CalcEngine interface for pluggable engines
+export type {
+  CalcEngine,
+  CalcEngineFactory,
+  AssumptionBuffers,
+  ChunkConfig,
+  ChunkResult,
+  EngineInfo,
+} from './calc-engine.js';
+
+// LiveCalc WASM adapter
+export {
+  LiveCalcEngineAdapter,
+  LiveCalcAdapterError,
+  createLiveCalcEngineFactory,
+} from './livecalc-adapter.js';
+export type { LiveCalcAdapterConfig } from './livecalc-adapter.js';
+
+// Mock engine for testing
+export {
+  MockCalcEngine,
+  createMockEngineFactory,
+  createFastMockEngine,
+  createRealisticMockEngine,
+  createFailingInitMockEngine,
+  createFailingRunMockEngine,
+} from './mock-engine.js';
+export type { MockEngineConfig } from './mock-engine.js';
+
+// Engine worker context
+export {
+  EngineWorkerContext,
+} from './engine-worker.js';
+export type {
+  EngineWorkerMessage,
+  EngineWorkerResponse,
+  EngineWorkerInitMessage,
+  EngineWorkerLoadDataMessage,
+  EngineWorkerRunChunkMessage,
+  EngineWorkerDisposeMessage,
+  EngineWorkerInitCompleteResponse,
+  EngineWorkerLoadCompleteResponse,
+  EngineWorkerProgressResponse,
+  EngineWorkerResultResponse,
+  EngineWorkerErrorResponse,
+  EngineWorkerDisposedResponse,
+} from './engine-worker.js';
+
 // Worker pool for parallel execution
 export { WorkerPool, WorkerPoolError } from './worker-pool.js';
 export type { WorkerPoolConfig } from './worker-pool.js';
