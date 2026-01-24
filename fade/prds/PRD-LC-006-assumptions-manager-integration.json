@@ -139,7 +139,7 @@
         "httpClient": "VS Code fetch or axios",
         "retryDelays": [1000, 2000, 4000]
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

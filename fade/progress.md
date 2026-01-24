@@ -1785,3 +1785,54 @@ For blocked stories, use:
   - livecalc-vscode/src/assumptions-manager/index.ts (added exports)
   - livecalc-vscode/src/extension.ts (register language providers)
 - Tests: Extension compiles, type-checks, and packages successfully (325.29KB)
+
+## 2026-01-24 - US-003: Fetch Assumptions from API (PRD-LC-006) - COMPLETE
+
+- Implemented AssumptionsManagerClient class wrapping all API calls to Assumptions Manager
+- Client features:
+  - listTables(): Returns available tables for tenant
+  - getTable(name): Returns table metadata, supports name-based lookup with fallback search
+  - listVersions(tableName): Returns all versions for a table
+  - getVersion(tableName, version): Returns version metadata, handles 'latest' and 'draft' aliases
+  - fetchData(tableName, version): Returns table data as 2D array with columns and rows
+  - tableExists(tableName): Check if table exists
+  - versionExists(tableName, version): Check if specific version exists
+  - getTableId(tableName): Helper to get table ID for other operations
+- Automatic token handling:
+  - All methods get auth token from AuthManager automatically
+  - Token refresh handled transparently via AuthManager.getToken()
+  - Throws AMClientError with 'NOT_AUTHENTICATED' if no token available
+- Retry logic:
+  - Exponential backoff with delays [1000, 2000, 4000]ms
+  - Max 3 retries for retryable errors (SERVER_ERROR, NETWORK_ERROR, TIMEOUT)
+  - Non-retryable errors (auth, permission, not found) fail immediately
+- Clear error messages:
+  - 401: "Authentication failed - please login again" (UNAUTHORIZED)
+  - 403: "Access denied - you don't have permission to access this resource" (FORBIDDEN)
+  - 404: "Resource not found" (NOT_FOUND)
+  - 500-504: "Assumptions Manager server error - please try again later" (SERVER_ERROR)
+- Request/response logging:
+  - Debug mode logs: request method, path, body
+  - Debug mode logs: response status, timing
+  - Each request assigned unique ID for tracing
+- Timeout configurable via livecalc.assumptionsManager.timeoutMs setting
+- Singleton pattern with getInstance() and disposeInstance()
+- Exported from index.ts and integrated into extension cleanup
+- All acceptance criteria verified:
+  - AssumptionsManagerClient class wraps all API calls ✓
+  - listTables() returns available tables for tenant ✓
+  - getTable(name) returns table metadata ✓
+  - listVersions(name) returns all versions for a table ✓
+  - getVersion(name, version) returns version metadata ✓
+  - fetchData(name, version) returns table data as 2D array ✓
+  - All methods handle auth token automatically ✓
+  - All methods handle token refresh if expired ✓
+  - Timeout configurable: livecalc.assumptionsManager.timeoutMs (default: 30000) ✓
+  - Retry logic with exponential backoff (max 3 retries) ✓
+  - Clear error messages for: 401, 403, 404, 500 ✓
+  - Request/response logged in debug mode ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/client.ts (new - AssumptionsManagerClient)
+  - livecalc-vscode/src/assumptions-manager/index.ts (added exports)
+  - livecalc-vscode/src/extension.ts (added disposeAMClient to cleanup)
+- Tests: Extension compiles and type-checks successfully

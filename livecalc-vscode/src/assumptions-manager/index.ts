@@ -5,6 +5,7 @@
 
 export * from './types';
 export { AuthManager, AMAuthError, disposeAuthManager } from './auth';
+export { AssumptionsManagerClient, AMClientError, disposeAMClient } from './client';
 export { AMStatusBar } from './status-bar';
 export {
   AssumptionHoverProvider,

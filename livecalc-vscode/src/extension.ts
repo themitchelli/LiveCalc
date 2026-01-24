@@ -15,6 +15,7 @@ import {
   AuthManager,
   AMStatusBar,
   disposeAuthManager,
+  disposeAMClient,
   AssumptionHoverProvider,
   AssumptionCompletionProvider,
   AssumptionDefinitionProvider,
@@ -236,6 +237,7 @@ export function deactivate(): void {
   disposeComparisonManager();
   disposeRunHistoryManager();
   disposeCacheManager();
+  disposeAMClient();
   disposeAuthManager();
 
   // Cleanup is handled via context.subscriptions
