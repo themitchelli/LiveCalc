@@ -1,0 +1,2121 @@
+# FADE Project Export
+# Generated: 2026-01-24 20:21:39
+
+## Versions
+
+- FADE CLI: v0.3.1
+- prompt.md: v0.3.1
+
+## Folder Structure
+
+```
+./fade-export.txt
+./fade/discoveries/README.md
+./fade/discoveries/SPIKE-LC-007-US-S01-multithreading-regression.md
+./fade/learned.md
+./fade/prd-archive/PRD-LC-001-cpp-projection-engine.json
+./fade/prd-archive/PRD-LC-002-wasm-compilation-threading.json
+./fade/prd-archive/PRD-LC-003-vscode-extension-foundation.json
+./fade/prd-archive/PRD-LC-004-results-panel-visualisation.json
+./fade/prd-archive/PRD-LC-005-auto-run-hot-reload.json
+./fade/prd-archive/PRD-LC-006-assumptions-manager-integration.json
+./fade/prd-archive/PRD-LC-010-modular-orchestration-layer.json
+./fade/prd-archive/SPIKE-LC-007-engine-performance-infrastructure.json
+./fade/prd-archive/SPIKE-SPIKE-LC-007-calcengine.json
+./fade/progress 2.md
+./fade/tests/PRD-LC-005/SKIP_us001_05_model_reruns_on_config_save.md
+./fade/tests/PRD-LC-005/SKIP_us002_06_handle_file_rename.md
+./fade/tests/PRD-LC-005/SKIP_us004_05_negative_delta_styled.md
+./fade/tests/PRD-LC-005/SKIP_us005_01_triggered_by_shown.md
+./fade/tests/PRD-LC-005/SKIP_us006_04_click_history_shows_results.md
+./fade/tests/PRD-LC-005/SKIP_us008_02_assumption_file_change.md
+./fade/tests/PRD-LC-005/test_us008_08_enable_caching_setting.sh
+./fade/tests/SPIKE-LC-007/run_all_tests.sh
+./fade/tests/SPIKE-LC-007/SKIP_us-s01_02_document_root_cause.md
+./fade/tests/SPIKE-LC-007/SKIP_us-s02_05_documentation.md
+./fade/tests/SPIKE-LC-007/SKIP_us-s03_05_cpu_utilization.md
+./fade/tests/SPIKE-LC-007/SKIP_us-s04_04_alignment_docs.md
+./fade/tests/SPIKE-LC-007/test_us-s01_01_profile_worker_overhead.sh
+./fade/tests/SPIKE-LC-007/test_us-s01_03_8workers_4x_faster.sh
+./fade/tests/SPIKE-LC-007/test_us-s01_04_benchmark_validates.sh
+./fade/tests/SPIKE-LC-007/test_us-s02_01_calcengine_interface.sh
+./fade/tests/SPIKE-LC-007/test_us-s02_02_livecalc_adapter.sh
+./fade/tests/SPIKE-LC-007/test_us-s02_03_worker_uses_interface.sh
+./fade/tests/SPIKE-LC-007/test_us-s02_04_mock_engine.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_01_workstealingpool_class.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_02_lifo_local.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_03_fifo_steal.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_04_lockfree_sab.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_06_longtail_elimination.sh
+./fade/tests/SPIKE-LC-007/test_us-s03_07_fallback_static.sh
+./fade/tests/SPIKE-LC-007/test_us-s04_01_cmake_simd_flag.sh
+./fade/tests/SPIKE-LC-007/test_us-s04_02_simd_wasm_built.sh
+./fade/tests/SPIKE-LC-007/test_us-s04_03_simd_tests_exist.sh
+./fade/tests/SPIKE-LC-007/test_us-s04_05_simd_benchmark.sh
+./fade/tests/SPIKE-LC-007/test_us-s04_06_browser_support.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_01_baseline_captured.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_02_spike_benchmark.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_03_comparison_report.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_04_report_metrics.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_05_recommendation.sh
+./fade/tests/SPIKE-LC-007/test_us-s05_06_fade_compatible.sh
+```
+
+## FADE.md
+
+```markdown
+<!-- FADE FADE.md v0.3.1 -->
+
+# LiveCalc
+
+<!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
+
+---
+
+## Project Overview
+
+LiveCalc provides **instant actuarial model feedback** through a VS Code extension powered by a high-performance WASM calculation engine.
+
+**What problem does it solve?**
+- Eliminates the traditional actuarial workflow delay: write model → export to Excel/Python → wait for results → iterate
+- Provides sub-second feedback for model changes with auto-run on save
+- Scales from desktop (1K scenarios) to cloud (1M+ scenarios) seamlessly
+- Enables collaborative modeling with centralized assumption management
+
+**Who are the users?**
+- Actuaries building and testing life insurance projection models
+- Actuarial teams collaborating on shared assumption libraries
+- Platform engineers deploying cloud-scale actuarial computations
+
+**Current state:**
+- **MVP Complete**: Core engine (C++/WASM), VS Code extension with results visualization, assumptions manager integration, modular pipeline orchestration
+- **In Progress**: Cloud execution infrastructure (Azure Batch), remote debugging capabilities
+- **Planned**: Model versioning, collaborative features, production deployment
+
+**Tech Stack:**
+- **Core Engine**: C++ compiled to WASM via Emscripten (with SIMD support)
+- **Desktop**: TypeScript (VS Code extension), Web Workers for parallelism
+- **Cloud API**: Python (FastAPI), Azure services (Blob Storage, Batch, Key Vault)
+- **Infrastructure**: Terraform (Azure), Kubernetes (AKS), GitHub Actions (CI/CD)
+
+**Repository:** https://github.com/themitchelli/LiveCalc
+
+---
+
+## Coding Standards
+
+<!--
+Define how code should be written in this project. Link to external style guides
+rather than duplicating them. Include project-specific conventions that differ
+from or extend the standard guides.
+-->
+
+### Style Guides
+
+- **TypeScript:** [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)
+- **Python:** [PEP 8](https://peps.python.org/pep-0008/)
+- **API Design:** [JSON:API Specification](https://jsonapi.org/)
+
+### Project Conventions
+
+- Naming: `camelCase` for variables, `PascalCase` for components
+- Tests: Co-locate with source files as `*.test.ts`
+- Commits: Conventional commits format (`feat:`, `fix:`, `chore:`)
+
+---
+
+## Standards
+
+<!--
+Link to detailed standards documents. These are loaded by Claude when working
+on relevant tasks. Add your own project-specific standards as needed.
+-->
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](standards/api-security.md) | API-first strategy, security by design, JWT auth, tenant isolation |
+| [Git](standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
+| [Coding](standards/coding.md) | Naming, comments philosophy, error handling, code organization |
+| [Testing](standards/testing.md) | Test pyramid, performance benchmarks, regression protection |
+| [Infrastructure](standards/infrastructure.md) | Everything as code (Terraform, Helm, config) |
+| [Documentation](standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
+
+---
+
+## Architecture References
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       VS Code Extension                          │
+│  ┌─────────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ Results Panel   │  │ Pipeline     │  │ Assumptions      │  │
+│  │ (Webview)       │  │ Debugger     │  │ Manager Client   │  │
+│  └─────────────────┘  └──────────────┘  └──────────────────┘  │
+│           │                    │                    │            │
+│           └────────────────────┴────────────────────┘            │
+│                              ↓                                   │
+│                  ┌───────────────────────┐                       │
+│                  │  LiveCalc Engine Mgr  │                       │
+│                  │  (TypeScript)         │                       │
+│                  └───────────────────────┘                       │
+│                              ↓                                   │
+│         ┌────────────────────┴────────────────────┐             │
+│         ↓                                          ↓             │
+│  ┌─────────────┐                          ┌──────────────┐     │
+│  │   Main      │    SharedArrayBuffer     │ Worker Pool  │     │
+│  │   Thread    │◄────────(bus://)────────►│ (N workers)  │     │
+│  │             │                          │              │     │
+│  │  ┌────────┐ │                          │ ┌──────────┐ │     │
+│  │  │ WASM   │ │                          │ │ WASM     │ │     │
+│  │  │ Module │ │                          │ │ Module   │ │     │
+│  │  └────────┘ │                          │ └──────────┘ │     │
+│  └─────────────┘                          └──────────────┘     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↑
+                              │ JWT Auth + REST API
+                              ↓
+                 ┌────────────────────────┐
+                 │ Assumptions Manager    │
+                 │ (Cloud Service)        │
+                 │ - Table/Version Mgmt   │
+                 │ - Approval Workflow    │
+                 │ - Caching              │
+                 └────────────────────────┘
+                              ↑
+                              │ Job Submit API
+                              ↓
+                 ┌────────────────────────┐
+                 │ Cloud Execution        │
+                 │ (Azure Batch)          │
+                 │ - Large-scale runs     │
+                 │ - Blob storage I/O     │
+                 │ - Distributed workers  │
+                 └────────────────────────┘
+```
+
+**Key Architectural Patterns:**
+- **Zero-copy parallelism**: SharedArrayBuffer with bus:// protocol eliminates data copying between workers
+- **CalcEngine interface**: Pluggable calculation engines (WASM, Python, future: Milliman Integrate)
+- **API-first**: All cloud services expose REST APIs consumed by VS Code extension
+- **Modular pipelines**: DAG-based orchestration for multi-engine calculations
+
+### Key Documents
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| Data Flow & Scaling | `docs/architecture/data-flow-and-scaling.md` | Memory budgets, tiered execution (local vs cloud) |
+| SIMD Alignment | `livecalc-engine/docs/simd-alignment.md` | 16-byte alignment requirements for SIMD |
+| CalcEngine Interface | `livecalc-engine/README.md` | Interface for pluggable engines |
+| Pipeline Orchestration | PRD-LC-010 | Modular DAG execution with bus:// resources |
+
+---
+
+## Target Architecture
+
+**Bias toward these patterns in all work, even when the current PRD doesn't directly address them:**
+
+- **API-first design**: Design OpenAPI spec before implementation. All cloud services expose REST APIs.
+- **bus:// protocol**: All pipeline data flows through SharedArrayBuffer bus resources (no copying).
+- **CalcEngine interface**: All calculation engines implement the standardized interface (initialize, runChunk, dispose).
+- **Zero-copy parallelism**: Use SharedArrayBuffer and Atomics for inter-worker communication (no postMessage data copying).
+- **16-byte alignment**: All SharedArrayBuffer allocations must be 16-byte aligned for SIMD compatibility.
+- **Everything as code**: Infrastructure (Terraform), config (JSON/YAML), docs (Markdown), monitoring (Prometheus rules).
+- **Security by design**: Authentication, authorization, encryption, and audit logging considered from the start (not retrofitted).
+- **Config-driven**: Feature flags, environment-specific values, and behavior in config files (not hardcoded).
+
+---
+
+---
+
+## Off-Limits Modules
+
+**These directories should NOT be modified by agents:**
+
+| Path | Reason | Contact |
+|------|--------|---------|
+| `livecalc-engine/build/` | Generated files from CMake/Make | n/a |
+| `livecalc-engine/build-wasm*/` | Generated WASM build outputs | n/a |
+| `*/node_modules/` | Third-party dependencies managed by npm | n/a |
+| `livecalc-vscode/dist/` | Build output from esbuild | n/a |
+| `livecalc-vscode/media/vendor/` | Vendored Chart.js and plugins | n/a |
+| `.github/workflows/*.yml` | CI/CD configuration (requires human approval) | @platform |
+
+**If you need to modify an off-limits module:** Stop and ask the human for guidance.
+
+---
+
+## Session Boundaries
+
+### Allowed Actions
+
+**Agents may freely perform these actions:**
+- Create, modify, delete files in `livecalc-engine/src/`, `livecalc-vscode/src/`, `tests/`, `docs/`, `standards/`
+- Add/modify unit and integration tests
+- Run tests and linters (`npm test`, `npm run compile`, `make test`)
+- Install dev dependencies (`npm install --save-dev`)
+- Create feature branches (`feature/PRD-LC-XXX-description`)
+- Update PRD files (set `passes: true` after completion)
+- Append to `progress.md` and `learned.md`
+- Create/modify documentation files (README, standards, architecture docs)
+
+### Requires Human Approval
+
+**Ask before proceeding with:**
+- Changes to CI/CD configuration (`.github/workflows/`, `Dockerfile`)
+- Cloud infrastructure changes (Terraform, Kubernetes manifests)
+- Changes to authentication or authorization logic
+- Dependency upgrades (major versions)
+- Deleting more than 5 files in one session
+- Adding new npm/pip dependencies (production dependencies)
+- Creating new Azure services or resources
+
+### Never Do
+
+**Agents must NEVER:**
+- Push directly to `main` branch (always use feature branches)
+- Commit secrets, API keys, or credentials (use Azure Key Vault references)
+- Modify files in `build/`, `dist/`, `node_modules/` directories
+- Disable security features (CORS, authentication, TLS validation)
+- Run destructive commands on cloud resources
+- Disable or skip tests to "make things pass"
+
+---
+
+## System Context
+
+### Current Challenges
+
+- **Performance targets**: Multi-threaded execution must meet <3s for 10K×1K (currently: 370ms ✓)
+- **Memory constraints**: Browser-based execution limited by SharedArrayBuffer and WASM memory
+- **Cloud integration**: Azure Batch infrastructure in progress (PRD-LC-008)
+- **Security hardening**: Assumptions Manager authentication complete, but SAS token scoping needs implementation
+
+### Transition Plan
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Core Engine & VS Code MVP | ✅ COMPLETE |
+| Phase 2 | Assumptions Manager & Pipeline Orchestration | ✅ COMPLETE |
+| Phase 3 | Cloud Execution (Azure Batch) | ← CURRENT |
+| Phase 4 | Production Deployment & Monitoring | NOT STARTED |
+
+### Active Work Items
+
+- [FEATURE] Cloud execution infrastructure (PRD-LC-008) - in progress
+- [FEATURE] Remote debugging capabilities (PRD-LC-012) - planned
+- [DOCS] Standards documentation (PRD-LC-014) - in progress
+- [SPIKE] Multi-threading performance optimization (SPIKE-LC-007) - ✅ complete
+
+---
+
+## Development Environment
+
+### Local Development
+
+**LiveCalc Engine (C++/WASM):**
+```bash
+cd livecalc-engine
+
+# Native build for testing
+mkdir build && cd build
+cmake ..
+make
+./livecalc_tests
+
+# WASM build (requires Emscripten)
+mkdir build-wasm && cd build-wasm
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+emmake make
+```
+
+**VS Code Extension (TypeScript):**
+```bash
+cd livecalc-vscode
+npm install
+npm run compile     # TypeScript compilation
+npm test           # Run tests
+npm run package    # Create .vsix package
+
+# Debug: Press F5 in VS Code to launch Extension Development Host
+```
+
+**JavaScript Wrapper (for engine):**
+```bash
+cd livecalc-engine/js
+npm install
+npm test                    # Unit and integration tests
+npm run benchmark          # Performance benchmarks
+```
+
+**Required Tools:**
+- Node.js 18+ (for TypeScript and npm)
+- Emscripten SDK (for WASM builds)
+- CMake 3.20+ (for C++ builds)
+- VS Code 1.85.0+ (for extension development)
+
+**Environment Variables:**
+- None required for local development
+- Cloud API credentials stored in VS Code SecretStorage (encrypted)
+
+### Production/Deployment
+
+**VS Code Extension:**
+- Packaged as `.vsix` file via `npm run package`
+- Published to VS Code Marketplace (manual process, requires publisher account)
+- Version managed in `package.json`
+
+**Cloud API (future):**
+- Deployed to Azure Kubernetes Service (AKS) via Helm charts
+- Infrastructure managed via Terraform
+- CI/CD via GitHub Actions (`.github/workflows/`)
+- Secrets stored in Azure Key Vault
+
+---
+
+## Additional Context
+
+### Known Gotchas
+
+- **SIMD builds require 16-byte alignment**: All SharedArrayBuffer allocations must use `alignUp(size, 16)` not just 8-byte alignment
+- **BigInt for uint64_t**: WASM functions with `uint64_t` parameters require `BigInt(value)` in JavaScript
+- **SharedArrayBuffer requires headers**: Browsers need `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`
+- **Worker pool overhead**: Cold start includes ~200ms (init + load). Use warm timing for production benchmarks.
+- **CRC32 performance**: Integrity checking adds ~1ms per MB. Disabled by default, enable for debugging.
+
+### Recent Major Changes
+
+- **2026-01-24**: Completed modular pipeline orchestration (PRD-LC-010) with bus:// protocol and breakpoint debugging
+- **2026-01-24**: Integrated Assumptions Manager (PRD-LC-006) with JWT auth and local caching
+- **2026-01-24**: Implemented auto-run on save (PRD-LC-005) with smart re-run optimization
+- **2026-01-24**: Added comprehensive results visualization (PRD-LC-004) with comparison and export
+- **2026-01-23**: Multi-threading via work-stealing scheduler (SPIKE-LC-007) achieving 5.6x speedup
+
+### Upcoming Changes
+
+- **PRD-LC-008**: Cloud execution infrastructure with Azure Batch for large-scale runs (100K+ policies)
+- **PRD-LC-012**: Remote debugging API for step-through debugging of cloud-executed models
+- **Production deployment**: Monitoring, alerting, and operational readiness for cloud services
+```
+
+## Standards
+
+### api-security.md
+
+```markdown
+# API Security Standard
+
+Guidelines for building secure APIs. Apply these when generating or reviewing API code.
+
+---
+
+## 1. Authenticate by Default
+
+Every endpoint requires authentication unless explicitly marked public.
+
+**Apply:**
+- Add auth middleware to all routes by default
+- Use bearer tokens or API keys with proper validation
+- Never trust client-provided user IDs—extract from verified token
+
+**Rationale:** Unauthenticated endpoints are the #1 source of API vulnerabilities. Default-secure means you must opt OUT of auth, not opt IN.
+
+---
+
+## 2. Object-Level Authorization
+
+Verify the authenticated user can access the specific resource being requested.
+
+**Apply:**
+- Check ownership or role permissions before returning data
+- Use `WHERE user_id = ?` in queries, not just `WHERE id = ?`
+- Never trust that a valid session means access to all resources
+
+```python
+# Bad - only checks if object exists
+def get_order(order_id):
+    return Order.query.get(order_id)
+
+# Good - checks ownership
+def get_order(order_id, current_user):
+    return Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()
+```
+
+**Rationale:** BOLA (Broken Object Level Authorization) is OWASP API #1. Users can enumerate IDs; you must verify they own what they're requesting.
+
+---
+
+## 3. Schema-First Input Validation
+
+Define expected input shape; reject anything that doesn't match.
+
+**Apply:**
+- Use schema validation (Zod, Pydantic, JSON Schema) on all inputs
+- Validate type, format, length, and allowed values
+- Reject requests with extra fields (disallow unknown)
+- Validate path params, query params, headers—not just body
+
+```typescript
+// Good - explicit schema
+const createUserSchema = z.object({
+  email: z.string().email().max(255),
+  name: z.string().min(1).max(100),
+  role: z.enum(['user', 'admin']).default('user')
+}).strict();  // Rejects extra fields
+```
+
+**Rationale:** Unvalidated input leads to injection, type confusion, and mass assignment. Schema validation catches these at the boundary.
+
+---
+
+## 4. Least Data Returned
+
+Return only fields the client needs; never expose internal fields.
+
+**Apply:**
+- Define response schemas; don't return raw database objects
+- Exclude: IDs of related objects the user can't access, internal timestamps, soft-delete flags, hashed passwords, tokens
+- Use explicit allow-lists, not block-lists
+
+```javascript
+// Bad - returns entire user object
+return user;
+
+// Good - explicit response shape
+return {
+  id: user.id,
+  name: user.name,
+  email: user.email
+};
+```
+
+**Rationale:** Excess data exposure leaks information attackers use for enumeration, privilege escalation, or further attacks.
+
+---
+
+## 5. Rate Limiting
+
+Limit request frequency to prevent abuse and brute-force attacks.
+
+**Apply:**
+- Apply rate limits at API gateway or middleware level
+- Stricter limits on auth endpoints (login, password reset)
+- Include rate limit headers in responses (`X-RateLimit-*`)
+- Consider per-user AND per-IP limits
+
+| Endpoint Type | Suggested Limit |
+|---------------|-----------------|
+| Public read | 100/min |
+| Authenticated | 300/min |
+| Auth (login, signup) | 10/min |
+| Password reset | 5/min |
+
+**Rationale:** Without rate limits, attackers can brute-force credentials, enumerate resources, or DoS your API.
+
+---
+
+## 6. Parameterized Queries
+
+Never interpolate user input into SQL, commands, or queries.
+
+**Apply:**
+- Use parameterized queries or ORM methods exclusively
+- Never use string concatenation or f-strings for queries
+- Same rule for NoSQL, shell commands, LDAP queries
+
+```python
+# Bad - SQL injection
+cursor.execute(f"SELECT * FROM users WHERE email = '{email}'")
+
+# Good - parameterized
+cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+```
+
+**Rationale:** Injection attacks (SQL, NoSQL, command) remain in OWASP top 10. Parameterized queries make injection structurally impossible.
+
+---
+
+## 7. Secure Error Handling
+
+Return safe error messages; log detailed errors server-side.
+
+**Apply:**
+- Use generic client messages: "Not found", "Unauthorized", "Invalid request"
+- Never expose: stack traces, SQL errors, file paths, internal IPs
+- Log full details server-side for debugging
+- Use consistent error response format
+
+```json
+// Good - safe client response
+{
+  "error": "Not found",
+  "code": "RESOURCE_NOT_FOUND"
+}
+
+// Server log (not returned to client)
+// "User 123 attempted to access Order 456 (not owner) at 2024-01-15T10:30:00Z"
+```
+
+**Rationale:** Detailed errors help attackers understand your stack, find vulnerabilities, and craft exploits.
+
+---
+
+## Quick Reference
+
+| Principle | Key Action |
+|-----------|------------|
+| Auth by default | Add middleware to ALL routes |
+| Object-level authz | Check ownership, not just existence |
+| Schema validation | Validate ALL input with explicit schemas |
+| Least data | Return allow-listed fields only |
+| Rate limiting | Apply limits, stricter on auth |
+| Parameterized queries | Never interpolate user input |
+| Safe errors | Generic to client, detailed in logs |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Creating new API endpoints
+- Reviewing API code for security
+- Designing authentication or authorization flows
+- Handling user input or database queries
+```
+
+### architecture.md
+
+```markdown
+# Architecture Standard
+
+Questions to guide architectural decisions. Reference this when designing systems, adding services, or making infrastructure choices.
+
+*Adapted from [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/). Principles are generic; apply to any project type.*
+
+---
+
+## 1. Operational Excellence
+
+Can you deploy, monitor, and evolve this system confidently?
+
+**Consider:**
+- How will you deploy changes? (CI/CD, rollback strategy)
+- What happens when something fails at 2 AM? (alerts, runbooks)
+- How do you know the system is healthy? (metrics, logs, dashboards)
+- Can the team maintain this in 6 months? (documentation, simplicity)
+
+**Apply:**
+- Automate deployments—no manual steps in production
+- Add health checks and structured logging from the start
+- Design for incremental changes, not big-bang releases
+- Document operational procedures alongside code
+
+---
+
+## 2. Security
+
+Is access controlled and data protected at every layer?
+
+**Consider:**
+- Who can access this system? How is identity verified?
+- What's the blast radius if credentials leak?
+- Is sensitive data encrypted in transit and at rest?
+- How do you detect and respond to security incidents?
+
+**Apply:**
+- Apply least-privilege: grant minimum necessary permissions
+- Never store secrets in code; use environment variables or vaults
+- Encrypt all external communication (HTTPS, TLS)
+- Log access attempts; alert on anomalies
+
+*See also: `standards/api-security.md` for API-specific security.*
+
+---
+
+## 3. Reliability
+
+Will this system recover gracefully when things go wrong?
+
+**Consider:**
+- What happens when a dependency fails? (timeout, retry, fallback)
+- How does the system behave under unexpected load?
+- What's the recovery process for data loss?
+- Are there single points of failure?
+
+**Apply:**
+- Design for failure: timeouts, circuit breakers, graceful degradation
+- Test failure scenarios (dependency down, disk full, OOM)
+- Implement backups and verify restore procedures
+- Avoid single points of failure in critical paths
+
+---
+
+## 4. Performance
+
+Is the system fast enough for users and efficient in resource use?
+
+**Consider:**
+- What are the latency requirements? (P50, P95, P99)
+- Where are the likely bottlenecks? (DB queries, network, compute)
+- How does performance scale with load?
+- Are you caching effectively without creating consistency issues?
+
+**Apply:**
+- Measure before optimizing—profile, don't guess
+- Cache at appropriate layers (CDN, app, DB)
+- Use async/background processing for slow operations
+- Set performance budgets and monitor against them
+
+---
+
+## 5. Cost
+
+Are you spending efficiently, avoiding waste?
+
+**Consider:**
+- What does this cost to run? (compute, storage, bandwidth)
+- Are resources right-sized, or over-provisioned "just in case"?
+- Do you have visibility into cost drivers?
+- What's the cost of not doing this? (opportunity cost)
+
+**Apply:**
+- Start small; scale based on measured need
+- Use autoscaling rather than over-provisioning
+- Review costs regularly; sunset unused resources
+- Consider cost in technology choices (managed vs self-hosted)
+
+---
+
+## 6. Sustainability
+
+Is this system efficient and maintainable long-term?
+
+**Consider:**
+- Are resources utilized efficiently? (CPU, memory, storage)
+- Does the architecture minimize unnecessary computation?
+- Can this system evolve without major rewrites?
+- Is the technical debt manageable?
+
+**Apply:**
+- Right-size resources; shut down idle environments
+- Avoid premature optimization but design for efficiency
+- Keep dependencies minimal and up-to-date
+- Refactor incrementally; don't let debt compound
+
+---
+
+## Quick Reference
+
+| Pillar | Core Question |
+|--------|---------------|
+| Operational Excellence | Can we deploy and operate confidently? |
+| Security | Is access controlled, data protected? |
+| Reliability | Does it recover gracefully from failure? |
+| Performance | Is it fast enough, efficient enough? |
+| Cost | Are we spending wisely? |
+| Sustainability | Is it efficient and maintainable long-term? |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Designing a new system or service
+- Adding significant infrastructure (databases, queues, caches)
+- Making technology choices (build vs buy, language, framework)
+- Reviewing architecture decisions
+- Planning for scale or reliability improvements
+```
+
+### coding.md
+
+```markdown
+# Coding Standard
+
+Guidelines for writing clean, maintainable code. Apply these across all languages.
+
+---
+
+## Naming Conventions
+
+Names should reveal intent. A reader should understand what something does from its name alone.
+
+### Variables and Functions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Variables | camelCase (JS/TS), snake_case (Python) | `userCount`, `user_count` |
+| Functions | camelCase (JS/TS), snake_case (Python) | `calculateTotal()`, `calculate_total()` |
+| Constants | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT`, `API_TIMEOUT` |
+| Classes | PascalCase | `UserService`, `OrderProcessor` |
+| Booleans | Prefix with is/has/can/should | `isActive`, `hasPermission` |
+
+### Naming Rules
+
+**Do:**
+- Use full words, not abbreviations (`customer` not `cust`)
+- Name functions as verbs: `getUser()`, `validateInput()`, `sendEmail()`
+- Name booleans as questions: `isValid`, `hasAccess`, `canEdit`
+- Be consistent with project conventions
+
+**Don't:**
+- Use single letters except loop counters (`i`, `j`)
+- Use Hungarian notation (`strName`, `intCount`)
+- Use generic names (`data`, `info`, `temp`, `stuff`)
+
+```javascript
+// Bad
+const d = getD();
+const temp = process(d);
+
+// Good
+const orderDetails = getOrderDetails();
+const formattedOrder = formatForDisplay(orderDetails);
+```
+
+---
+
+## Function Guidelines
+
+### Keep Functions Small
+
+- **Target:** 20-30 lines maximum
+- **One job:** Each function does one thing
+- **One level of abstraction:** Don't mix high-level and low-level operations
+
+```python
+# Bad - does too much
+def process_order(order):
+    validate(order)
+    tax = order.subtotal * 0.1
+    total = order.subtotal + tax
+    send_email(order.user.email, f"Total: {total}")
+    db.save(order)
+    log(f"Order processed: {order.id}")
+
+# Good - separated concerns
+def process_order(order):
+    validate_order(order)
+    order.total = calculate_total(order)
+    save_order(order)
+    notify_customer(order)
+```
+
+### Function Parameters
+
+- **Maximum:** 3 parameters preferred, 4 acceptable
+- **Too many?** Use an options object or refactor
+- **Order:** Required first, optional last
+
+```typescript
+// Bad - too many params
+function createUser(name, email, age, role, department, manager) {}
+
+// Good - options object
+function createUser(name: string, email: string, options?: UserOptions) {}
+```
+
+---
+
+## File Organization
+
+### File Length
+
+- **Target:** 200-300 lines maximum
+- **Too long?** Split into focused modules
+- **Exception:** Test files can be longer
+
+### File Structure
+
+1. Imports (external, then internal)
+2. Constants/types
+3. Main exports
+4. Helper functions (private)
+
+```typescript
+// 1. External imports
+import { z } from 'zod';
+
+// 2. Internal imports
+import { db } from '../db';
+
+// 3. Constants/types
+const MAX_RETRIES = 3;
+type UserRole = 'admin' | 'user';
+
+// 4. Main exports
+export function getUser(id: string) { ... }
+
+// 5. Helpers (not exported)
+function validateId(id: string) { ... }
+```
+
+---
+
+## Error Handling
+
+### Use Explicit Error Handling
+
+- Check for errors at boundaries (API, DB, external services)
+- Let errors propagate where appropriate
+- Don't swallow errors silently
+
+```python
+# Bad - silent failure
+def get_user(id):
+    try:
+        return db.find(id)
+    except:
+        return None  # Hides real errors
+
+# Good - explicit handling
+def get_user(id):
+    try:
+        return db.find(id)
+    except DatabaseError as e:
+        logger.error(f"DB error fetching user {id}: {e}")
+        raise ServiceError("Unable to fetch user")
+```
+
+### Error Messages
+
+- Include context: what failed, why, what to do
+- Never expose internal details to users
+- Log details server-side, return safe messages to clients
+
+---
+
+## Comments
+
+### When to Comment
+
+**Do comment:**
+- Why, not what (the code shows what)
+- Complex algorithms or business rules
+- Workarounds with links to issues
+- Public API documentation
+
+**Don't comment:**
+- Obvious code (`i++; // increment i`)
+- Commented-out code (delete it)
+- TODOs without context or owners
+
+```javascript
+// Bad - states the obvious
+// Get the user by ID
+const user = getUser(id);
+
+// Good - explains why
+// Use legacy endpoint until v2 migration complete (PROJ-123)
+const user = legacyGetUser(id);
+```
+
+### Self-Documenting Code
+
+Prefer clear code over comments:
+
+```python
+# Bad - needs comment to explain
+# Check if user can access resource
+if user.role == 'admin' or (user.role == 'member' and resource.owner == user.id):
+
+# Good - self-documenting
+if user.can_access(resource):
+```
+
+---
+
+## Language-Specific Rules
+
+### JavaScript/TypeScript
+- Use `const` by default, `let` when reassignment needed
+- Prefer arrow functions for callbacks
+- Use optional chaining (`?.`) and nullish coalescing (`??`)
+
+### Python
+- Follow PEP 8
+- Use type hints for function signatures
+- Prefer list/dict comprehensions for simple transformations
+
+### General
+- Follow the language's official style guide
+- Use the project's linter configuration
+- Match existing code style in the file
+
+---
+
+## Quick Reference
+
+| Principle | Guideline |
+|-----------|-----------|
+| Naming | Reveal intent, be consistent |
+| Functions | Small (20-30 lines), one job each |
+| Files | 200-300 lines max, focused modules |
+| Parameters | 3 preferred, use options object if more |
+| Errors | Explicit handling, meaningful messages |
+| Comments | Explain why, not what |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Writing new code
+- Reviewing code for style and maintainability
+- Refactoring existing code
+- Onboarding to a new codebase
+```
+
+### documentation.md
+
+```markdown
+# Documentation Standard
+
+Guidelines for what to document and how. Apply these to avoid under or over-documenting.
+
+---
+
+## Documentation Philosophy
+
+Document the **why**, not the **what**. Code shows what happens; documentation explains why it exists and how to use it.
+
+**Golden rule:** If someone needs information that isn't in the code itself, document it. If the code already tells the story, don't repeat it in prose.
+
+---
+
+## Documentation Layers
+
+Different audiences need different docs:
+
+| Layer | Audience | Location | Updates |
+|-------|----------|----------|---------|
+| README | New contributors | Repo root | When setup changes |
+| API docs | Consumers | `/docs/api/` or inline | When API changes |
+| ADRs | Future maintainers | `/docs/adr/` | When decisions made |
+| Code comments | Developers | In source | With code changes |
+| FADE files | AI agents | `/fade/` | Per session |
+
+---
+
+## README Structure
+
+Every README should answer these questions, in this order:
+
+1. **What** - One paragraph explaining what this project does
+2. **Quick start** - Get running in under 5 minutes
+3. **Prerequisites** - Required tools and versions
+4. **Installation** - Step-by-step setup
+5. **Usage** - Common commands or API examples
+6. **Configuration** - Environment variables, options
+
+**Keep it short.** Link to detailed docs rather than embedding everything.
+
+```markdown
+# Project Name
+
+Brief description (1-2 sentences).
+
+## Quick Start
+
+\`\`\`bash
+npm install
+npm start
+\`\`\`
+
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL 14+
+
+## Configuration
+
+See [Configuration Guide](docs/config.md) for all options.
+```
+
+---
+
+## API Documentation
+
+Document public APIs with:
+
+- **Endpoint** - HTTP method and path
+- **Parameters** - Required and optional, with types
+- **Response** - Success and error shapes
+- **Example** - Working request/response
+
+```markdown
+## POST /users
+
+Create a new user.
+
+**Request:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| email | string | Yes | User email |
+| name | string | No | Display name |
+
+**Response (201):**
+\`\`\`json
+{ "id": "usr_123", "email": "user@example.com" }
+\`\`\`
+
+**Errors:** 400 (validation), 409 (duplicate email)
+```
+
+---
+
+## Architecture Decision Records (ADRs)
+
+Use ADRs to capture **why** major decisions were made.
+
+### ADR Template
+
+```markdown
+# ADR-001: Use PostgreSQL for primary database
+
+## Status
+Accepted (2024-01-15)
+
+## Context
+We need a database for user data and transactions.
+
+## Decision
+Use PostgreSQL.
+
+## Rationale
+- ACID compliance for financial data
+- Team expertise
+- JSON support for flexible schemas
+
+## Consequences
+- Need to manage connection pooling
+- Migrations required for schema changes
+```
+
+### When to Write an ADR
+
+- Choosing a technology or framework
+- Architectural patterns (monolith vs microservices)
+- Security model decisions
+- Breaking changes to public APIs
+
+---
+
+## Code Comments
+
+See [Coding Standard](coding.md) for detailed comment guidelines.
+
+**Quick rules:**
+- Comment **why**, not what
+- Link to tickets for workarounds
+- Delete commented-out code
+- Public APIs need docstrings
+
+---
+
+## FADE-Specific Documentation
+
+### progress.md
+- Append after each story completes
+- Include: summary, files changed, test status
+- Use format from prompt.md
+
+### learned.md
+- Only add reusable discoveries
+- Must be non-obvious and actionable
+- Skip story-specific implementation details
+
+### FADE.md (human-maintained)
+- Keep current with project changes
+- Update off-limits modules as code evolves
+- Review quarterly
+
+---
+
+## What NOT to Document
+
+Avoid creating documentation that:
+
+| Anti-pattern | Why It's Bad | Instead |
+|--------------|--------------|---------|
+| Restating code | Drifts out of sync | Write clearer code |
+| Implementation details | Changes frequently | Document interfaces |
+| Obvious setup | Wastes reader time | Assume basic skills |
+| Giant walls of text | Nobody reads them | Use bullet points |
+| Every function | Maintenance burden | Document public APIs |
+
+**Specifically, do NOT:**
+- Add docstrings to private/internal functions
+- Document self-explanatory code
+- Create README sections for obvious things
+- Write tutorials for standard tools
+- Duplicate information across files
+
+---
+
+## Quick Reference
+
+| Doc Type | When to Write | Keep Updated |
+|----------|---------------|--------------|
+| README | Project creation | On setup changes |
+| API docs | New/changed endpoints | With API changes |
+| ADRs | Major decisions | Never (immutable) |
+| Code comments | Complex/non-obvious code | With code changes |
+| progress.md | After each story | Each session |
+| learned.md | New discoveries | When learned |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Creating a new project or module
+- Writing or updating documentation
+- Reviewing PRs with doc changes
+- Deciding whether something needs documenting
+- Cleaning up existing documentation
+```
+
+### git.md
+
+```markdown
+# Git Standard
+
+Guidelines for commits, branches, and version control. Apply these when working with git.
+
+---
+
+## Commit Message Format
+
+Use conventional commits: `<type>: <description>`
+
+```
+feat: add user authentication endpoint
+fix: handle null values in order calculation
+docs: update API reference for new endpoints
+```
+
+### Type Prefixes
+
+| Type | When to Use |
+|------|-------------|
+| `feat:` | New feature or capability |
+| `fix:` | Bug fix |
+| `docs:` | Documentation only |
+| `chore:` | Maintenance, dependencies, config |
+| `refactor:` | Code restructure, no behavior change |
+| `test:` | Adding or updating tests |
+| `spike:` | Exploratory work (spike branches only) |
+
+### Writing Good Messages
+
+**Do:**
+- Start with lowercase after the colon
+- Use imperative mood ("add feature" not "added feature")
+- Keep first line under 72 characters
+- Explain what and why, not how
+
+**Don't:**
+- Include ticket numbers in the subject (use body if needed)
+- Use vague messages like "fix bug" or "update code"
+- Combine unrelated changes in one commit
+
+```bash
+# Good
+feat: add rate limiting to auth endpoints
+fix: prevent duplicate order submissions
+refactor: extract validation logic into middleware
+
+# Bad
+feat: Added new stuff
+fix: bug fix
+chore: updates
+```
+
+---
+
+## Branch Strategy
+
+### Trunk-Based Development (Default)
+
+Work directly on `main` or short-lived feature branches.
+
+**Apply:**
+- Keep branches short-lived (hours to days, not weeks)
+- Merge frequently to avoid drift
+- Use feature flags for incomplete features in main
+- Delete branches after merging
+
+### Feature Branches
+
+For larger work that can't be completed quickly:
+
+```bash
+# Naming convention
+feature/add-user-auth
+bugfix/order-calculation-null
+chore/upgrade-dependencies
+```
+
+**Branch naming:**
+- Use kebab-case (lowercase, hyphens)
+- Prefix with type: `feature/`, `bugfix/`, `chore/`, `spike/`
+- Keep names descriptive but concise
+
+---
+
+## FADE-Specific Conventions
+
+### Story Completion Commits
+
+When completing a FADE user story:
+
+```bash
+git add -A && git commit -m "feat: complete US-XXX - Story Title"
+```
+
+Use the appropriate type based on the work:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `docs:` for documentation PRDs
+- `chore:` for maintenance PRDs
+
+### PRD Checkpoint Commits
+
+After each story completion:
+1. Stage all changes: `git add -A`
+2. Commit with story reference: `feat: complete US-001 - Add login page`
+3. Include the story ID and title for traceability
+
+### Spike Branches
+
+Spikes are exploratory work that stays isolated:
+
+```bash
+# Create spike branch
+git checkout -b spike/investigate-caching-options
+
+# All spike work stays here
+spike: add caching prototype
+spike: test Redis vs Memcached performance
+
+# Do NOT merge to main
+# Create outputArtifact documenting findings
+```
+
+**Spike rules:**
+- Always create a dedicated branch
+- Use `spike:` prefix for all commits
+- Never merge spike branches to main
+- Document findings in the spike's outputArtifact
+
+---
+
+## Commit Hygiene
+
+### Atomic Commits
+
+Each commit should be a single logical change.
+
+```bash
+# Good - separate concerns
+git commit -m "feat: add User model"
+git commit -m "feat: add user registration endpoint"
+git commit -m "test: add user registration tests"
+
+# Bad - multiple unrelated changes
+git commit -m "add user stuff and fix order bug and update docs"
+```
+
+### What to Commit
+
+**Always commit:**
+- Source code changes
+- Test files
+- Documentation updates
+- Configuration changes
+
+**Never commit:**
+- `.env` files or secrets
+- Build artifacts (`dist/`, `node_modules/`)
+- IDE settings (unless shared)
+- Temporary files
+
+### Before Pushing
+
+1. Run tests locally
+2. Check for unintended files: `git status`
+3. Review changes: `git diff --staged`
+4. Ensure commit messages are clear
+
+---
+
+## Protected Branches
+
+### Never Do
+
+- Force push to `main` or `master`
+- Push directly to protected branches (use PRs)
+- Rewrite history on shared branches
+
+### Main Branch Rules
+
+- All changes via pull request
+- Tests must pass before merge
+- At least one approval required (if configured)
+- Squash or rebase merges preferred
+
+---
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Stage all | `git add -A` |
+| Commit | `git commit -m "type: message"` |
+| Create branch | `git checkout -b type/name` |
+| Switch branch | `git checkout branch-name` |
+| Delete branch | `git branch -d branch-name` |
+| View history | `git log --oneline -10` |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Making commits to the repository
+- Creating or managing branches
+- Completing FADE user stories
+- Working on spike PRDs
+```
+
+### README.md
+
+```markdown
+# Standards Folder
+
+Project-specific standards that Claude reads when performing related work.
+
+## Purpose
+
+Standards files contain actionable guidelines that Claude applies during development.
+Unlike general documentation, these are written as instructions Claude can follow.
+
+## Usage
+
+Link standards from FADE.md in the '## Standards' section:
+
+```markdown
+## Standards
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](standards/api-security.md) | Security principles for API development |
+| [Git](standards/git.md) | Commit messages and branching conventions |
+```
+
+prompt.md instructs Claude to read relevant standards before starting work.
+
+## Creating Custom Standards
+
+1. Create a markdown file in this folder (e.g., `my-standard.md`)
+2. Write actionable instructions Claude can apply
+3. Keep under 1,500 tokens (~1,100 words) to preserve context window
+4. Link from FADE.md '## Standards' section
+```
+
+### testing.md
+
+```markdown
+# Testing Standard
+
+Guidelines for writing effective tests. Apply these when creating or reviewing test code.
+
+---
+
+## Test Philosophy
+
+Tests exist to catch bugs and enable confident refactoring. Write tests that:
+- Catch real bugs, not implementation details
+- Survive refactoring without changes
+- Run fast enough to run often
+- Fail with clear, actionable messages
+
+---
+
+## Test Pyramid
+
+Maintain a healthy distribution of test types:
+
+| Level | Proportion | Speed | What it Tests |
+|-------|------------|-------|---------------|
+| Unit | 70% | Fast (ms) | Single functions, pure logic |
+| Integration | 20% | Medium (s) | Component interactions, DB, APIs |
+| E2E | 10% | Slow (min) | Full user flows, critical paths |
+
+**Apply:**
+- Most tests should be unit tests (fast, focused)
+- Integration tests for boundaries (DB, external APIs)
+- E2E tests only for critical user journeys
+- When a bug escapes to E2E, push the test down
+
+---
+
+## What to Test
+
+### Test These
+- Business logic and calculations
+- Edge cases and boundary conditions
+- Error handling and failure modes
+- Public API contracts
+- Complex conditionals
+
+### Skip These
+- Framework code (trust your tools)
+- Simple getters/setters
+- Type system guarantees
+- Third-party library internals
+- Implementation details (private methods)
+
+```javascript
+// Good - tests business rule
+test('applies 10% discount for orders over $100', () => {
+  const order = createOrder({ subtotal: 150 });
+  expect(calculateDiscount(order)).toBe(15);
+});
+
+// Bad - tests implementation detail
+test('calls discountService.calculate', () => {
+  calculateDiscount(order);
+  expect(discountService.calculate).toHaveBeenCalled();
+});
+```
+
+---
+
+## AAA Pattern
+
+Structure every test with Arrange-Act-Assert:
+
+```python
+def test_user_can_update_own_profile():
+    # Arrange - set up test data
+    user = create_user(name="Alice")
+
+    # Act - perform the action
+    result = update_profile(user.id, {"name": "Alicia"})
+
+    # Assert - verify the outcome
+    assert result.name == "Alicia"
+    assert User.find(user.id).name == "Alicia"
+```
+
+**Rules:**
+- One Act per test (one action being tested)
+- Keep Arrange minimal (use factories/fixtures)
+- Assert behaviour, not implementation
+
+---
+
+## Test Naming
+
+Names should describe the scenario and expected outcome:
+
+```
+// Pattern: [unit]_[scenario]_[expectedResult]
+// or: "should [expected behaviour] when [condition]"
+
+// Good
+test('calculateTotal returns zero for empty cart')
+test('should reject expired tokens')
+test('user_login_fails_with_wrong_password')
+
+// Bad
+test('calculateTotal')
+test('test1')
+test('it works')
+```
+
+**Apply:**
+- Read the name aloud—does it explain what's being tested?
+- Include the condition that triggers the behaviour
+- Be specific about the expected outcome
+
+---
+
+## Mocking Guidelines
+
+Mock at boundaries, not internals.
+
+### Mock These
+- External HTTP calls
+- Database (for unit tests)
+- Time/dates
+- Random number generators
+- File system (when necessary)
+
+### Don't Mock These
+- The code under test
+- Simple utility functions
+- Data transformations
+
+```typescript
+// Good - mocks external boundary
+const fetchUser = jest.spyOn(api, 'fetchUser').mockResolvedValue(mockUser);
+const result = await userService.getProfile(userId);
+expect(result.name).toBe(mockUser.name);
+
+// Bad - mocks internal implementation
+const validate = jest.spyOn(userService, 'validateId');
+userService.getProfile(userId);
+expect(validate).toHaveBeenCalled();  // Brittle
+```
+
+**Principle:** If you're mocking something you own, consider restructuring instead.
+
+---
+
+## Test Independence
+
+Each test must run in isolation.
+
+**Apply:**
+- Tests can run in any order
+- No shared mutable state between tests
+- Each test sets up its own data
+- Clean up after tests that use shared resources
+
+```python
+# Bad - depends on previous test
+def test_create_user():
+    global user_id
+    user_id = create_user().id
+
+def test_get_user():
+    user = get_user(user_id)  # Depends on test_create_user
+
+# Good - independent
+def test_get_user():
+    user = create_user()  # Creates own data
+    result = get_user(user.id)
+    assert result.id == user.id
+```
+
+---
+
+## Coverage Requirements
+
+Coverage is a tool, not a goal.
+
+| Type | Minimum | Target |
+|------|---------|--------|
+| Unit | 70% | 80% |
+| Integration | Key paths | Critical flows |
+| E2E | Happy paths | Core journeys |
+
+**Apply:**
+- Cover all branches of business logic
+- Don't chase 100%—diminishing returns
+- Missing coverage should be intentional
+
+**Red flags:**
+- 100% coverage but bugs still ship (testing wrong things)
+- Coverage exemptions everywhere
+- Tests that only run code without asserting
+
+---
+
+## Quick Reference
+
+| Principle | Guideline |
+|-----------|-----------|
+| Pyramid | 70% unit, 20% integration, 10% E2E |
+| Structure | AAA: Arrange, Act, Assert |
+| Naming | Describe scenario and expected outcome |
+| Mocking | Mock boundaries, not internals |
+| Independence | Each test runs in isolation |
+| Coverage | 70-80% unit, focus on business logic |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Writing new tests
+- Reviewing test code
+- Debugging flaky tests
+- Deciding what to test or skip
+- Setting up test infrastructure
+```
+
+## PRD Queue
+
+### PRD-LC-012-cloud-runtime-execution-bridge.json
+
+```json
+{
+  "id": "PRD-LC-012",
+  "title": "Cloud Runtime & Execution Bridge",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Establish the foundational bridge between the local VS Code workbench and the AKS cloud grid. Enables packaging local model assets and executing them on a remote containerized WASM/Python runtime with results streamed back to the IDE.",
+  "problem": [
+    "No functional bridge between local experimentation and cloud scale",
+    "Cloud runtime parity with local WASM/SIMD is not yet proven",
+    "Model assets are fragmented (WASM, Python scripts, config) and need a standard packaging format for upload",
+    "The 'Run in Cloud' command in VS Code is currently a non-functional placeholder"
+  ],
+  "solution": [
+    "Create a Dockerized cloud worker that mirrors the local Emscripten/Pyodide environment",
+    "Implement a packaging utility to bundle model code, configurations, and assumption references",
+    "Build the core Job API to handle upload, remote initialization, and execution",
+    "Stream binary results from the cloud worker directly to the existing local Results Panel"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "in-progress",
+      "notes": "Requires the bus:// protocol and pipeline DAG structure to be finalized."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-BRIDGE-01",
+      "title": "Cloud Worker Container (Parity Runtime)",
+      "story": "As a platform engineer, I want a containerized runtime that mirrors my local machine so I can guarantee byte-identical results.",
+      "acceptanceCriteria": [
+        "Dockerfile builds a Debian-based image with Emscripten and Pyodide runtimes.",
+        "Runtime supports WASM SIMD128 and 16-byte memory alignment.",
+        "Proof: A local 10K policy run yields the same result hash as the cloud container run.",
+        "Resource limits are enforceable (CPU/RAM) via K8s manifest."
+      ],
+      "tech_stack": ["Docker", "Emscripten", "Pyodide"],
+      "passes": false
+    },
+    {
+      "id": "US-BRIDGE-02",
+      "title": "Model Asset Packaging",
+      "story": "As an actuary, I want the system to automatically bundle all my model files for upload so I don't have to manage dependencies manually.",
+      "acceptanceCriteria": [
+        "Utility creates a .zip or .tar bundle containing: livecalc.config.json, all .wasm binaries, .py scripts, and assumption metadata.",
+        "Bundle includes a SHA-256 manifest of all assets for integrity checking.",
+        "Validation: Reject upload if mandatory assets defined in config are missing."
+      ],
+      "tech_stack": ["TypeScript", "JSZip"],
+      "passes": false
+    },
+    {
+      "id": "US-BRIDGE-03",
+      "title": "Local-to-Cloud Bridge API",
+      "story": "As a developer, I want a standard API to hand off my local model to the cloud grid.",
+      "acceptanceCriteria": [
+        "FastAPI endpoint: POST /v1/jobs/submit (Multipart upload).",
+        "Endpoint triggers the 'Initialization' of a cloud worker instance.",
+        "Returns a unique JobID and a WebSocket URL for progress/results streaming.",
+        "Authentication: Scopes the job to the user's JWT from Assumptions Manager."
+      ],
+      "tech_stack": ["FastAPI", "Python", "Redis (Job State)"],
+      "passes": false
+    },
+    {
+      "id": "US-BRIDGE-04",
+      "title": "Cloud Pipeline Reconstruction",
+      "story": "As a system, I need to rebuild the SharedArrayBuffer pipeline in the cloud exactly as it was configured locally.",
+      "acceptanceCriteria": [
+        "Cloud worker parses the uploaded livecalc.config.json.",
+        "Allocates a matching SharedArrayBuffer Data Bus in the container memory.",
+        "Initializes the pipeline nodes (C++/Python) according to the PRD-LC-010 Bus Protocol."
+      ],
+      "tech_stack": ["Node.js (Worker Host)", "SharedArrayBuffer"],
+      "passes": false
+    },
+    {
+      "id": "US-BRIDGE-05",
+      "title": "Cloud Result Streaming",
+      "story": "As an actuary, I want to see cloud results appear in my local Results Panel as if they were running locally.",
+      "acceptanceCriteria": [
+        "Job API streams binary result chunks over WebSocket using raw Uint8Arrays.",
+        "Local Results Panel consumes cloud stream and updates the visualization in real-time.",
+        "Handoff verification: 'Total NPV' matches between local and cloud runs."
+      ],
+      "tech_stack": ["WebSockets", "ResultsPanel API"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/Dockerfile.worker",
+    "livecalc-cloud/worker/package.json",
+    "livecalc-cloud/worker/src/main.ts",
+    "livecalc-cloud/worker/src/pipeline-loader.ts",
+    "livecalc-cloud/api/Dockerfile",
+    "livecalc-cloud/api/requirements.txt",
+    "livecalc-cloud/api/main.py",
+    "livecalc-cloud/api/routers/jobs.py",
+    "livecalc-cloud/api/models/job.py",
+    "livecalc-cloud/api/services/packaging.py",
+    "livecalc-vscode/src/cloud/model-packager.ts",
+    "livecalc-vscode/src/cloud/cloud-client.ts",
+    "livecalc-vscode/src/cloud/result-streamer.ts",
+    "livecalc-vscode/src/commands/run-cloud.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/commands/index.ts",
+      "changes": "Replace placeholder 'livecalc.runCloud' command with actual implementation"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add support for consuming cloud WebSocket result stream"
+    }
+  ],
+  "definitionOfDone": [
+    "Clicking 'Run in Cloud' in VS Code successfully executes the 1B/36s pipeline on a remote node.",
+    "Results from cloud are visually identical to local runs in the Results Panel.",
+    "All model assets are correctly packaged, hashed, and verified on the worker.",
+    "The cloud worker runtime supports SIMD math without performance degradation compared to local.",
+    "API documentation updated to reflect the new Bridge endpoints."
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "SIMD performance differs between local and cloud",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Benchmark early with identical WASM binary on both environments"
+    },
+    {
+      "risk": "SharedArrayBuffer unavailable in Node.js container",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Node.js 16+ supports SAB, verify during container build"
+    },
+    {
+      "risk": "WebSocket streaming introduces latency for large result sets",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Stream summary stats first, full results on-demand"
+    }
+  ]
+}
+```
+
+### PRD-LC-014-standards-documentation.json
+
+```json
+{
+  "id": "PRD-LC-014",
+  "title": "Project Standards & Architecture Documentation",
+  "type": "documentation",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Establish comprehensive project standards, coding conventions, and architectural documentation in FADE.md and standards/ directory. Ensures all future PRDs and development sessions have clear, unambiguous guidance on LiveCalc-specific principles, constraints, and patterns.",
+  "problem": [
+    "FADE.md contains generic placeholder content, not LiveCalc-specific context",
+    "No standards/*.md files exist despite being referenced in FADE.md",
+    "Critical architectural constraints (16-byte alignment, vanilla JS, API-first) not documented",
+    "New developers and AI agents lack clear guidance on project conventions",
+    "Risk of conflicting standards between documentation sources"
+  ],
+  "solution": [
+    "Update FADE.md with LiveCalc project overview, tech stack, and architecture",
+    "Create standards/coding.md with language-specific conventions and comment philosophy",
+    "Create standards/api-security.md with security-by-design principles",
+    "Create standards/infrastructure.md with 'X as code' requirements",
+    "Create standards/testing.md with performance benchmarking requirements",
+    "Create standards/git.md with commit conventions and branch strategy",
+    "Document all architectural constraints discovered in PRD-LC-001 through PRD-LC-010"
+  ],
+  "dependencies": [],
+  "technicalNotes": {
+    "fileFormat": "Markdown with YAML frontmatter for discoverability",
+    "structure": "Principle → Rationale → Examples pattern for each standard",
+    "references": "Link to external standards (Google Style Guide, PEP 8) rather than duplicate",
+    "validation": "Ensure no conflicting guidance between files"
+  },
+  "userStories": [
+    {
+      "id": "US-STD-01",
+      "title": "LiveCalc-Specific FADE.md",
+      "story": "As a developer or AI agent, I want FADE.md to accurately describe LiveCalc's architecture so I understand project context before working.",
+      "acceptanceCriteria": [
+        "Project Overview section describes LiveCalc's purpose: instant actuarial model feedback with WASM engine",
+        "Tech Stack section lists: C++ (engine), TypeScript (extension), Python (cloud API), WASM (Emscripten)",
+        "Architecture diagram shows: VS Code Extension → WASM Engine ← SharedArrayBuffer → Worker Pool",
+        "Repository link points to github.com/themitchelli/LiveCalc",
+        "Target Architecture section includes: API-first design, bus:// protocol, CalcEngine interface, zero-copy parallelism",
+        "Fragile Areas section removed (no known fragile code yet)",
+        "Off-Limits Modules section includes: livecalc-engine/cpp/build/ (generated), node_modules/ (dependencies)",
+        "Session Boundaries clarified: allowed (create features, tests, docs), requires approval (cloud infrastructure changes), never (commit secrets, modify vendor code)"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-STD-02",
+      "title": "Coding Standards",
+      "story": "As a developer, I want clear coding standards so my code is consistent with the project style.",
+      "acceptanceCriteria": [
+        "standards/coding.md created",
+        "References external style guides: Google TypeScript Guide, PEP 8, C++ Core Guidelines",
+        "Comment philosophy documented: 'Leave clear comments for ambiguous or non-obvious code. Do not over-comment self-documenting code. Respect human developers by assuming competence.'",
+        "LiveCalc-specific conventions:",
+        "  - TypeScript: camelCase for functions/variables, PascalCase for classes, UPPER_CASE for constants",
+        "  - C++: snake_case for functions/variables (matches actuarial convention), PascalCase for classes",
+        "  - Python: PEP 8 snake_case throughout",
+        "  - Naming: Use domain terms (policies, assumptions, projections) not generic terms (items, data, values)",
+        "SIMD alignment requirement documented: 'All SharedArrayBuffer allocations must be 16-byte aligned (not 8-byte) for SIMD compatibility. Use alignas(16) in C++.'",
+        "CalcEngine interface requirement: 'All calculation engines must implement CalcEngine interface (initialize, runChunk, dispose)'",
+        "Error handling: 'Throw exceptions with descriptive messages in C++/TypeScript. Return error codes in hot-path WASM functions for performance.'",
+        "File organization: 'Group by feature (pipeline/, assumptions-manager/) not by type (models/, services/)'",
+        "No conflicting guidance with other standards files"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-STD-03",
+      "title": "API & Security Standards",
+      "story": "As a developer, I want security-by-design principles documented so all APIs are built securely from the start.",
+      "acceptanceCriteria": [
+        "standards/api-security.md created",
+        "API-First Strategy documented: 'Design OpenAPI/Swagger specification before implementation. All cloud services expose REST APIs. VS Code integration consumes these APIs.'",
+        "Security by Design principle: 'Privacy and security are architectural requirements, not afterthoughts. All data flows must consider: authentication, authorization, encryption, audit logging.'",
+        "Authentication requirements:",
+        "  - JWT Bearer tokens for cloud API",
+        "  - Token validation against Assumptions Manager JWKS endpoint",
+        "  - Short-lived tokens (1 hour max)",
+        "  - Refresh token rotation",
+        "Authorization requirements:",
+        "  - Tenant isolation: users can only access their own data",
+        "  - Resource scoping: SAS tokens limited to tenant prefix",
+        "  - Quota enforcement: prevent resource exhaustion",
+        "Data protection:",
+        "  - TLS 1.3 for all network traffic",
+        "  - Encryption at rest for blob storage",
+        "  - No secrets in code/config (use Azure Key Vault)",
+        "  - Audit logging for all tenant actions",
+        "Input validation: 'Validate at system boundaries (API endpoints, file uploads). Trust internal interfaces. Fail fast with clear error messages.'",
+        "Error handling: 'Never expose stack traces or internal paths in API responses. Log detailed errors server-side, return generic messages to clients.'",
+        "Rate limiting: 'Implement per-tenant rate limits to prevent abuse'",
+        "CORS policy: 'Explicitly allow VS Code extension origin, deny all others'"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-STD-04",
+      "title": "Infrastructure as Code Standards",
+      "story": "As a platform engineer, I want infrastructure-as-code standards so all environments are reproducible and auditable.",
+      "acceptanceCriteria": [
+        "standards/infrastructure.md created",
+        "'Everything as Code' principle documented: 'All changeable components must be defined as code and deployed through automation. This includes: infrastructure (Terraform), configuration (JSON/YAML), secrets (Key Vault references), monitoring (Prometheus rules), documentation (Markdown).'",
+        "Terraform requirements:",
+        "  - Use Terraform for all Azure infrastructure",
+        "  - State stored in Azure Storage with locking",
+        "  - Separate state files per environment (dev, staging, prod)",
+        "  - Modules for reusable components (AKS cluster, storage account)",
+        "  - Variables for environment-specific values (no hardcoding)",
+        "  - Outputs for resource IDs needed by downstream tools",
+        "Configuration management:",
+        "  - Environment config in values-{env}.yaml files",
+        "  - Secrets referenced from Key Vault (never inline)",
+        "  - Feature flags in config files (not environment variables)",
+        "  - Schema validation for all config files (JSON Schema)",
+        "Deployment automation:",
+        "  - GitHub Actions for CI/CD",
+        "  - Helm charts for Kubernetes deployments",
+        "  - Automated testing before deployment (linting, unit tests, integration tests)",
+        "  - Blue/green or rolling updates (zero downtime)",
+        "Immutable infrastructure: 'Replace, do not modify. Container images are immutable. Infrastructure changes create new resources.'",
+        "Version control: 'All code, config, and IaC in Git. Tag releases with semantic versioning.'",
+        "Documentation as Code: 'API specs in OpenAPI YAML. Architecture diagrams in Mermaid/PlantUML. Keep docs in repo, not external wiki.'"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-STD-05",
+      "title": "Testing & Performance Standards",
+      "story": "As a developer, I want testing standards that include performance benchmarks so regressions are caught automatically.",
+      "acceptanceCriteria": [
+        "standards/testing.md created",
+        "Test pyramid documented: 'Many unit tests (70%), some integration tests (25%), few E2E tests (5%)'",
+        "Unit test requirements:",
+        "  - Co-located with source: same directory as *.test.ts or *_test.py",
+        "  - AAA pattern: Arrange, Act, Assert",
+        "  - Descriptive names: test_scenario_expectedBehavior or 'should do X when Y'",
+        "  - Fast: unit tests complete in <100ms each",
+        "  - Isolated: no shared state, no external dependencies",
+        "Integration test requirements:",
+        "  - Test component interactions (API → worker, extension → engine)",
+        "  - Use test doubles for slow/flaky external services",
+        "  - Tests in tests/ directory at project root",
+        "Performance benchmark requirements:",
+        "  - All performance-sensitive PRDs include benchmark targets in Definition of Done",
+        "  - Regression tests protect established benchmarks",
+        "  - Current benchmarks (from SPIKE-LC-007):",
+        "    * 10K × 1K multi-thread: ~370ms (5.4x speedup)",
+        "    * 100K × 1K multi-thread: ~3s (32M proj/sec)",
+        "    * 1M × 1K multi-thread: ~36s (27M proj/sec)",
+        "  - New features must not regress these targets by >10%",
+        "  - Benchmark script: npm run benchmark in livecalc-engine/js",
+        "Regression test requirements:",
+        "  - All PRDs must maintain passing tests from previous PRDs",
+        "  - Test suite runs on every commit (GitHub Actions)",
+        "  - Failed regression tests block merge to main",
+        "Coverage requirements:",
+        "  - Target: 80% line coverage for new code",
+        "  - Not a hard requirement: prefer meaningful tests over coverage percentage",
+        "  - Exclude generated code (WASM bindings, Protobuf) from coverage",
+        "Test organization:",
+        "  - Unit tests: same directory as source",
+        "  - Integration tests: tests/integration/",
+        "  - E2E tests: tests/e2e/",
+        "  - Benchmark tests: tests/benchmarks/",
+        "Mocking strategy: 'Mock at boundaries (file system, network). Do not mock internal business logic.'"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-STD-06",
+      "title": "Git & Documentation Standards",
+      "story": "As a team member, I want Git and documentation standards so commit history is clear and docs stay up-to-date.",
+      "acceptanceCriteria": [
+        "standards/git.md created",
+        "Commit message format: 'Use Conventional Commits: feat: / fix: / chore: / docs: / test: / refactor:'",
+        "Commit message examples:",
+        "  - 'feat: add remote step-through debugging API (PRD-LC-012 US-API-04)'",
+        "  - 'fix: prevent race condition in SAB offset allocation (PRD-LC-010 US-002)'",
+        "  - 'chore: upgrade TypeScript to 5.3.2'",
+        "  - 'docs: update FADE.md with architecture diagram'",
+        "Commit atomicity: 'One logical change per commit. If you can't describe it in one sentence, split it.'",
+        "Branch naming:",
+        "  - feature/PRD-LC-XXX-short-description",
+        "  - fix/issue-description",
+        "  - spike/exploration-topic",
+        "  - chore/maintenance-task",
+        "Branch lifecycle:",
+        "  - Create feature branch from main",
+        "  - Develop and test locally",
+        "  - Push to origin, create PR",
+        "  - Merge to main after review/tests pass",
+        "  - Delete branch after merge",
+        "PR requirements:",
+        "  - Title references PRD ID (if applicable)",
+        "  - Description summarizes changes and rationale",
+        "  - All tests pass",
+        "  - Code review from human (if available) or AI validation",
+        "FADE-specific conventions:",
+        "  - Co-authored commits: 'Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>'",
+        "  - PRD completion commits: 'feat: complete PRD-LC-XXX - Title (reference)'",
+        "  - Never commit to main directly (except initial setup)",
+        "standards/documentation.md created",
+        "Documentation philosophy: 'Documentation is code. It lives in the repo, versioned with the code it describes.'",
+        "README requirements:",
+        "  - Every package has README.md with: purpose, quick start, development setup, testing, deployment",
+        "  - Project root README: high-level overview, monorepo structure, getting started",
+        "API documentation:",
+        "  - OpenAPI/Swagger specs for all REST APIs",
+        "  - Generated from spec, not manually written",
+        "  - Kept in sync via CI validation",
+        "Code comments:",
+        "  - When to comment: 'Why' (rationale, constraints, non-obvious decisions)",
+        "  - When not to comment: 'What' (self-documenting code, obvious logic)",
+        "  - Example of good comment: '// 16-byte alignment required for SIMD compatibility'",
+        "  - Example of bad comment: '// Increment counter by one' (obvious)",
+        "Architecture docs:",
+        "  - High-level in FADE.md",
+        "  - Detailed design in docs/ directory",
+        "  - Diagrams in Mermaid or ASCII art (not binary images)",
+        "PRD documentation:",
+        "  - Canonical source in fade/prds/",
+        "  - Completed PRDs archived to fade/prd-archive/",
+        "  - Definition of Done includes 'Documentation updated'",
+        "Changelog: 'Maintain CHANGELOG.md at project root following Keep a Changelog format'"
+      ],
+      "passes": true
+    }
+  ],
+  "filesToCreate": [
+    "standards/coding.md",
+    "standards/api-security.md",
+    "standards/infrastructure.md",
+    "standards/testing.md",
+    "standards/git.md",
+    "standards/documentation.md"
+  ],
+  "filesToModify": [
+    {
+      "file": "FADE.md",
+      "changes": "Update with LiveCalc-specific project overview, tech stack, architecture, target patterns, and session boundaries"
+    }
+  ],
+  "definitionOfDone": [
+    "FADE.md accurately describes LiveCalc project (not generic template)",
+    "All 6 standards/*.md files created with comprehensive guidance",
+    "No conflicting standards between files (validated by reading all files)",
+    "Architecture diagram in FADE.md shows current system (VS Code + WASM + Workers)",
+    "All critical constraints documented (16-byte alignment, CalcEngine interface, API-first)",
+    "Security-by-design principles clearly stated",
+    "Everything-as-code requirements documented",
+    "Performance benchmark requirements included in testing standards",
+    "Comment philosophy clearly explained (clear for ambiguous, don't over-comment)",
+    "Git commit conventions documented with examples",
+    "Documentation reviewed for clarity and completeness"
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "FADE.md project overview complete",
+      "All referenced standards files exist",
+      "API-first strategy documented",
+      "Security-by-design principles documented",
+      "Everything-as-code requirements documented",
+      "No conflicting guidance"
+    ],
+    "niceToHave": [
+      "ADR (Architecture Decision Record) template",
+      "Onboarding checklist for new developers",
+      "Troubleshooting guide for common issues"
+    ]
+  },
+  "estimatedSessions": "1 FADE session",
+  "risks": [
+    {
+      "risk": "Standards too prescriptive, inhibit innovation",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Focus on principles over rules. Use 'prefer X' not 'must X' for non-critical items"
+    },
+    {
+      "risk": "Standards conflict with external guides (Google, PEP 8)",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Reference external guides, only override when LiveCalc-specific constraint requires it"
+    },
+    {
+      "risk": "Documentation becomes stale as code evolves",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Include 'Update documentation' in Definition of Done for all PRDs. Treat docs as code (review, version control)"
+    }
+  ]
+}
+```
+
+## Completed PRDs (Archive)
+
+- PRD-LC-001-cpp-projection-engine.json
+- PRD-LC-002-wasm-compilation-threading.json
+- PRD-LC-003-vscode-extension-foundation.json
+- PRD-LC-004-results-panel-visualisation.json
+- PRD-LC-005-auto-run-hot-reload.json
+- PRD-LC-006-assumptions-manager-integration.json
+- PRD-LC-010-modular-orchestration-layer.json
+- SPIKE-LC-007-engine-performance-infrastructure.json
+- SPIKE-SPIKE-LC-007-calcengine.json
+

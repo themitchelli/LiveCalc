@@ -1,0 +1,40 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log
+
+# TypeScript source (only built JS needed)
+**/*.ts
+!**/*.d.ts
+
+# Tests
+**/*.test.js
+**/*.test.ts
+__tests__/
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.*
+
+# Build artifacts (will be mounted or copied separately)
+dist/
+build/
