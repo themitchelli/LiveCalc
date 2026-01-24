@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
  * Status bar state for detailed tooltips
  */
 interface StatusBarState {
-  status: 'ready' | 'running' | 'completed' | 'error';
+  status: 'ready' | 'running' | 'completed' | 'error' | 'paused';
   lastRunTimeMs?: number;
   lastRunPolicies?: number;
   lastRunScenarios?: number;
@@ -12,6 +12,7 @@ interface StatusBarState {
   engineInitialized: boolean;
   configPath?: string;
   autoRunEnabled: boolean;
+  pausedPendingCount?: number;
 }
 
 /**
@@ -71,9 +72,39 @@ export class StatusBar {
   }
 
   /**
+   * Set status bar to paused state
+   * @param pendingCount Number of pending changes while paused
+   */
+  public setPaused(pendingCount: number): void {
+    this.state.status = 'paused';
+    this.state.pausedPendingCount = pendingCount;
+    this.updateStatusBarText();
+    this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    this.updateTooltip();
+  }
+
+  /**
+   * Check if status bar is in paused state
+   */
+  public isPaused(): boolean {
+    return this.state.status === 'paused';
+  }
+
+  /**
    * Update status bar text based on current state
    */
   private updateStatusBarText(): void {
+    // Paused state takes priority over ready state
+    if (this.state.status === 'paused') {
+      const pendingCount = this.state.pausedPendingCount || 0;
+      if (pendingCount > 0) {
+        this.statusBarItem.text = `$(debug-pause) LiveCalc: PAUSED (${pendingCount} changes)`;
+      } else {
+        this.statusBarItem.text = '$(debug-pause) LiveCalc: PAUSED';
+      }
+      return;
+    }
+
     // Only update if in ready state (other states have their own text)
     if (this.state.status !== 'ready') {
       return;
@@ -173,6 +204,15 @@ export class StatusBar {
       case 'error':
         lines.push('**LiveCalc: Error**');
         break;
+      case 'paused':
+        lines.push('**LiveCalc: Auto-run PAUSED**');
+        if (this.state.pausedPendingCount && this.state.pausedPendingCount > 0) {
+          lines.push(`\n${this.state.pausedPendingCount} pending change(s) will run on resume`);
+        } else {
+          lines.push('\nFile changes are being tracked');
+        }
+        lines.push('\n_Use "LiveCalc: Resume Auto-Run" or wait for auto-expire_');
+        break;
     }
 
     // Last run info
@@ -204,7 +244,14 @@ export class StatusBar {
     lines.push(`\n---\nEngine: ${engineState}`);
 
     // Auto-run state
-    const autoRunState = this.state.autoRunEnabled ? 'ON' : 'OFF';
+    let autoRunState: string;
+    if (this.state.status === 'paused') {
+      autoRunState = 'PAUSED';
+    } else if (this.state.autoRunEnabled) {
+      autoRunState = 'ON';
+    } else {
+      autoRunState = 'OFF';
+    }
     lines.push(`Auto-run: ${autoRunState}`);
 
     // Config path

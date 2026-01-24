@@ -1518,3 +1518,54 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (history section styles)
   - livecalc-vscode/package.json (commands and settings)
 - Tests: Extension compiles, type-checks, and packages successfully (311.71KB)
+
+## 2026-01-24 22:00 - US-007: Pause/Resume Auto-Run (PRD-LC-005) - COMPLETE
+
+- Implemented comprehensive pause/resume functionality for auto-run
+- Added PauseState interface tracking:
+  - isPaused boolean
+  - pendingChanges Set<string> for tracking files changed while paused
+  - pauseStartTime for timeout calculation
+  - pauseTimeoutHandle for auto-expire timer
+- Enhanced AutoRunController with pause methods:
+  - pause(): Starts pause state, sets up auto-expire timeout
+  - resume(): Clears pause state, triggers immediate run if changes pending
+  - togglePause(): Convenience method for keyboard shortcut
+  - isPaused(), getPauseState(), getPausedPendingChangeCount() for state inspection
+- Implemented auto-expire functionality:
+  - startPauseTimeout(): Sets timer based on pauseTimeoutMinutes setting
+  - restartPauseTimeout(): Handles config changes during pause
+  - clearPauseTimeout(): Cleanup on resume or dispose
+- Updated handleFileChange to track changes while paused instead of triggering runs
+- Enhanced StatusBar with paused state display:
+  - setPaused(pendingCount): Shows "$(debug-pause) LiveCalc: PAUSED (N changes)"
+  - Warning background color for visibility
+  - Detailed tooltip explaining paused state and pending changes
+- Added commands to package.json:
+  - livecalc.pauseAutoRun: Pause Auto-Run
+  - livecalc.resumeAutoRun: Resume Auto-Run
+  - livecalc.togglePause: Toggle Pause Auto-Run
+- Added keybinding: Cmd+Shift+L / Ctrl+Shift+L for togglePause
+  - Note: Changed from PRD-specified Cmd+Shift+P as that conflicts with VS Code command palette
+- Added livecalc.pauseTimeoutMinutes setting (default: 30, min: 1, max: 240)
+- Registered all commands in commands/index.ts with appropriate messages
+- Wired up onPauseStateChanged event in extension.ts to update status bar
+- Exported PauseState from auto-run/index.ts
+- All acceptance criteria verified:
+  - Command: 'LiveCalc: Pause Auto-Run' ✓
+  - Command: 'LiveCalc: Resume Auto-Run' ✓
+  - Keyboard shortcut: Cmd+Shift+L / Ctrl+Shift+L (pause toggle) ✓
+  - Status bar shows 'Auto-run: PAUSED' when paused ✓
+  - Status bar icon changes when paused (debug-pause icon) ✓
+  - Paused state shows count of pending changes: 'Paused (3 changes)' ✓
+  - Resume triggers immediate run if changes pending ✓
+  - Pause state does NOT persist across VS Code restarts ✓
+  - Pause auto-expires after configurable time: livecalc.pauseTimeoutMinutes (default: 30) ✓
+- Files changed:
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (PauseState, pause/resume methods, timeout handling)
+  - livecalc-vscode/src/auto-run/index.ts (export PauseState)
+  - livecalc-vscode/src/ui/status-bar.ts (setPaused method, paused state in tooltip)
+  - livecalc-vscode/src/commands/index.ts (register pause/resume/toggle commands)
+  - livecalc-vscode/src/extension.ts (wire up onPauseStateChanged event)
+  - livecalc-vscode/package.json (new commands, keybinding, pauseTimeoutMinutes setting)
+- Tests: Extension compiles, type-checks, and packages successfully (312.89KB)

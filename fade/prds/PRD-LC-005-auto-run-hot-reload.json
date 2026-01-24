@@ -204,7 +204,7 @@
         "state": "isPaused boolean + pendingChanges Set<string>",
         "timeout": "setTimeout to auto-resume after pauseTimeoutMinutes"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

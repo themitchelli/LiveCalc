@@ -148,5 +148,52 @@ export function registerCommands(
     })
   );
 
+  // Register pause auto-run command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.pauseAutoRun', () => {
+      if (autoRunController.isPaused()) {
+        vscode.window.showInformationMessage('LiveCalc: Auto-run is already paused');
+        return;
+      }
+      autoRunController.pause();
+      vscode.window.showInformationMessage('LiveCalc: Auto-run paused. Changes will be tracked until resumed.');
+    })
+  );
+
+  // Register resume auto-run command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.resumeAutoRun', async () => {
+      if (!autoRunController.isPaused()) {
+        vscode.window.showInformationMessage('LiveCalc: Auto-run is not paused');
+        return;
+      }
+      const pendingCount = autoRunController.getPausedPendingChangeCount();
+      await autoRunController.resume();
+      if (pendingCount > 0) {
+        vscode.window.showInformationMessage(`LiveCalc: Auto-run resumed. Running ${pendingCount} pending change(s)...`);
+      } else {
+        vscode.window.showInformationMessage('LiveCalc: Auto-run resumed');
+      }
+    })
+  );
+
+  // Register toggle pause command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.togglePause', async () => {
+      const wasPaused = autoRunController.isPaused();
+      await autoRunController.togglePause();
+      if (wasPaused) {
+        const pendingCount = autoRunController.getPausedPendingChangeCount();
+        if (pendingCount > 0) {
+          vscode.window.showInformationMessage(`LiveCalc: Auto-run resumed. Running ${pendingCount} pending change(s)...`);
+        } else {
+          vscode.window.showInformationMessage('LiveCalc: Auto-run resumed');
+        }
+      } else {
+        vscode.window.showInformationMessage('LiveCalc: Auto-run paused. Changes will be tracked until resumed.');
+      }
+    })
+  );
+
   logger.debug('All commands registered');
 }

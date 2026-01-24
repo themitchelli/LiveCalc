@@ -75,6 +75,22 @@ export function activate(context: vscode.ExtensionContext): void {
   // Update status bar with initial auto-run state
   statusBar.setAutoRunEnabled(autoRunController.isEnabled());
 
+  // Listen for pause state changes to update status bar
+  context.subscriptions.push(
+    autoRunController.onPauseStateChanged((pauseState) => {
+      if (!statusBar || !autoRunController) {
+        return;
+      }
+      if (pauseState.isPaused) {
+        statusBar.setPaused(pauseState.pendingChanges.size);
+      } else {
+        // Restore to normal auto-run state
+        statusBar.setAutoRunEnabled(autoRunController.isEnabled());
+        statusBar.setReady();
+      }
+    })
+  );
+
   // Register commands
   registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController);
 

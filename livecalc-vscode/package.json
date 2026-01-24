@@ -87,6 +87,21 @@
         "command": "livecalc.clearHistory",
         "title": "Clear Run History",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.pauseAutoRun",
+        "title": "Pause Auto-Run",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.resumeAutoRun",
+        "title": "Resume Auto-Run",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.togglePause",
+        "title": "Toggle Pause Auto-Run",
+        "category": "LiveCalc"
       }
     ],
     "keybindings": [
@@ -94,6 +109,12 @@
         "command": "livecalc.run",
         "key": "ctrl+shift+r",
         "mac": "cmd+shift+r",
+        "when": "editorLangId == mga || resourceFilename == livecalc.config.json"
+      },
+      {
+        "command": "livecalc.togglePause",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
         "when": "editorLangId == mga || resourceFilename == livecalc.config.json"
       }
     ],
@@ -191,6 +212,13 @@
           "minimum": 1,
           "maximum": 50,
           "description": "Number of runs to keep in history"
+        },
+        "livecalc.pauseTimeoutMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 240,
+          "description": "Auto-resume auto-run after this many minutes when paused"
         }
       }
     },

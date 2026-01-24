@@ -58,10 +58,24 @@ export class AutoRunController implements vscode.Disposable {
   private isRunning: boolean = false;
   private onAutoRunTriggeredEmitter = new vscode.EventEmitter<AutoRunTrigger>();
 
+  // Pause state (does NOT persist across VS Code restarts per AC)
+  private pauseState: PauseState = {
+    isPaused: false,
+    pendingChanges: new Set(),
+    pauseStartTime: null,
+    pauseTimeoutHandle: null,
+  };
+  private onPauseStateChangedEmitter = new vscode.EventEmitter<PauseState>();
+
   /**
    * Event fired when auto-run is triggered
    */
   public readonly onAutoRunTriggered = this.onAutoRunTriggeredEmitter.event;
+
+  /**
+   * Event fired when pause state changes
+   */
+  public readonly onPauseStateChanged = this.onPauseStateChangedEmitter.event;
 
   constructor(
     context: vscode.ExtensionContext,
@@ -107,6 +121,12 @@ export class AutoRunController implements vscode.Disposable {
         if (event.affectsConfiguration('livecalc.watchExclude')) {
           const excludes = vscode.workspace.getConfiguration('livecalc').get<string[]>('watchExclude', []);
           this.fileWatcher.setCustomExcludes(excludes);
+        }
+        if (event.affectsConfiguration('livecalc.pauseTimeoutMinutes')) {
+          // If paused, restart the timeout with new duration
+          if (this.pauseState.isPaused && this.pauseState.pauseStartTime) {
+            this.restartPauseTimeout();
+          }
         }
       })
     );
@@ -178,6 +198,212 @@ export class AutoRunController implements vscode.Disposable {
   }
 
   /**
+   * Get the pause timeout in minutes from configuration
+   */
+  private getPauseTimeoutMinutes(): number {
+    return vscode.workspace.getConfiguration('livecalc').get('pauseTimeoutMinutes', 30);
+  }
+
+  /**
+   * Check if auto-run is currently paused
+   */
+  public isPaused(): boolean {
+    return this.pauseState.isPaused;
+  }
+
+  /**
+   * Get the pause state (for UI display)
+   */
+  public getPauseState(): Readonly<PauseState> {
+    return {
+      ...this.pauseState,
+      pendingChanges: new Set(this.pauseState.pendingChanges),
+    };
+  }
+
+  /**
+   * Get count of pending changes while paused
+   */
+  public getPausedPendingChangeCount(): number {
+    return this.pauseState.pendingChanges.size;
+  }
+
+  /**
+   * Pause auto-run
+   * File changes will be tracked but not trigger runs until resumed
+   */
+  public pause(): void {
+    if (this.pauseState.isPaused) {
+      logger.debug('Auto-run already paused');
+      return;
+    }
+
+    this.pauseState.isPaused = true;
+    this.pauseState.pauseStartTime = new Date();
+    this.pauseState.pendingChanges.clear();
+
+    // Set up auto-expire timeout
+    this.startPauseTimeout();
+
+    // Update status bar
+    this.statusBar.setPaused(0);
+
+    // Emit state change
+    this.emitPauseStateChange();
+
+    logger.info(`Auto-run paused (will auto-resume in ${this.getPauseTimeoutMinutes()} minutes)`);
+  }
+
+  /**
+   * Resume auto-run
+   * If there are pending changes, trigger an immediate run
+   */
+  public async resume(): Promise<void> {
+    if (!this.pauseState.isPaused) {
+      logger.debug('Auto-run not paused');
+      return;
+    }
+
+    // Clear timeout
+    this.clearPauseTimeout();
+
+    const hadPendingChanges = this.pauseState.pendingChanges.size > 0;
+    const pendingFiles = Array.from(this.pauseState.pendingChanges);
+
+    // Reset pause state
+    this.pauseState.isPaused = false;
+    this.pauseState.pauseStartTime = null;
+    this.pauseState.pendingChanges.clear();
+
+    // Update status bar back to normal
+    this.statusBar.setAutoRunEnabled(this.enabled);
+    this.updateStatusBar();
+
+    // Emit state change
+    this.emitPauseStateChange();
+
+    logger.info(`Auto-run resumed${hadPendingChanges ? ` (${pendingFiles.length} pending changes)` : ''}`);
+
+    // If there were pending changes, trigger a run immediately
+    if (hadPendingChanges && this.enabled && this.runCommand) {
+      logger.info('Triggering run for pending changes after resume');
+      // Build trigger info from pending changes
+      const types: ('changed' | 'created' | 'deleted')[] = pendingFiles.map(() => 'changed');
+      this.lastTrigger = {
+        files: pendingFiles.map((f) => path.basename(f)),
+        types,
+        timestamp: new Date(),
+      };
+
+      // Execute the run
+      this.onAutoRunTriggeredEmitter.fire(this.lastTrigger);
+      this.cancelCurrentRun(true);
+      this.currentCancellation = new vscode.CancellationTokenSource();
+      this.cancelledForNewRun = false;
+      this.isRunning = true;
+      this.updateStatusBar();
+
+      try {
+        await this.runCommand({
+          isAutoRun: true,
+          triggerInfo: {
+            files: this.lastTrigger.files,
+            types: this.lastTrigger.types,
+          },
+        });
+      } catch (error) {
+        logger.debug('Auto-run after resume completed with error (handled by run command)');
+      } finally {
+        this.isRunning = false;
+        this.currentCancellation?.dispose();
+        this.currentCancellation = undefined;
+        this.cancelledForNewRun = false;
+        this.updateStatusBar();
+      }
+    }
+  }
+
+  /**
+   * Toggle pause state
+   */
+  public async togglePause(): Promise<void> {
+    if (this.pauseState.isPaused) {
+      await this.resume();
+    } else {
+      this.pause();
+    }
+  }
+
+  /**
+   * Start the pause timeout timer
+   */
+  private startPauseTimeout(): void {
+    this.clearPauseTimeout();
+
+    const timeoutMinutes = this.getPauseTimeoutMinutes();
+    const timeoutMs = timeoutMinutes * 60 * 1000;
+
+    this.pauseState.pauseTimeoutHandle = setTimeout(() => {
+      logger.info(`Auto-run pause expired after ${timeoutMinutes} minutes`);
+      this.resume();
+    }, timeoutMs);
+
+    logger.debug(`Pause timeout set for ${timeoutMinutes} minutes`);
+  }
+
+  /**
+   * Restart the pause timeout (when config changes)
+   */
+  private restartPauseTimeout(): void {
+    if (!this.pauseState.isPaused) {
+      return;
+    }
+
+    const timeoutMinutes = this.getPauseTimeoutMinutes();
+    const elapsed = this.pauseState.pauseStartTime
+      ? (Date.now() - this.pauseState.pauseStartTime.getTime()) / 60000
+      : 0;
+
+    // If we've already exceeded the new timeout, resume immediately
+    if (elapsed >= timeoutMinutes) {
+      logger.info('Pause timeout exceeded after config change, resuming');
+      this.resume();
+      return;
+    }
+
+    // Otherwise restart with the remaining time
+    const remainingMs = (timeoutMinutes - elapsed) * 60 * 1000;
+    this.clearPauseTimeout();
+
+    this.pauseState.pauseTimeoutHandle = setTimeout(() => {
+      logger.info(`Auto-run pause expired after ${timeoutMinutes} minutes`);
+      this.resume();
+    }, remainingMs);
+
+    logger.debug(`Pause timeout restarted with ${(remainingMs / 60000).toFixed(1)} minutes remaining`);
+  }
+
+  /**
+   * Clear the pause timeout timer
+   */
+  private clearPauseTimeout(): void {
+    if (this.pauseState.pauseTimeoutHandle) {
+      clearTimeout(this.pauseState.pauseTimeoutHandle);
+      this.pauseState.pauseTimeoutHandle = null;
+    }
+  }
+
+  /**
+   * Emit pause state change event
+   */
+  private emitPauseStateChange(): void {
+    this.onPauseStateChangedEmitter.fire({
+      ...this.pauseState,
+      pendingChanges: new Set(this.pauseState.pendingChanges),
+    });
+  }
+
+  /**
    * Check if a run is currently in progress
    */
   public isCurrentlyRunning(): boolean {
@@ -239,6 +465,16 @@ export class AutoRunController implements vscode.Disposable {
     if (event.isConfigFile && event.type === 'changed') {
       logger.info('Config file changed, reloading watchers');
       this.reloadConfigAndWatchers();
+    }
+
+    // If paused, track changes but don't trigger runs
+    if (this.pauseState.isPaused) {
+      this.pauseState.pendingChanges.add(event.uri.fsPath);
+      logger.debug(`Auto-run paused, tracking change: ${event.fileName} (${this.pauseState.pendingChanges.size} pending)`);
+      // Update status bar to show pending change count
+      this.statusBar.setPaused(this.pauseState.pendingChanges.size);
+      this.emitPauseStateChange();
+      return;
     }
 
     // Store the change info
@@ -402,6 +638,8 @@ export class AutoRunController implements vscode.Disposable {
     this.debouncer.dispose();
     this.fileWatcher.dispose();
     this.currentCancellation?.dispose();
+    this.clearPauseTimeout();
     this.onAutoRunTriggeredEmitter.dispose();
+    this.onPauseStateChangedEmitter.dispose();
   }
 }
