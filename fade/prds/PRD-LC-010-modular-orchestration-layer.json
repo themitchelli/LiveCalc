@@ -1,0 +1,345 @@
+{
+  "id": "PRD-LC-010",
+  "title": "Modular Orchestration Layer & Shared Data Bus",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Implements the 'Bus Protocol' for zero-copy engine orchestration. Replaces the single monolithic engine model with a Directed Acyclic Graph (DAG) of pluggable engines (WASM/Python) sharing a common SharedArrayBuffer Data Bus. Debugging is a first-class citizen with memory introspection, integrity checking, and automatic culprit identification.",
+  "origin": {
+    "concept": "Gemini",
+    "refinement": "Claude",
+    "date": "2026-01-24"
+  },
+  "problem": [
+    "Single-engine models are brittle and hard to extend with custom logic",
+    "Passing data between different model components currently requires slow serialization",
+    "No standardized way to mix high-speed C++ projections with flexible Python shocks",
+    "Opaque pipelines are impossible to debug: identifying which engine corrupted shared memory is a manual, error-prone process",
+    "No way to isolate which stage of a calculation is producing unexpected results"
+  ],
+  "solution": [
+    "Implement the 'bus://' protocol for logical memory addressing",
+    "Create a Central Orchestrator to manage the SharedArrayBuffer lifecycle",
+    "Assign 'Memory Offset Maps' to each engine in the pipeline",
+    "Enable zero-copy handoff between C++ and Python (Pyodide) workers",
+    "Integrated Debugging: First-class memory introspection, integrity checking, and automatic culprit identification",
+    "Pipeline nodes implement CalcEngine interface from SPIKE-LC-007"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-001",
+      "title": "Core C++ Engine",
+      "status": "complete"
+    },
+    {
+      "id": "PRD-LC-002",
+      "title": "WASM/SAB Threading",
+      "status": "complete"
+    },
+    {
+      "id": "SPIKE-LC-007",
+      "title": "Engine Performance Infrastructure (CalcEngine interface, SAB, Atomics)",
+      "status": "complete"
+    }
+  ],
+  "technicalNotes": {
+    "protocol": "bus://[category]/[name]",
+    "synchronization": "Atomics.wait / Atomics.notify",
+    "alignment": "16-byte alignment required for SIMD compatibility (alignas(16))",
+    "orchestratorLocation": "Orchestrator coordinates from main thread; SAB and workers run in Worker context",
+    "calcEngineInterface": "All pipeline nodes must implement CalcEngine interface (initialize, runChunk, dispose)",
+    "backwardCompatibility": "Single-engine configs continue to work without pipeline block",
+    "debugHooks": {
+      "snapshotCapability": "Every bus assignment includes non-destructive memory read during execution",
+      "integrityChecks": "CRC32 checksums on bus segments between node transitions",
+      "traceLogging": "All bus transitions recorded with nanosecond precision"
+    },
+    "memoryLimits": {
+      "browser": "~2GB practical limit for SharedArrayBuffer",
+      "node": "Limited by available system memory",
+      "recommendation": "Pre-calculate total memory requirement before allocation"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Declarative Pipeline Schema",
+      "story": "As a modeler, I want to define my calculation pipeline in livecalc.config.json so I can easily chain different engines together.",
+      "acceptanceCriteria": [
+        "Config schema supports optional 'pipeline.nodes' array",
+        "Each node specifies 'id', 'engine' (wasm/python), 'inputs', 'outputs'",
+        "Input/Output keys support the 'bus://' prefix for shared memory",
+        "Validation: Detect and error on circular dependencies in the DAG",
+        "Validation: Ensure output buffer size matches downstream input expectations",
+        "Single-engine configs (no pipeline block) continue to work unchanged",
+        "JSON Schema updated with pipeline definitions and validation"
+      ],
+      "technicalNotes": {
+        "configExample": {
+          "pipeline": {
+            "nodes": [
+              {"id": "esg", "engine": "wasm://esg-generator", "outputs": ["bus://scenarios/rates"]},
+              {"id": "projection", "engine": "wasm://livecalc", "inputs": ["bus://scenarios/rates"], "outputs": ["bus://results/npv"]}
+            ]
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "SAB Memory Offset Manager",
+      "story": "As a developer, I need the system to automatically calculate memory addresses so I don't have to manually manage pointers.",
+      "acceptanceCriteria": [
+        "Orchestrator parses pipeline and sums all 'bus://' resource requirements",
+        "Dynamic allocation of a single large SharedArrayBuffer",
+        "All allocations 16-byte aligned for SIMD compatibility",
+        "Generates 'MemoryOffsetMap' (JSON) sent to each worker at init",
+        "Workers map local pointers to global SAB offsets based on the map",
+        "Memory zeroed between runs for security (configurable for performance)",
+        "Clear error if total memory exceeds platform limits",
+        "Memory layout logged in debug mode for troubleshooting"
+      ],
+      "technicalNotes": {
+        "offsetMapSchema": {
+          "totalSize": "number (bytes)",
+          "blocks": [
+            {"name": "bus://scenarios/rates", "offset": 0, "size": 80000, "type": "Float64Array", "checksum": "uint32"},
+            {"name": "bus://results/npv", "offset": 80000, "size": 8000, "type": "Float64Array", "checksum": "uint32"}
+          ]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Atomic Signal Handoff",
+      "story": "As a user, I want the pipeline to run efficiently without the Orchestrator overhead slowing down the projections.",
+      "acceptanceCriteria": [
+        "Worker A signals completion via Atomics.store to a dedicated status byte",
+        "Worker B (chained) starts immediately via Atomics.wait/notify",
+        "Benchmark: Engine-to-engine handoff time < 1ms (zero-copy)",
+        "No data copied between workers during handoff",
+        "All bus transitions logged with nanosecond precision in debug mode",
+        "Fallback to message-based handoff if Atomics unavailable"
+      ],
+      "technicalNotes": {
+        "statusBytes": "First 64 bytes of SAB reserved for pipeline status flags",
+        "stateValues": {
+          "0": "IDLE",
+          "1": "RUNNING",
+          "2": "COMPLETE",
+          "3": "ERROR"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Pipeline Error Handling",
+      "story": "As an actuary, I need clear errors when a pipeline node fails so I can debug the issue.",
+      "acceptanceCriteria": [
+        "Failed node reports error with full context (node id, inputs, error message)",
+        "Pipeline halts gracefully on first error (fail-fast)",
+        "Partial results available up to failure point",
+        "Error propagates to results panel with actionable guidance",
+        "Option to continue pipeline despite errors (configurable)",
+        "Error state visible in pipeline debug view"
+      ],
+      "technicalNotes": {
+        "errorSchema": {
+          "nodeId": "string",
+          "stage": "init | execute | finalize",
+          "message": "string",
+          "inputSnapshot": "object (bus:// data at time of failure)",
+          "stack": "string (if available)"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Debug: Pipeline Visualization",
+      "story": "As an actuary, I want to see a visual representation of my pipeline so I can understand the data flow.",
+      "acceptanceCriteria": [
+        "Pipeline view shows DAG of nodes with connections",
+        "Each node shows: name, engine type, status (pending/running/complete/error)",
+        "Connections show bus:// resource names and data sizes",
+        "Real-time status updates during execution",
+        "Click node to see details (inputs, outputs, timing, checksums)",
+        "Failed nodes highlighted in red with error details"
+      ],
+      "technicalNotes": {
+        "visualization": "SVG-based DAG rendering in webview",
+        "layout": "Dagre.js or similar for automatic DAG layout"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Debug: Intermediate Data Inspection",
+      "story": "As an actuary, I want to see the data 'on the bus' between engines so I can debug complex pipelines without restarting.",
+      "acceptanceCriteria": [
+        "Results panel shows 'Pipeline Data' tab when pipeline is used",
+        "Dropdown to select any bus:// resource",
+        "Histogram and statistics for selected intermediate data",
+        "Time-travel debugging: Inspect memory state at specific scenario/policy offsets",
+        "Data table view with pagination for large arrays",
+        "Ability to export any bus:// resource to CSV",
+        "Comparison view: overlay two bus:// resources to see differences"
+      ],
+      "technicalNotes": {
+        "implementation": "Extend existing results panel",
+        "techStack": "Chart.js, vanilla JS (consistent with results panel)",
+        "snapshotStorage": "Keep last N snapshots in memory for time-travel"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Debug: Bus Integrity & Culprit Identification",
+      "story": "As a system engineer, I want the Orchestrator to automatically flag which engine corrupted a memory block so I can fix bugs in seconds.",
+      "acceptanceCriteria": [
+        "Orchestrator computes CRC32 checksum on bus segments after each node completes",
+        "Checksum stored with segment metadata for later verification",
+        "If downstream node receives unexpected data, automatic culprit identification",
+        "UI highlights upstream node in red when integrity check fails",
+        "Integrity report shows: expected checksum, actual checksum, diff location",
+        "Option to enable/disable integrity checks (performance tradeoff)",
+        "All integrity events logged in LiveCalc Output channel"
+      ],
+      "technicalNotes": {
+        "checksumAlgorithm": "CRC32 for speed (SubtleCrypto too slow for hot path)",
+        "storageLocation": "Checksum stored in MemoryOffsetMap metadata",
+        "overhead": "~1ms per MB when enabled"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Debug: Breakpoints and Step Execution",
+      "story": "As an actuary, I want to pause the pipeline between stages so I can inspect data before it flows to the next engine.",
+      "acceptanceCriteria": [
+        "Set breakpoints on pipeline nodes via UI or config",
+        "Pipeline pauses after breakpoint node completes",
+        "Inspect all bus:// data while paused (with checksums)",
+        "Step to next node manually",
+        "Continue to run remaining pipeline",
+        "Abort pipeline from paused state",
+        "Breakpoints persisted in workspace settings"
+      ],
+      "technicalNotes": {
+        "configOption": "pipeline.breakpoints: ['node-id-1', 'node-id-2']",
+        "uiIntegration": "Breakpoint toggle in pipeline visualization (click node)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Debug: Timing and Performance Profiling",
+      "story": "As a developer, I want detailed timing for each pipeline stage so I can identify bottlenecks.",
+      "acceptanceCriteria": [
+        "Each node reports: init time, execution time, handoff time",
+        "Pipeline summary shows total time and time per stage",
+        "Waterfall view of pipeline execution showing parallel/sequential",
+        "Identify slowest node automatically (highlighted)",
+        "Compare timing across runs (before/after optimization)",
+        "Export timing data as JSON for external analysis"
+      ],
+      "technicalNotes": {
+        "timing": "performance.now() for high-resolution timing",
+        "visualization": "Waterfall chart in results panel"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/js/src/orchestrator/pipeline-orchestrator.ts",
+    "livecalc-engine/js/src/orchestrator/memory-manager.ts",
+    "livecalc-engine/js/src/orchestrator/pipeline-validator.ts",
+    "livecalc-engine/js/src/orchestrator/atomic-signals.ts",
+    "livecalc-engine/js/src/orchestrator/integrity-checker.ts",
+    "livecalc-vscode/src/pipeline/pipeline-view.ts",
+    "livecalc-vscode/src/pipeline/data-inspector.ts",
+    "livecalc-vscode/src/pipeline/breakpoint-manager.ts",
+    "livecalc-vscode/src/pipeline/timing-profiler.ts",
+    "livecalc-vscode/src/pipeline/culprit-identifier.ts",
+    "livecalc-vscode/schemas/pipeline.schema.json"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add Pipeline Data tab with intermediate data inspection"
+    },
+    {
+      "file": "livecalc-vscode/schemas/livecalc.config.schema.json",
+      "changes": "Add pipeline configuration schema"
+    },
+    {
+      "file": "livecalc-engine/js/src/calc-engine.ts",
+      "changes": "Ensure CalcEngine interface supports pipeline context"
+    }
+  ],
+  "definitionOfDone": [
+    "Two WASM engines chained together via SAB with correct NPV output",
+    "Zero-copy verification: Handoff latency < 1ms",
+    "Debugging: Memory anomaly traced to specific EngineID in < 3 clicks",
+    "Integrity checks identify culprit node automatically",
+    "Regression: 1B/36s benchmark maintained for single-engine pipelines",
+    "Config validation prevents invalid pipeline deployments",
+    "Pipeline visualization shows real-time execution status",
+    "Intermediate data inspection works for all bus:// resources",
+    "Breakpoints pause execution and allow inspection",
+    "All 9 user stories pass acceptance criteria"
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Pipeline config schema validated",
+      "SAB memory management automated",
+      "Zero-copy handoff < 1ms",
+      "Error handling with partial results",
+      "Culprit identification in < 3 clicks"
+    ],
+    "niceToHave": [
+      "Time-travel debugging",
+      "Waterfall visualization",
+      "Cross-run timing comparison"
+    ]
+  },
+  "estimatedSessions": "5-6 FADE sessions",
+  "risks": [
+    {
+      "risk": "Race conditions in SAB",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Strict use of Atomics and immutable input buffers during execution"
+    },
+    {
+      "risk": "Memory fragmentation",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Single-allocation block-based approach for the duration of the run"
+    },
+    {
+      "risk": "Debug overhead impacts performance",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Debug features (checksums, snapshots) disabled by default"
+    },
+    {
+      "risk": "Browser SAB limits hit with large pipelines",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Pre-calculate memory requirements, warn before allocation"
+    },
+    {
+      "risk": "Checksum computation slows hot path",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "CRC32 for speed, optional enable/disable per run"
+    }
+  ]
+}
