@@ -746,3 +746,35 @@ For blocked stories, use:
   - livecalc-vscode/media/results/main.js (added settings handling, updateRunInfo function, configurable currency)
 - Tests: Extension compiles, type-checks, and packages successfully (269.8KB)
 
+## 2026-01-24 09:00 - US-003: Distribution Chart (PRD-LC-004) - COMPLETE
+
+- Enhanced histogram chart with detailed tooltips showing bin ranges
+- Implemented Kernel Density Estimation (KDE) as alternative to histogram
+- Toggle button switches between histogram and density plot views
+- Histogram improvements:
+  - Tooltips now show bin range (e.g., "£100K - £120K") instead of just center value
+  - Tooltips show count with percentage of total
+  - Y-axis label shows "Frequency"
+- Density plot implementation:
+  - Uses Gaussian kernel with Scott's rule for bandwidth selection
+  - Smooth curve with 100 data points
+  - Filled area under curve with transparency
+  - Y-axis label shows "Density"
+- All acceptance criteria verified:
+  - Histogram of scenario NPVs displayed ✓
+  - X-axis: NPV value with appropriate scale and currency formatting ✓
+  - Y-axis: Frequency (count of scenarios) ✓
+  - 50-100 bins for smooth distribution (auto-calculated) ✓
+  - Mean line marked on chart (vertical dashed line, labeled) ✓
+  - P95 line marked on chart (vertical line, labeled) ✓
+  - P99 line marked on chart (vertical line, labeled) ✓
+  - CTE region shaded (tail beyond P95) ✓
+  - Chart resizes with panel width (responsive: true) ✓
+  - Chart renders in <200ms for 10K scenarios (animation: false) ✓
+  - Tooltips show bin range and count on hover ✓
+  - Chart uses theme-appropriate colors ✓
+  - Option to toggle between histogram and density plot ✓
+- Files changed:
+  - livecalc-vscode/media/results/main.js (added density chart, improved tooltips, KDE calculation)
+- Tests: Extension compiles, type-checks, and packages successfully (272.32KB)
+

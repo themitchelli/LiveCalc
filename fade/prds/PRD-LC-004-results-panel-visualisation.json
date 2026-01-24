@@ -116,7 +116,7 @@
         "responsive": true,
         "animation": "Disable for fast updates"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

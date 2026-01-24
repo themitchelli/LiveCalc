@@ -14,6 +14,7 @@ let previousResults = null;
 let comparisonBaseline = null;
 let chart = null;
 let chartType = 'histogram'; // 'histogram' or 'density'
+let histogramBinData = { bins: [], binWidth: 0 }; // Store bin data for tooltips
 
 // Display settings (configurable from extension)
 let displaySettings = {
@@ -504,10 +505,33 @@ function initChart() {
             title: (items) => {
               if (items.length === 0) return '';
               const item = items[0];
+              const binIndex = item.dataIndex;
+              if (histogramBinData.isDensity) {
+                // For density plot, show the x value
+                const xValue = histogramBinData.bins[binIndex];
+                return formatCurrency(xValue, false);
+              }
+              if (histogramBinData.bins.length > 0 && histogramBinData.binWidth > 0) {
+                // For histogram, show bin range
+                const binCenter = histogramBinData.bins[binIndex];
+                const halfWidth = histogramBinData.binWidth / 2;
+                const binStart = binCenter - halfWidth;
+                const binEnd = binCenter + halfWidth;
+                return `${formatCurrency(binStart, false)} - ${formatCurrency(binEnd, false)}`;
+              }
               return `${item.label}`;
             },
             label: (item) => {
-              return `Count: ${item.raw}`;
+              if (histogramBinData.isDensity) {
+                // For density plot, show density value
+                const density = item.raw;
+                return `Density: ${density.toFixed(6)}`;
+              }
+              // For histogram, show count and percentage
+              const count = item.raw;
+              const total = histogramBinData.totalCount || 0;
+              const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+              return `Count: ${count.toLocaleString()} (${percentage}%)`;
             },
           },
         },
@@ -554,13 +578,39 @@ function initChart() {
 function updateChart(distribution, stats) {
   if (!chart || !distribution || distribution.length === 0) return;
 
+  if (chartType === 'histogram') {
+    updateHistogramChart(distribution, stats);
+  } else {
+    updateDensityChart(distribution, stats);
+  }
+}
+
+/**
+ * Update chart with histogram data
+ */
+function updateHistogramChart(distribution, stats) {
   // Calculate histogram bins
   const binCount = Math.min(Math.max(50, Math.sqrt(distribution.length)), 100);
   const { bins, counts, binWidth } = calculateHistogram(distribution, binCount);
 
+  // Store bin data for tooltips
+  histogramBinData = { bins, binWidth, totalCount: distribution.length, isDensity: false };
+
+  // Update chart type to bar
+  chart.config.type = 'bar';
+
   // Update chart data
   chart.data.labels = bins.map((b) => formatCurrency(b, false));
   chart.data.datasets[0].data = counts;
+  chart.data.datasets[0].backgroundColor = 'rgba(14, 99, 156, 0.7)';
+  chart.data.datasets[0].borderColor = 'rgba(14, 99, 156, 1)';
+  chart.data.datasets[0].borderWidth = 1;
+  chart.data.datasets[0].pointRadius = 0;
+  chart.data.datasets[0].fill = false;
+  chart.data.datasets[0].tension = 0;
+
+  // Update Y-axis title for histogram
+  chart.options.scales.y.title.text = 'Frequency';
 
   // Add percentile annotations
   const annotations = {};
@@ -663,6 +713,162 @@ function findBinIndex(value, bins, binWidth) {
   if (bins.length === 0) return 0;
   const min = bins[0] - binWidth / 2;
   return Math.min(Math.max(0, Math.floor((value - min) / binWidth)), bins.length - 1);
+}
+
+/**
+ * Update chart with density plot (Kernel Density Estimation)
+ */
+function updateDensityChart(distribution, stats) {
+  // Calculate kernel density estimate
+  const numPoints = 100; // Number of points in the density curve
+  const { xValues, densityValues, bandwidth } = calculateKDE(distribution, numPoints);
+
+  // Store for tooltips (use similar structure to histogram)
+  histogramBinData = {
+    bins: xValues,
+    binWidth: xValues.length > 1 ? xValues[1] - xValues[0] : 0,
+    totalCount: distribution.length,
+    isDensity: true,
+  };
+
+  // Update chart data for line chart
+  chart.config.type = 'line';
+  chart.data.labels = xValues.map((x) => formatCurrency(x, false));
+  chart.data.datasets[0].data = densityValues;
+  chart.data.datasets[0].backgroundColor = 'rgba(14, 99, 156, 0.3)';
+  chart.data.datasets[0].borderColor = 'rgba(14, 99, 156, 1)';
+
+  // Update Y-axis title for density
+  chart.options.scales.y.title.text = 'Density';
+  chart.data.datasets[0].borderWidth = 2;
+  chart.data.datasets[0].pointRadius = 0;
+  chart.data.datasets[0].fill = true;
+  chart.data.datasets[0].tension = 0.4;
+
+  // Add percentile annotations (same as histogram)
+  const annotations = {};
+
+  // Find indices for annotations using the xValues
+  const xStep = xValues.length > 1 ? xValues[1] - xValues[0] : 1;
+  const minX = xValues[0];
+
+  const getXIndex = (value) => {
+    const idx = Math.round((value - minX) / xStep);
+    return Math.min(Math.max(0, idx), xValues.length - 1);
+  };
+
+  // Mean line
+  const meanIndex = getXIndex(stats.mean);
+  annotations.meanLine = {
+    type: 'line',
+    xMin: meanIndex,
+    xMax: meanIndex,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderWidth: 2,
+    borderDash: [5, 5],
+    label: {
+      display: true,
+      content: 'Mean',
+      position: 'start',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      color: '#ffffff',
+      font: { size: 10 },
+    },
+  };
+
+  // P95 line
+  const p95Index = getXIndex(stats.p95);
+  annotations.p95Line = {
+    type: 'line',
+    xMin: p95Index,
+    xMax: p95Index,
+    borderColor: 'rgba(241, 76, 76, 0.8)',
+    borderWidth: 2,
+    label: {
+      display: true,
+      content: 'P95',
+      position: 'start',
+      backgroundColor: 'rgba(241, 76, 76, 0.7)',
+      color: '#ffffff',
+      font: { size: 10 },
+    },
+  };
+
+  // P99 line
+  const p99Index = getXIndex(stats.p99);
+  annotations.p99Line = {
+    type: 'line',
+    xMin: p99Index,
+    xMax: p99Index,
+    borderColor: 'rgba(204, 167, 0, 0.8)',
+    borderWidth: 2,
+    label: {
+      display: true,
+      content: 'P99',
+      position: 'start',
+      backgroundColor: 'rgba(204, 167, 0, 0.7)',
+      color: '#ffffff',
+      font: { size: 10 },
+    },
+  };
+
+  // CTE shaded region (tail beyond P95)
+  annotations.cteRegion = {
+    type: 'box',
+    xMin: p95Index,
+    xMax: xValues.length - 1,
+    backgroundColor: 'rgba(241, 76, 76, 0.15)',
+    borderWidth: 0,
+  };
+
+  chart.options.plugins.annotation.annotations = annotations;
+  chart.update('none');
+}
+
+/**
+ * Calculate Kernel Density Estimation using Gaussian kernel
+ * Uses Scott's rule for bandwidth selection
+ */
+function calculateKDE(data, numPoints) {
+  const n = data.length;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+
+  // Calculate standard deviation using population formula
+  const mean = data.reduce((a, b) => a + b, 0) / n;
+  const variance = data.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+  const stdDev = Math.sqrt(variance);
+
+  // Scott's rule for bandwidth: h = 1.06 * sigma * n^(-1/5)
+  const bandwidth = 1.06 * stdDev * Math.pow(n, -0.2);
+
+  // Extend the range slightly for smoother edges
+  const padding = 3 * bandwidth;
+  const xMin = min - padding;
+  const xMax = max + padding;
+  const step = (xMax - xMin) / (numPoints - 1);
+
+  const xValues = [];
+  const densityValues = [];
+
+  // Pre-calculate constants for Gaussian kernel
+  const factor = 1 / (n * bandwidth * Math.sqrt(2 * Math.PI));
+
+  for (let i = 0; i < numPoints; i++) {
+    const x = xMin + i * step;
+    xValues.push(x);
+
+    // Calculate density at this point using Gaussian kernel
+    let density = 0;
+    for (const xi of data) {
+      const u = (x - xi) / bandwidth;
+      density += Math.exp(-0.5 * u * u);
+    }
+    density *= factor;
+    densityValues.push(density);
+  }
+
+  return { xValues, densityValues, bandwidth };
 }
 
 /**
