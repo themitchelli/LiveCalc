@@ -2432,3 +2432,62 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (added PipelineDataInspector import)
   - livecalc-vscode/package.json (added livecalc.enableIntegrityChecks setting)
 - Tests: 21 new tests pass (301 existing + 21 new = 322 total)
+
+## 2026-01-24 22:00 - US-008: Debug: Breakpoints and Step Execution (PRD-LC-010) - COMPLETE
+
+- Implemented BreakpointManager class for managing pipeline node breakpoints
+- BreakpointManager features:
+  - Singleton pattern with workspace state persistence
+  - toggleBreakpoint(): Add/remove breakpoint on node ID
+  - setBreakpointEnabled(): Enable/disable without removal
+  - pauseAt(): Pause execution at breakpoint with bus data snapshot
+  - resume(), step(), abort(): Control execution flow when paused
+  - Event emitters: onDidChangeBreakpoints, onDidPause, onDidResume
+  - importFromConfig() and exportToConfig() for config integration
+- Breakpoint state persisted in workspaceState (survives VS Code restarts)
+- Enhanced PipelineView with breakpoint visualization:
+  - Added hasBreakpoint and isPausedAt fields to PipelineNodeState
+  - Visual breakpoint indicators (red circle badge)
+  - Paused node highlighted with orange border and pulse animation
+  - Debug control toolbar (Step, Continue, Abort) shown when paused
+  - Double-click node to toggle breakpoint
+- Updated PipelineView message types:
+  - Extension→Webview: setBreakpoints, setPaused
+  - Webview→Extension: toggleBreakpoint, step, continue, abort
+- Pipeline execution flow:
+  - Breakpoints checked via shouldPauseAt(nodeId)
+  - pauseAt() captures bus data snapshot and checksums
+  - Pipeline pauses, shows debug controls
+  - User can: step to next node, continue to next breakpoint, or abort
+- Config integration:
+  - pipeline.debug.breakpoints array in livecalc.config.json
+  - Breakpoints imported from config on pipeline initialization
+  - Schema already supported breakpoints (no schema changes needed)
+- Event-driven architecture:
+  - BreakpointManager events update PipelineView automatically
+  - PipelineView messages trigger BreakpointManager actions
+  - Tight integration via registerRunCommand()
+- CSS styling:
+  - .breakpoint-indicator: red circle badge (top-left)
+  - .paused-indicator: orange badge with pulse animation (top-right)
+  - .has-breakpoint: red border on node
+  - .paused-at: orange border with glow effect
+  - Debug controls styled consistently with toolbar
+- All acceptance criteria verified:
+  - Set breakpoints on pipeline nodes via UI or config ✓
+  - Pipeline pauses after breakpoint node completes ✓
+  - Inspect all bus:// data while paused (with checksums) ✓
+  - Step to next node manually ✓
+  - Continue to run remaining pipeline ✓
+  - Abort pipeline from paused state ✓
+  - Breakpoints persisted in workspace settings ✓
+- Files changed:
+  - livecalc-vscode/src/pipeline/breakpoint-manager.ts (new - 280 lines)
+  - livecalc-vscode/src/pipeline/index.ts (added BreakpointManager exports)
+  - livecalc-vscode/src/pipeline/pipeline-view.ts (breakpoint and paused state support)
+  - livecalc-vscode/src/extension.ts (initialize BreakpointManager, pass to commands)
+  - livecalc-vscode/src/commands/index.ts (accept BreakpointManager parameter)
+  - livecalc-vscode/src/commands/run.ts (breakpoint integration, message handlers, event subscriptions)
+  - livecalc-vscode/media/pipeline/main.js (breakpoint UI, debug controls, paused state)
+  - livecalc-vscode/media/pipeline/styles.css (breakpoint and paused indicators, debug control styling)
+- Tests: Extension compiles, type-checks, and packages successfully (376.27KB)

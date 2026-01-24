@@ -236,7 +236,7 @@
         "configOption": "pipeline.breakpoints: ['node-id-1', 'node-id-2']",
         "uiIntegration": "Breakpoint toggle in pipeline visualization (click node)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-009",
