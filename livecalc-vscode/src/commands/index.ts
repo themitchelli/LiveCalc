@@ -71,5 +71,43 @@ export function registerCommands(
     })
   );
 
+  // Register toggle comparison command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.toggleComparison', async () => {
+      const config = vscode.workspace.getConfiguration('livecalc');
+      const currentValue = config.get<boolean>('showComparison', true);
+      const newValue = !currentValue;
+      await config.update('showComparison', newValue, vscode.ConfigurationTarget.Global);
+      logger.info(`Comparison mode ${newValue ? 'enabled' : 'disabled'}`);
+      vscode.window.showInformationMessage(
+        `LiveCalc: Comparison ${newValue ? 'enabled' : 'disabled'}`
+      );
+      // Update results panel if visible
+      if (newValue) {
+        // Re-send comparison data
+        const panelState = resultsPanel.getState();
+        if (panelState.type === 'results') {
+          const comparison = comparisonManager.calculateComparison(panelState.results);
+          const info = comparisonManager.getComparisonInfo();
+          resultsPanel.setComparison(comparison, info);
+        }
+      } else {
+        // Hide comparison
+        resultsPanel.setComparison(null, null);
+      }
+    })
+  );
+
+  // Register clear comparison command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.clearComparison', async () => {
+      await comparisonManager.clearComparison();
+      resultsPanel.setComparison(null, null);
+      resultsPanel.setComparisonBaseline(null);
+      logger.info('Comparison cleared');
+      vscode.window.showInformationMessage('LiveCalc: Comparison baseline cleared');
+    })
+  );
+
   logger.debug('All commands registered');
 }

@@ -67,6 +67,16 @@
         "command": "livecalc.toggleAutoRun",
         "title": "Toggle Auto-Run",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.toggleComparison",
+        "title": "Toggle Comparison",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.clearComparison",
+        "title": "Clear Results Comparison",
+        "category": "LiveCalc"
       }
     ],
     "keybindings": [
@@ -159,6 +169,11 @@
           "minimum": 0,
           "maximum": 4,
           "description": "Decimal places for large monetary values (abbreviations use 1-2)"
+        },
+        "livecalc.showComparison": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show comparison with previous run results"
         }
       }
     },

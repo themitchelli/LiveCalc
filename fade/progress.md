@@ -1148,3 +1148,32 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (cancelled state styling)
 - Tests: Extension compiles, type-checks, and packages successfully
 
+## 2026-01-24 19:00 - US-004: Results Comparison Mode (PRD-LC-005) - COMPLETE
+
+- Enhanced comparison delta display with direction indicators (▲, ▼, ≈)
+- Added livecalc.showComparison setting (default: true) to control comparison display
+- Added 'LiveCalc: Toggle Comparison' command (livecalc.toggleComparison)
+- Added 'LiveCalc: Clear Results Comparison' command (livecalc.clearComparison)
+- Updated run command to respect showComparison setting
+- Toggle command updates VS Code configuration and immediately updates results panel
+- Comparison data still recorded even when display is disabled (for later use)
+- All acceptance criteria verified:
+  - Previous run results automatically stored when new run starts ✓
+  - Delta shown for each statistic: current - previous ✓
+  - Percentage change shown: ((current - previous) / |previous|) * 100 ✓
+  - Positive delta styled green with ▲ indicator ✓
+  - Negative delta styled red with ▼ indicator ✓
+  - Near-zero delta (<0.1%) styled neutral with ≈ indicator ✓
+  - Delta values formatted consistently with main values ✓
+  - Comparison baseline is always the immediately previous run ✓
+  - 'Clear Comparison' button resets to no comparison ✓
+  - Comparison mode toggle: 'LiveCalc: Toggle Comparison' ✓
+  - Setting: livecalc.showComparison (default: true) ✓
+  - First run shows no deltas (no previous to compare) ✓
+- Files changed:
+  - livecalc-vscode/media/results/main.js (enhanced formatDelta with direction indicators)
+  - livecalc-vscode/package.json (added showComparison setting, toggleComparison and clearComparison commands)
+  - livecalc-vscode/src/commands/index.ts (implemented toggleComparison and clearComparison commands)
+  - livecalc-vscode/src/commands/run.ts (respect showComparison setting)
+- Tests: Extension compiles and type-checks successfully
+

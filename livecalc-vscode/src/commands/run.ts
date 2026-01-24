@@ -217,19 +217,25 @@ export async function runCommand(
         // Send results to panel
         resultsPanel.setResults(resultsState);
 
-        // Handle comparison
-        const comparison = comparisonManager.calculateComparison(resultsState);
-        const comparisonInfo = comparisonManager.getComparisonInfo();
+        // Handle comparison (only if setting enabled)
+        const showComparison = vsConfig.get<boolean>('showComparison', true);
+        if (showComparison) {
+          const comparison = comparisonManager.calculateComparison(resultsState);
+          const comparisonInfo = comparisonManager.getComparisonInfo();
 
-        if (comparison && comparisonInfo) {
-          resultsPanel.setComparison(comparison, comparisonInfo);
-          logger.debug(
-            `Comparison to ${comparisonInfo.isPinned ? 'pinned' : 'previous'} baseline: ` +
-              `Mean delta ${comparison.deltas.mean.percentage.toFixed(1)}%`
-          );
+          if (comparison && comparisonInfo) {
+            resultsPanel.setComparison(comparison, comparisonInfo);
+            logger.debug(
+              `Comparison to ${comparisonInfo.isPinned ? 'pinned' : 'previous'} baseline: ` +
+                `Mean delta ${comparison.deltas.mean.percentage.toFixed(1)}%`
+            );
+          }
+        } else {
+          // Comparison disabled - don't show deltas
+          resultsPanel.setComparison(null, null);
         }
 
-        // Record this result for future comparison
+        // Record this result for future comparison (always, even if display disabled)
         await comparisonManager.recordResult(resultsState);
       } catch (error) {
         const elapsed = Date.now() - startTime;

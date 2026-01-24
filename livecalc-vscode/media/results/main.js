@@ -664,13 +664,27 @@ function calculateDelta(current, baseline) {
 }
 
 /**
- * Format delta for display
+ * Format delta for display with direction indicator
+ * - Positive: ▲ +£12,345 (+1.2%)
+ * - Negative: ▼ -£5,432 (-0.5%)
+ * - Neutral:  ≈ £0 (0.0%)
  */
 function formatDelta(delta) {
   const sign = delta.absolute >= 0 ? '+' : '';
   const formatted = formatCurrency(delta.absolute, false);
   const percent = delta.percentage.toFixed(1);
-  return `${sign}${formatted} (${sign}${percent}%)`;
+
+  // Add direction indicator based on delta direction
+  let indicator;
+  if (delta.direction === 'positive') {
+    indicator = '\u25B2'; // ▲
+  } else if (delta.direction === 'negative') {
+    indicator = '\u25BC'; // ▼
+  } else {
+    indicator = '\u2248'; // ≈
+  }
+
+  return `${indicator} ${sign}${formatted} (${sign}${percent}%)`;
 }
 
 /**
