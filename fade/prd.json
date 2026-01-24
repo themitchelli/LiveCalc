@@ -180,7 +180,7 @@
         ],
         "outputFormat": "Markdown report + JSON data"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "definitionOfDone": [

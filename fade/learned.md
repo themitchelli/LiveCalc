@@ -111,3 +111,15 @@ Only add learnings that are:
 - **What:** The /datasets/{id}/sample?n=10000&seed=42 endpoint returns the same 10K policies every time the same seed is used. This enables debugging and comparison: "preview was 1.9% off from full run" is meaningful when the sample is deterministic.
 - **Why it matters:** Random sampling is essential for large datasets but must be reproducible for debugging. Store the seed used for each preview so results can be recreated
 
+## 2026-01-24 - Cold vs warm worker pool timing matters for performance targets
+**Source:** SPIKE-LC-007 US-S05
+
+- **What:** Worker pool benchmarks show dramatically different speedups for cold (includes init + load) vs warm (valuation only) execution. For 10K×1K: cold=2.6x, warm=5.6x. The ~200ms overhead (init ~170ms, load ~25ms) is a fixed cost per pool creation.
+- **Why it matters:** When evaluating if a target like "4x speedup with 8 workers" is met, use warm timing for production scenarios where the pool is reused. Use cold timing for cold-start SLA validation. Document which metric you're measuring.
+
+## 2026-01-24 - Benchmark reports need clear baseline context
+**Source:** SPIKE-LC-007 US-S05
+
+- **What:** When comparing baseline vs spike, the baseline may not have all features (e.g., multi-threading was broken in baseline, so wasmMultiMs was null). Comparisons must account for what was actually measured vs what was expected.
+- **Why it matters:** A naive comparison showing "throughput decreased 91%" is misleading if baseline was single-threaded and spike is multi-threaded with different measurement points. Always verify what the baseline actually represents.
+

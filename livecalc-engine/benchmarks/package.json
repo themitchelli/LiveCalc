@@ -12,6 +12,8 @@
     "benchmark:quick": "tsx run-benchmarks.ts --no-native",
     "compare-simd": "tsx compare-simd.ts",
     "compare-simd:quick": "tsx compare-simd.ts --iterations 3 --warmup 1",
+    "report": "tsx generate-comparison-report.ts",
+    "report:help": "tsx generate-comparison-report.ts --help",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
