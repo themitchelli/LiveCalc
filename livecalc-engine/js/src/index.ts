@@ -251,6 +251,17 @@ export {
   MemoryOffsetManager,
   MemoryAllocationError,
   parseBusResourceSize,
+  // Atomic signals for node coordination
+  AtomicSignalManager,
+  MessageBasedSignalManager,
+  NodeState,
+  NODE_STATE_NAMES,
+  createSignalManager,
+  isAtomicSignalManager,
+  isAtomicsWaitAvailable,
+  isAtomicsNotifyAvailable,
+  getHighResolutionTimestamp,
+  formatNanoseconds,
 } from './orchestrator/index.js';
 export type {
   MemoryBlock,
@@ -259,4 +270,8 @@ export type {
   MemoryManagerConfig,
   BusResourceRequirement,
   TypedArrayType,
+  // Atomic signal types
+  WaitResult,
+  SignalTiming,
+  MessageHandoffConfig,
 } from './orchestrator/index.js';

@@ -130,12 +130,13 @@
         "statusBytes": "First 64 bytes of SAB reserved for pipeline status flags",
         "stateValues": {
           "0": "IDLE",
-          "1": "RUNNING",
-          "2": "COMPLETE",
-          "3": "ERROR"
+          "1": "WAITING",
+          "2": "RUNNING",
+          "3": "COMPLETE",
+          "4": "ERROR"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

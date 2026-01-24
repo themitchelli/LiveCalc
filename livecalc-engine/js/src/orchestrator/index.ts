@@ -22,3 +22,23 @@ export type {
   BusResourceRequirement,
   TypedArrayType,
 } from './memory-manager.js';
+
+// Atomic signal manager for node coordination
+export {
+  AtomicSignalManager,
+  MessageBasedSignalManager,
+  NodeState,
+  NODE_STATE_NAMES,
+  createSignalManager,
+  isAtomicSignalManager,
+  isAtomicsWaitAvailable,
+  isAtomicsNotifyAvailable,
+  getHighResolutionTimestamp,
+  formatNanoseconds,
+} from './atomic-signals.js';
+
+export type {
+  WaitResult,
+  SignalTiming,
+  MessageHandoffConfig,
+} from './atomic-signals.js';

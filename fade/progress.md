@@ -2168,3 +2168,45 @@ For blocked stories, use:
   - livecalc-engine/js/src/index.ts (added orchestrator exports)
   - livecalc-engine/js/tests/memory-manager.test.ts (new - 41 tests)
 - Tests: 221 total tests pass (180 existing + 41 new)
+
+## 2026-01-24 18:45 - US-003: Atomic Signal Handoff (PRD-LC-010) - COMPLETE
+
+- Implemented AtomicSignalManager class for zero-copy pipeline node coordination
+- Uses SharedArrayBuffer and Atomics for efficient inter-worker signaling
+- State machine with five states: IDLE, WAITING, RUNNING, COMPLETE, ERROR
+- Signal transitions via Atomics.store() with Atomics.notify() to wake waiters
+- Wait operations via Atomics.wait() in workers (blocking), polling fallback in main thread
+- High-resolution timing with nanosecond precision using performance.now()
+- Created atomic-signals.ts with:
+  - NodeState enum (IDLE=0, WAITING=1, RUNNING=2, COMPLETE=3, ERROR=4)
+  - NODE_STATE_NAMES for human-readable logging
+  - AtomicSignalManager class with signal(), waitFor(), waitForAll(), reset(), resetAll()
+  - WaitResult interface with success, observedState, waitTimeNs, timedOut
+  - SignalTiming interface for transition logging with nanosecond timestamps
+  - isAtomicsWaitAvailable() and isAtomicsNotifyAvailable() detection functions
+  - getHighResolutionTimestamp() returning nanoseconds
+  - formatNanoseconds() for human-readable output (ns, µs, ms, s)
+  - calculateHandoffLatency() and getAllHandoffLatencies() for performance analysis
+  - AtomicSignalManager.calculateSize() for 16-byte aligned status region sizing
+  - AtomicSignalManager.attach() for workers to attach to existing buffer
+- Created MessageBasedSignalManager as fallback for environments without Atomics:
+  - Same API as AtomicSignalManager but uses Promise-based waiting
+  - Suitable for browsers without cross-origin isolation or SharedArrayBuffer
+- Created createSignalManager() factory function that auto-selects implementation
+- Benchmark results:
+  - Synchronous signal overhead: < 100µs (measured < 50µs in tests)
+  - Zero data copying during handoff (just state flag update)
+  - Atomics.notify() wakes all waiters immediately
+- All acceptance criteria verified:
+  - Worker A signals completion via Atomics.store to a dedicated status byte ✓
+  - Worker B (chained) starts immediately via Atomics.wait/notify ✓
+  - Benchmark: Engine-to-engine handoff time < 1ms (zero-copy) ✓ (measured < 100µs)
+  - No data copied between workers during handoff ✓
+  - All bus transitions logged with nanosecond precision in debug mode ✓
+  - Fallback to message-based handoff if Atomics unavailable ✓
+- Files changed:
+  - livecalc-engine/js/src/orchestrator/atomic-signals.ts (new - AtomicSignalManager)
+  - livecalc-engine/js/src/orchestrator/index.ts (added atomic signal exports)
+  - livecalc-engine/js/src/index.ts (added atomic signal exports)
+  - livecalc-engine/js/tests/atomic-signals.test.ts (new - 50 tests)
+- Tests: 271 total tests pass (221 existing + 50 new)
