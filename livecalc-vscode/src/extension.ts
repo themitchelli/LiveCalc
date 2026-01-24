@@ -11,7 +11,7 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
-import { PipelineView } from './pipeline';
+import { PipelineView, PipelineDataInspector } from './pipeline';
 import {
   AuthManager,
   AMStatusBar,
@@ -36,6 +36,7 @@ let comparisonManager: ComparisonManager | undefined;
 let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
 let pipelineView: PipelineView | undefined;
+let pipelineDataInspector: PipelineDataInspector | undefined;
 let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
 let amCache: AMCache | undefined;
@@ -88,14 +89,18 @@ export function activate(context: vscode.ExtensionContext): void {
   pipelineView = PipelineView.getInstance(context.extensionUri);
   context.subscriptions.push(pipelineView);
 
+  // Create pipeline data inspector
+  pipelineDataInspector = new PipelineDataInspector();
+  context.subscriptions.push(pipelineDataInspector);
+
   // Create auto-run controller
   autoRunController = new AutoRunController(context, configLoader, statusBar);
   context.subscriptions.push(autoRunController);
 
   // Set up auto-run to execute the run command
   autoRunController.setRunCommand(async (options) => {
-    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager && pipelineView) {
-      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, options);
+    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager && pipelineView && pipelineDataInspector) {
+      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, options);
     }
   });
 
@@ -192,7 +197,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, authManager, amStatusBar, amCache, assumptionTreeProvider);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, pipelineDataInspector, authManager, amStatusBar, amCache, assumptionTreeProvider);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();

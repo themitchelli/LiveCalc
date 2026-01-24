@@ -5,6 +5,7 @@ import { ComparisonInfo } from './comparison';
 import { RunHistoryEntry } from '../auto-run/run-history';
 import { LiveCalcError, LiveCalcWarning, getErrorTitle } from './error-types';
 import { logger } from '../logging/logger';
+import { PipelineDataState } from '../pipeline/data-inspector';
 
 /**
  * Display settings for the webview
@@ -57,7 +58,8 @@ export type WebviewMessage =
   | { type: 'setComparisonBaseline'; distribution: number[] | null }
   | { type: 'setTriggerInfo'; trigger: TriggerInfo | null }
   | { type: 'setHistory'; entries: RunHistoryEntry[] }
-  | { type: 'setHistoryResults'; results: ResultsState | null; runId: string };
+  | { type: 'setHistoryResults'; results: ResultsState | null; runId: string }
+  | { type: 'setPipelineData'; pipelineData: PipelineDataState | null };
 
 /**
  * Message types from webview to extension
@@ -77,7 +79,11 @@ export type ExtensionMessage =
   | { type: 'viewHistoryRun'; runId: string }
   | { type: 'compareWithHistory'; runId: string }
   | { type: 'exportHistory' }
-  | { type: 'clearHistory' };
+  | { type: 'clearHistory' }
+  | { type: 'selectBusResource'; resourceName: string }
+  | { type: 'exportBusResource'; resourceName: string }
+  | { type: 'compareBusResources'; resourceA: string; resourceB: string }
+  | { type: 'inspectOffset'; resourceName: string; offset: number };
 
 /**
  * Results Panel provider for displaying valuation results in a webview
@@ -237,6 +243,13 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public setHistory(entries: RunHistoryEntry[]): void {
     this.postMessage({ type: 'setHistory', entries });
+  }
+
+  /**
+   * Set pipeline data for intermediate data inspection
+   */
+  public setPipelineData(pipelineData: PipelineDataState | null): void {
+    this.postMessage({ type: 'setPipelineData', pipelineData });
   }
 
   /**
@@ -606,6 +619,173 @@ export class ResultsPanel implements vscode.Disposable {
         </div>
         <div class="chart-container">
           <canvas id="distribution-chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Pipeline Data Tab (shown when pipeline is used) -->
+      <section id="pipeline-data-section" class="pipeline-data-section hidden">
+        <div class="pipeline-data-header">
+          <h3>Pipeline Data</h3>
+          <div class="pipeline-data-controls">
+            <select id="bus-resource-select" class="bus-resource-select" title="Select bus resource">
+              <option value="">Select a bus resource...</option>
+              <!-- Populated dynamically -->
+            </select>
+            <button id="export-bus-resource-btn" class="btn btn-small" title="Export resource to CSV" disabled>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export CSV
+            </button>
+            <select id="comparison-resource-select" class="comparison-resource-select hidden" title="Compare with...">
+              <option value="">Compare with...</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Empty state when no resource selected -->
+        <div id="bus-data-empty" class="bus-data-empty">
+          <p>Select a bus resource to inspect intermediate data.</p>
+        </div>
+
+        <!-- Statistics Grid for selected resource -->
+        <div id="bus-data-stats" class="bus-data-stats hidden">
+          <h4 id="selected-resource-name">bus://...</h4>
+          <div class="bus-stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Mean</div>
+              <div class="stat-value" id="bus-stat-mean">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Std Dev</div>
+              <div class="stat-value" id="bus-stat-stddev">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Min / Max</div>
+              <div class="stat-value" id="bus-stat-minmax">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">P50 (Median)</div>
+              <div class="stat-value" id="bus-stat-p50">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">P90</div>
+              <div class="stat-value" id="bus-stat-p90">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">P95</div>
+              <div class="stat-value" id="bus-stat-p95">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Count</div>
+              <div class="stat-value" id="bus-stat-count">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Checksum</div>
+              <div class="stat-value" id="bus-stat-checksum">-</div>
+            </div>
+          </div>
+
+          <!-- Histogram for intermediate data -->
+          <div class="bus-chart-container">
+            <canvas id="bus-histogram-chart"></canvas>
+          </div>
+
+          <!-- Time-travel controls -->
+          <div class="time-travel-controls">
+            <label>
+              Time-travel:
+              <select id="snapshot-selector" title="Select snapshot">
+                <option value="latest">Latest</option>
+                <!-- Populated dynamically with timestamps -->
+              </select>
+            </label>
+            <label>
+              Inspect offset:
+              <input type="number" id="offset-input" min="0" placeholder="0" title="Scenario/policy offset">
+              <button id="inspect-offset-btn" class="btn btn-small">Inspect</button>
+            </label>
+            <span id="offset-value" class="offset-value hidden">Value: <strong id="offset-value-display">-</strong></span>
+          </div>
+
+          <!-- Data Table View with Pagination -->
+          <details id="bus-data-table-section">
+            <summary>
+              <span class="section-title">Data Table</span>
+              <span class="expand-icon"></span>
+            </summary>
+            <div class="section-content">
+              <div class="pagination-controls">
+                <button id="prev-page-btn" class="btn btn-small" disabled>Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page-btn" class="btn btn-small" disabled>Next</button>
+                <select id="page-size-select" title="Rows per page">
+                  <option value="50">50 rows</option>
+                  <option value="100" selected>100 rows</option>
+                  <option value="500">500 rows</option>
+                  <option value="1000">1000 rows</option>
+                </select>
+              </div>
+              <table id="bus-data-table" class="bus-data-table">
+                <thead>
+                  <tr>
+                    <th>Index</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="bus-data-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <!-- Comparison View -->
+          <div id="comparison-view" class="comparison-view hidden">
+            <h4>Comparison: <span id="comparison-summary">-</span></h4>
+            <div class="comparison-stats">
+              <div class="stat-card">
+                <div class="stat-label">Total Differences</div>
+                <div class="stat-value" id="comp-total-diffs">-</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Max Abs Diff</div>
+                <div class="stat-value" id="comp-max-diff">-</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Mean Abs Diff</div>
+                <div class="stat-value" id="comp-mean-diff">-</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Diff %</div>
+                <div class="stat-value" id="comp-diff-pct">-</div>
+              </div>
+            </div>
+            <details id="comparison-details-section">
+              <summary>
+                <span class="section-title">Difference Details (first 100)</span>
+                <span class="expand-icon"></span>
+              </summary>
+              <div class="section-content">
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Index</th>
+                      <th>Value A</th>
+                      <th>Value B</th>
+                      <th>Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comparison-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
         </div>
       </section>
 

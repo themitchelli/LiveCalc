@@ -24,3 +24,11 @@ export {
   PipelineViewMessage,
   PipelineWebviewMessage,
 } from './pipeline-view';
+
+export {
+  PipelineDataInspector,
+  BusResourceSnapshot,
+  PipelineDataState,
+  IntermediateDataStatistics,
+  IntermediateHistogramData,
+} from './data-inspector';

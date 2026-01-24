@@ -192,6 +192,65 @@ function setupEventListeners() {
     vscode.postMessage({ type: 'clearHistory' });
   });
 
+  // Pipeline data - bus resource selection
+  document.getElementById('bus-resource-select')?.addEventListener('change', (e) => {
+    const resourceName = e.target.value;
+    selectBusResource(resourceName);
+  });
+
+  // Pipeline data - export bus resource
+  document.getElementById('export-bus-resource-btn')?.addEventListener('click', () => {
+    if (selectedBusResource) {
+      vscode.postMessage({ type: 'exportBusResource', resourceName: selectedBusResource.name });
+    }
+  });
+
+  // Pipeline data - comparison resource selection
+  document.getElementById('comparison-resource-select')?.addEventListener('change', (e) => {
+    const resourceNameB = e.target.value;
+    if (resourceNameB) {
+      compareBusResources(resourceNameB);
+    } else {
+      hideComparisonView();
+      comparisonResourceB = null;
+    }
+  });
+
+  // Pipeline data - inspect offset
+  document.getElementById('inspect-offset-btn')?.addEventListener('click', () => {
+    const offsetInput = document.getElementById('offset-input');
+    if (offsetInput && offsetInput.value) {
+      const offset = parseInt(offsetInput.value, 10);
+      inspectOffset(offset);
+    }
+  });
+
+  // Pipeline data - pagination
+  document.getElementById('prev-page-btn')?.addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      updateDataTable(selectedBusResource.data);
+    }
+  });
+
+  document.getElementById('next-page-btn')?.addEventListener('click', () => {
+    if (selectedBusResource) {
+      const totalPages = Math.ceil(selectedBusResource.data.length / pageSize);
+      if (currentPage < totalPages) {
+        currentPage++;
+        updateDataTable(selectedBusResource.data);
+      }
+    }
+  });
+
+  document.getElementById('page-size-select')?.addEventListener('change', (e) => {
+    pageSize = parseInt(e.target.value, 10);
+    currentPage = 1;
+    if (selectedBusResource) {
+      updateDataTable(selectedBusResource.data);
+    }
+  });
+
   // Handle messages from extension
   window.addEventListener('message', (event) => {
     const message = event.data;
@@ -279,6 +338,9 @@ function handleMessage(message) {
       break;
     case 'setHistoryResults':
       showHistoryResults(message.results, message.runId);
+      break;
+    case 'setPipelineData':
+      setPipelineData(message.pipelineData);
       break;
   }
 }
@@ -1821,6 +1883,434 @@ function saveState() {
     previousResults,
     comparisonBaseline,
   });
+}
+
+// ============================================
+// Pipeline Data Inspection
+// ============================================
+
+let currentPipelineData = null;
+let selectedBusResource = null;
+let busHistogramChart = null;
+let currentPage = 1;
+let pageSize = 100;
+let comparisonResourceB = null;
+
+/**
+ * Set pipeline data from orchestrator
+ * @param {Object} pipelineData - PipelineDataState with bus resources
+ */
+function setPipelineData(pipelineData) {
+  currentPipelineData = pipelineData;
+
+  if (!pipelineData || !pipelineData.resources || pipelineData.resources.length === 0) {
+    // Hide pipeline data section
+    document.getElementById('pipeline-data-section')?.classList.add('hidden');
+    return;
+  }
+
+  // Show pipeline data section
+  document.getElementById('pipeline-data-section')?.classList.remove('hidden');
+
+  // Populate bus resource dropdown
+  const select = document.getElementById('bus-resource-select');
+  if (select) {
+    select.innerHTML = '<option value="">Select a bus resource...</option>';
+    pipelineData.resources.forEach((resource) => {
+      const option = document.createElement('option');
+      option.value = resource.name;
+      option.textContent = `${resource.name} (${resource.elementCount} elements)`;
+      select.appendChild(option);
+    });
+  }
+
+  // Populate comparison dropdown
+  const compSelect = document.getElementById('comparison-resource-select');
+  if (compSelect) {
+    compSelect.innerHTML = '<option value="">Compare with...</option>';
+    pipelineData.resources.forEach((resource) => {
+      const option = document.createElement('option');
+      option.value = resource.name;
+      option.textContent = resource.name;
+      compSelect.appendChild(option);
+    });
+  }
+
+  // Reset selection
+  selectedBusResource = null;
+  showBusDataEmpty();
+}
+
+/**
+ * Show empty state for bus data
+ */
+function showBusDataEmpty() {
+  document.getElementById('bus-data-empty')?.classList.remove('hidden');
+  document.getElementById('bus-data-stats')?.classList.add('hidden');
+  document.getElementById('export-bus-resource-btn')?.setAttribute('disabled', 'disabled');
+}
+
+/**
+ * Handle bus resource selection
+ * @param {string} resourceName - Bus resource name
+ */
+function selectBusResource(resourceName) {
+  if (!currentPipelineData || !resourceName) {
+    showBusDataEmpty();
+    return;
+  }
+
+  const resource = currentPipelineData.resources.find((r) => r.name === resourceName);
+  if (!resource) {
+    showBusDataEmpty();
+    return;
+  }
+
+  selectedBusResource = resource;
+
+  // Show stats section, hide empty
+  document.getElementById('bus-data-empty')?.classList.add('hidden');
+  document.getElementById('bus-data-stats')?.classList.remove('hidden');
+  document.getElementById('export-bus-resource-btn')?.removeAttribute('disabled');
+
+  // Update resource name
+  const nameEl = document.getElementById('selected-resource-name');
+  if (nameEl) {
+    nameEl.textContent = resource.name;
+  }
+
+  // Calculate and show statistics
+  const stats = calculateBusStatistics(resource.data);
+  updateBusStatistics(stats, resource);
+
+  // Show histogram
+  updateBusHistogram(resource.data, stats);
+
+  // Reset pagination
+  currentPage = 1;
+  updateDataTable(resource.data);
+
+  // Clear comparison view
+  hideComparisonView();
+  comparisonResourceB = null;
+  const compSelect = document.getElementById('comparison-resource-select');
+  if (compSelect) {
+    compSelect.value = '';
+  }
+}
+
+/**
+ * Calculate statistics for bus resource data
+ * @param {number[]} data - Array of numbers
+ * @returns {Object} Statistics
+ */
+function calculateBusStatistics(data) {
+  if (!data || data.length === 0) {
+    return {
+      mean: 0,
+      stdDev: 0,
+      min: 0,
+      max: 0,
+      p25: 0,
+      p50: 0,
+      p75: 0,
+      p90: 0,
+      p95: 0,
+      p99: 0,
+      count: 0,
+    };
+  }
+
+  const sorted = [...data].sort((a, b) => a - b);
+  const count = sorted.length;
+  const mean = sorted.reduce((sum, val) => sum + val, 0) / count;
+  const variance = sorted.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
+  const stdDev = Math.sqrt(variance);
+
+  const percentile = (p) => {
+    const index = (p / 100) * (count - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    const weight = index - lower;
+    return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+  };
+
+  return {
+    mean,
+    stdDev,
+    min: sorted[0],
+    max: sorted[count - 1],
+    p25: percentile(25),
+    p50: percentile(50),
+    p75: percentile(75),
+    p90: percentile(90),
+    p95: percentile(95),
+    p99: percentile(99),
+    count,
+  };
+}
+
+/**
+ * Update bus statistics display
+ * @param {Object} stats - Statistics object
+ * @param {Object} resource - Bus resource
+ */
+function updateBusStatistics(stats, resource) {
+  document.getElementById('bus-stat-mean').textContent = formatNumber(stats.mean);
+  document.getElementById('bus-stat-stddev').textContent = formatNumber(stats.stdDev);
+  document.getElementById('bus-stat-minmax').textContent = `${formatNumber(stats.min)} / ${formatNumber(stats.max)}`;
+  document.getElementById('bus-stat-p50').textContent = formatNumber(stats.p50);
+  document.getElementById('bus-stat-p90').textContent = formatNumber(stats.p90);
+  document.getElementById('bus-stat-p95').textContent = formatNumber(stats.p95);
+  document.getElementById('bus-stat-count').textContent = stats.count.toLocaleString();
+
+  const checksumEl = document.getElementById('bus-stat-checksum');
+  if (checksumEl) {
+    if (resource.checksum !== undefined) {
+      checksumEl.textContent = resource.checksum.toString(16).padStart(8, '0').toUpperCase();
+    } else {
+      checksumEl.textContent = 'N/A';
+    }
+  }
+}
+
+/**
+ * Update bus histogram chart
+ * @param {number[]} data - Array of numbers
+ * @param {Object} stats - Statistics
+ */
+function updateBusHistogram(data, stats) {
+  const canvas = document.getElementById('bus-histogram-chart');
+  if (!canvas) return;
+
+  // Destroy existing chart
+  if (busHistogramChart) {
+    busHistogramChart.destroy();
+  }
+
+  // Calculate histogram bins
+  const binCount = 50;
+  const binWidth = (stats.max - stats.min) / binCount;
+  const bins = [];
+
+  for (let i = 0; i < binCount; i++) {
+    const binMin = stats.min + i * binWidth;
+    const binMax = binMin + binWidth;
+    bins.push({
+      min: binMin,
+      max: binMax,
+      count: 0,
+      center: (binMin + binMax) / 2,
+    });
+  }
+
+  // Populate bins
+  for (const value of data) {
+    const binIndex = Math.min(Math.floor((value - stats.min) / binWidth), binCount - 1);
+    bins[binIndex].count++;
+  }
+
+  // Create chart
+  const ctx = canvas.getContext('2d');
+  busHistogramChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: bins.map((b) => formatNumber(b.center)),
+      datasets: [
+        {
+          label: 'Frequency',
+          data: bins.map((b) => b.count),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        title: {
+          display: true,
+          text: 'Distribution of Bus Resource Data',
+        },
+        tooltip: {
+          callbacks: {
+            title: (context) => {
+              const index = context[0].dataIndex;
+              const bin = bins[index];
+              return `${formatNumber(bin.min)} - ${formatNumber(bin.max)}`;
+            },
+            label: (context) => {
+              return `Frequency: ${context.parsed.y}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Value',
+          },
+          ticks: {
+            maxTicksLimit: 10,
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Frequency',
+          },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Update data table with pagination
+ * @param {number[]} data - Array of numbers
+ */
+function updateDataTable(data) {
+  const tbody = document.getElementById('bus-data-table-body');
+  if (!tbody || !data) return;
+
+  const totalPages = Math.ceil(data.length / pageSize);
+  const offset = (currentPage - 1) * pageSize;
+  const end = Math.min(offset + pageSize, data.length);
+
+  // Generate rows
+  const rows = [];
+  for (let i = offset; i < end; i++) {
+    rows.push(`<tr><td>${i}</td><td>${formatNumber(data[i])}</td></tr>`);
+  }
+
+  tbody.innerHTML = rows.join('');
+
+  // Update pagination controls
+  document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+  document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+  document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+}
+
+/**
+ * Handle comparison resource selection
+ * @param {string} resourceNameB - Bus resource name to compare
+ */
+function compareBusResources(resourceNameB) {
+  if (!selectedBusResource || !resourceNameB || !currentPipelineData) {
+    hideComparisonView();
+    return;
+  }
+
+  const resourceB = currentPipelineData.resources.find((r) => r.name === resourceNameB);
+  if (!resourceB) {
+    hideComparisonView();
+    return;
+  }
+
+  comparisonResourceB = resourceB;
+
+  // Calculate differences
+  const differences = [];
+  const minLength = Math.min(selectedBusResource.data.length, resourceB.data.length);
+  let totalAbsDiff = 0;
+  let maxAbsDiff = 0;
+
+  for (let i = 0; i < minLength; i++) {
+    const diff = selectedBusResource.data[i] - resourceB.data[i];
+    const absDiff = Math.abs(diff);
+
+    if (absDiff > 0.001) {
+      differences.push({
+        index: i,
+        valueA: selectedBusResource.data[i],
+        valueB: resourceB.data[i],
+        diff,
+      });
+    }
+
+    totalAbsDiff += absDiff;
+    maxAbsDiff = Math.max(maxAbsDiff, absDiff);
+  }
+
+  const summary = {
+    totalDifferences: differences.length,
+    maxAbsDiff,
+    meanAbsDiff: totalAbsDiff / minLength,
+    diffPercentage: (differences.length / minLength) * 100,
+  };
+
+  // Show comparison view
+  showComparisonView(selectedBusResource.name, resourceB.name, summary, differences);
+}
+
+/**
+ * Show comparison view
+ */
+function showComparisonView(nameA, nameB, summary, differences) {
+  const compView = document.getElementById('comparison-view');
+  if (!compView) return;
+
+  compView.classList.remove('hidden');
+
+  document.getElementById('comparison-summary').textContent = `${nameA} vs ${nameB}`;
+  document.getElementById('comp-total-diffs').textContent = summary.totalDifferences.toLocaleString();
+  document.getElementById('comp-max-diff').textContent = formatNumber(summary.maxAbsDiff);
+  document.getElementById('comp-mean-diff').textContent = formatNumber(summary.meanAbsDiff);
+  document.getElementById('comp-diff-pct').textContent = `${summary.diffPercentage.toFixed(2)}%`;
+
+  // Populate difference table (first 100)
+  const tbody = document.getElementById('comparison-table-body');
+  if (tbody) {
+    const rows = differences.slice(0, 100).map((d) => {
+      return `<tr>
+        <td>${d.index}</td>
+        <td>${formatNumber(d.valueA)}</td>
+        <td>${formatNumber(d.valueB)}</td>
+        <td>${formatNumber(d.diff)}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = rows.join('');
+  }
+}
+
+/**
+ * Hide comparison view
+ */
+function hideComparisonView() {
+  const compView = document.getElementById('comparison-view');
+  if (compView) {
+    compView.classList.add('hidden');
+  }
+}
+
+/**
+ * Inspect value at specific offset
+ * @param {number} offset - Array index
+ */
+function inspectOffset(offset) {
+  if (!selectedBusResource || !selectedBusResource.data) return;
+
+  if (offset < 0 || offset >= selectedBusResource.data.length) {
+    alert(`Invalid offset. Valid range: 0 - ${selectedBusResource.data.length - 1}`);
+    return;
+  }
+
+  const value = selectedBusResource.data[offset];
+  const valueDisplay = document.getElementById('offset-value-display');
+  const valueContainer = document.getElementById('offset-value');
+
+  if (valueDisplay && valueContainer) {
+    valueDisplay.textContent = formatNumber(value);
+    valueContainer.classList.remove('hidden');
+  }
 }
 
 // Initialize on DOM ready

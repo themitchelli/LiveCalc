@@ -197,7 +197,7 @@
         "techStack": "Chart.js, vanilla JS (consistent with results panel)",
         "snapshotStorage": "Keep last N snapshots in memory for time-travel"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

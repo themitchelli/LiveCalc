@@ -56,6 +56,7 @@ export async function runCommand(
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
   pipelineView: PipelineView,
+  pipelineDataInspector: PipelineDataInspector,
   options: RunOptions = {}
 ): Promise<void> {
   logger.separator();
@@ -347,7 +348,8 @@ export function registerRunCommand(
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
-  pipelineView: PipelineView
+  pipelineView: PipelineView,
+  pipelineDataInspector: PipelineDataInspector
 ): vscode.Disposable {
   // Set up message handler for comparison and export actions from webview
   resultsPanel.onMessage(async (message: ExtensionMessage) => {
@@ -431,6 +433,37 @@ export function registerRunCommand(
         // Clear run history
         vscode.commands.executeCommand('livecalc.clearHistory');
         break;
+      case 'exportBusResource':
+        // Export bus resource to CSV
+        if ('resourceName' in message) {
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            const resource = pipelineDataInspector.getResource(runId, message.resourceName);
+            if (resource) {
+              const csv = pipelineDataInspector.exportResourceToCsv(resource);
+              const fileName = message.resourceName.replace(/[/:]/g, '_');
+              const defaultUri = vscode.Uri.file(`${fileName}_${new Date().toISOString().slice(0, 10)}.csv`);
+
+              const uri = await vscode.window.showSaveDialog({
+                defaultUri,
+                filters: {
+                  'CSV files': ['csv'],
+                  'All files': ['*'],
+                },
+              });
+
+              if (uri) {
+                await vscode.workspace.fs.writeFile(uri, Buffer.from(csv, 'utf-8'));
+                logger.info(`Bus resource exported to ${uri.fsPath}`);
+                vscode.window.showInformationMessage(`LiveCalc: Bus resource exported to ${uri.fsPath}`);
+              }
+            } else {
+              vscode.window.showWarningMessage(`Bus resource ${message.resourceName} not found`);
+            }
+          }
+        }
+        break;
       case 'openAMTable':
         // Open table in Assumptions Manager browser
         if ('tableName' in message) {
@@ -453,6 +486,6 @@ export function registerRunCommand(
 
   // Manual run from command palette is not an auto-run
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, { isAutoRun: false })
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, { isAutoRun: false })
   );
 }

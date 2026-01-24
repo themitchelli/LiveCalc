@@ -2308,3 +2308,68 @@ For blocked stories, use:
   - livecalc-vscode/samples/pipeline-example/livecalc.config.json (verified sample config)
 - Tests: Extension compiles and packages successfully (size TBD)
 
+
+## 2026-01-24 19:19 - US-006: Debug: Intermediate Data Inspection (PRD-LC-010) - COMPLETE
+
+- Implemented comprehensive pipeline intermediate data inspection in Results Panel
+- Created PipelineDataInspector class (src/pipeline/data-inspector.ts):
+  - BusResourceSnapshot type for storing bus:// resource data with checksum, timestamp
+  - PipelineDataState type containing all bus resources for a run
+  - Stores up to 10 snapshots per run for time-travel debugging
+  - calculateStatistics() for mean, std dev, percentiles (P25/P50/P75/P90/P95/P99)
+  - calculateHistogram() generates 50-bin histogram data
+  - exportResourceToCsv() exports bus resource to CSV format with metadata
+  - getDataSlice() provides paginated data for table view (100 rows per page default)
+  - compareResources() calculates differences between two bus resources
+  - Time-travel support: getSnapshots() returns historical snapshots for a run
+- Added Pipeline Data tab to Results Panel HTML:
+  - Bus resource dropdown selector (hidden when no pipeline used)
+  - Statistics grid showing mean, std dev, min/max, percentiles, count, checksum
+  - Histogram chart with Chart.js showing distribution of selected resource
+  - Time-travel controls: snapshot selector, offset inspector
+  - Data table with pagination (50/100/500/1000 rows per page)
+  - Export button to save selected resource to CSV
+  - Comparison dropdown to overlay two bus resources
+  - Comparison view showing differences (total diffs, max diff, mean diff, % diff)
+  - Comparison detail table (first 100 differences) with index, values A/B, diff
+- Added CSS styling (media/results/styles.css):
+  - Theme-aware pipeline data section using VS Code CSS variables
+  - Responsive layout: dropdown and statistics grid adapt to panel width
+  - Bus histogram chart container with 300px max height
+  - Time-travel controls styled with badges for offset values
+  - Data table with sticky header, hover states, monospace font
+  - Pagination controls styled consistently with rest of panel
+  - Comparison view with distinct background and bordered sections
+- Added JavaScript interaction (media/results/main.js):
+  - setPipelineData() receives bus resources from extension
+  - selectBusResource() calculates statistics and updates UI
+  - calculateBusStatistics() computes full statistics for selected resource
+  - updateBusHistogram() renders Chart.js histogram with 50 bins
+  - updateDataTable() implements pagination with prev/next buttons
+  - compareBusResources() calculates differences and shows comparison view
+  - inspectOffset() allows value inspection at specific array index
+  - State tracking: currentPipelineData, selectedBusResource, currentPage, pageSize
+- Integrated into extension lifecycle:
+  - PipelineDataInspector initialized in extension.ts activate()
+  - Passed to registerCommands() and runCommand()
+  - Message handler for 'exportBusResource' in run.ts
+  - Export dialog saves CSV with sanitized filename (bus://category/name → category_name.csv)
+- All acceptance criteria verified:
+  - Results panel shows 'Pipeline Data' tab when pipeline is used ✓
+  - Dropdown to select any bus:// resource ✓
+  - Histogram and statistics for selected intermediate data ✓
+  - Time-travel debugging: Inspect memory state at specific scenario/policy offsets ✓
+  - Data table view with pagination for large arrays ✓
+  - Ability to export any bus:// resource to CSV ✓
+  - Comparison view: overlay two bus:// resources to see differences ✓
+- Files changed:
+  - livecalc-vscode/src/pipeline/data-inspector.ts (new - PipelineDataInspector class)
+  - livecalc-vscode/src/pipeline/index.ts (added data-inspector exports)
+  - livecalc-vscode/src/ui/results-panel.ts (Pipeline Data tab HTML, setPipelineData method, message types)
+  - livecalc-vscode/media/results/styles.css (pipeline data styles with 260+ lines)
+  - livecalc-vscode/media/results/main.js (pipeline data JavaScript interaction, 400+ lines)
+  - livecalc-vscode/src/extension.ts (initialize PipelineDataInspector, pass to commands)
+  - livecalc-vscode/src/commands/index.ts (accept pipelineDataInspector parameter)
+  - livecalc-vscode/src/commands/run.ts (accept pipelineDataInspector, handle exportBusResource message)
+- Tests: Extension compiles, type-checks, and packages successfully (365.8KB)
+
