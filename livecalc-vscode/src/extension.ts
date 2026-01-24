@@ -14,8 +14,10 @@ import { runCommand } from './commands/run';
 import {
   AuthManager,
   AMStatusBar,
+  AMCache,
   disposeAuthManager,
   disposeAMClient,
+  disposeAMCache,
   disposeResolver,
   AssumptionHoverProvider,
   AssumptionCompletionProvider,
@@ -32,6 +34,7 @@ let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
 let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
+let amCache: AMCache | undefined;
 let assumptionDiagnosticProvider: AssumptionDiagnosticProvider | undefined;
 
 /**
@@ -94,6 +97,10 @@ export function activate(context: vscode.ExtensionContext): void {
   authManager = AuthManager.getInstance(context);
   context.subscriptions.push(authManager);
 
+  // Create AM cache for storing fetched assumptions
+  amCache = AMCache.getInstance(context);
+  context.subscriptions.push(amCache);
+
   // Create AM status bar (separate from main status bar)
   amStatusBar = new AMStatusBar(authManager);
   context.subscriptions.push(amStatusBar);
@@ -101,6 +108,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Initialize auth manager (restore state, auto-login if configured)
   authManager.initialize().catch(() => {
     logger.warn('AuthManager initialization failed');
+  });
+
+  // Initialize AM cache (load index, create directory)
+  amCache.initialize().catch(() => {
+    logger.warn('AMCache initialization failed');
   });
 
   // Register assumption reference language providers
@@ -162,7 +174,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar, amCache);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -239,6 +251,7 @@ export function deactivate(): void {
   disposeRunHistoryManager();
   disposeCacheManager();
   disposeResolver();
+  disposeAMCache();
   disposeAMClient();
   disposeAuthManager();
 
@@ -251,6 +264,7 @@ export function deactivate(): void {
   autoRunController = undefined;
   authManager = undefined;
   amStatusBar = undefined;
+  amCache = undefined;
   assumptionDiagnosticProvider = undefined;
 
   logger.info('LiveCalc extension deactivated');

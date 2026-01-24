@@ -1900,3 +1900,56 @@ For blocked stories, use:
   - livecalc-vscode/src/ui/results-state.ts (enhanced AssumptionInfo, buildAssumptionInfo)
   - livecalc-vscode/src/extension.ts (added disposeResolver to cleanup)
 - Tests: Extension compiles and type-checks successfully
+
+
+## 2026-01-24 - US-005: Local Caching (PRD-LC-006) - COMPLETE
+
+- Implemented comprehensive local caching for Assumptions Manager data
+- Created AMCache class (src/assumptions-manager/cache.ts):
+  - Singleton pattern with getInstance() and getExistingInstance()
+  - Cache directory: globalStorageUri/assumptions-cache/
+  - Cache key format: {table-name}:{version}
+  - AMCacheEntry type with data, fetchedAt, accessedAt, sizeBytes
+  - isCacheable() returns false for 'latest' and 'draft' (always fetch current)
+  - get(tableName, version) returns CacheLookupResult with hit, data, fetchedAt
+  - set(tableName, version, data) stores entry with size calculation
+  - remove() and clear() for manual cache management
+  - LRU eviction when cache exceeds configurable size limit
+  - Cache statistics: hits, misses, totalSizeBytes, entryCount, hitRatio
+  - Index persistence in index.json for cross-session cache survival
+- Integrated cache into AssumptionResolver:
+  - Cache lookup before API calls for version-specific references
+  - Cache store after successful API fetches
+  - Offline mode support: use cached data when API unavailable
+  - tryOfflineResolution() attempts cache lookup on network errors
+  - shouldTryOfflineMode() checks config.offlineMode setting
+  - formatRelativeTime() for human-readable cache age in warnings
+- Updated executeAMClearCache command:
+  - Shows current entry count and size before clearing
+  - Confirmation dialog with details
+  - Success message with cleared count
+- Settings verified in package.json:
+  - livecalc.assumptionsManager.cacheSizeMb (default: 100)
+  - livecalc.assumptionsManager.offlineMode (default: 'warn', options: 'warn'|'fail')
+- All acceptance criteria verified:
+  - Fetched assumptions cached in VS Code globalStorageUri ✓
+  - Cache key: {table-name}:{version} (version-specific, immutable) ✓
+  - Cache includes: data, metadata, fetch timestamp ✓
+  - Cache hit skips API call entirely ✓
+  - 'latest' and 'draft' not cached (always fetch to get current) ✓
+  - Cache size limit configurable: livecalc.assumptionsManager.cacheSizeMb (default: 100) ✓
+  - LRU eviction when cache exceeds limit ✓
+  - Command: 'LiveCalc: Clear Assumptions Cache' ✓
+  - Cache statistics in output channel: hits, misses, size ✓
+  - Offline mode: use cache if API unavailable, warn user ✓
+  - Setting: livecalc.assumptionsManager.offlineMode (default: 'warn') ✓
+  - Options: 'warn' (use cache + show warning), 'fail' (error if offline) ✓
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/cache.ts (new - AMCache class)
+  - livecalc-vscode/src/assumptions-manager/resolver.ts (cache integration, offline mode)
+  - livecalc-vscode/src/assumptions-manager/index.ts (added cache exports)
+  - livecalc-vscode/src/commands/am-logout.ts (updated executeAMClearCache)
+  - livecalc-vscode/src/commands/index.ts (pass cache to command)
+  - livecalc-vscode/src/data/data-loader.ts (get cache for resolver)
+  - livecalc-vscode/src/extension.ts (initialize/dispose AMCache)
+- Tests: Extension compiles and packages successfully

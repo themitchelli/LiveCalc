@@ -190,7 +190,7 @@
         "fileFormat": "JSON: { metadata: {}, data: [], fetchedAt: ISO8601 }",
         "lruTracking": "Separate index.json with access timestamps"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

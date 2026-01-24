@@ -34,6 +34,7 @@ import {
   ResolutionError,
   AuthManager,
   AssumptionsManagerClient,
+  AMCache,
   type ResolvedAssumption,
   type FullResolutionResult,
   type AMVersionInfo,
@@ -239,7 +240,12 @@ async function loadDataWithAMResolver(
   const authManager = AuthManager.getInstance();
 
   const client = AssumptionsManagerClient.getInstance(authManager);
-  const resolver = AssumptionResolver.getInstance(authManager, client);
+
+  // Get AMCache instance if available (for caching version-specific assumptions)
+  // AMCache is initialized by the extension - get existing instance if it exists
+  const amCache = AMCache.getExistingInstance();
+
+  const resolver = AssumptionResolver.getInstance(authManager, client, amCache);
 
   // Resolve all assumptions (handles both AM and local references)
   let resolutionResult: FullResolutionResult;

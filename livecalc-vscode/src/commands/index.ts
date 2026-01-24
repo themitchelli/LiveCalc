@@ -7,7 +7,7 @@ import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
 import { RunHistoryManager } from '../auto-run/run-history';
 import { AutoRunController } from '../auto-run';
-import { AuthManager, AMStatusBar } from '../assumptions-manager';
+import { AuthManager, AMStatusBar, AMCache } from '../assumptions-manager';
 import { executeAMLogin } from './am-login';
 import { executeAMLogout, executeAMClearCache } from './am-logout';
 import { logger } from '../logging/logger';
@@ -24,7 +24,8 @@ export function registerCommands(
   runHistoryManager: RunHistoryManager,
   autoRunController: AutoRunController,
   authManager?: AuthManager,
-  amStatusBar?: AMStatusBar
+  amStatusBar?: AMStatusBar,
+  amCache?: AMCache
 ): void {
   // Register run command
   context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager));
@@ -219,7 +220,7 @@ export function registerCommands(
     // Clear cache command
     context.subscriptions.push(
       vscode.commands.registerCommand('livecalc.amClearCache', async () => {
-        await executeAMClearCache();
+        await executeAMClearCache(amCache);
       })
     );
 

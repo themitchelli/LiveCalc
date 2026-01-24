@@ -12,10 +12,13 @@ import * as crypto from 'crypto';
 import { logger } from '../logging/logger';
 import { AuthManager } from './auth';
 import { AssumptionsManagerClient, AMClientError } from './client';
+import { AMCache } from './cache';
 import {
   AMTableData,
   AMVersionInfo,
+  AMConnectionState,
   ResolvedAssumption,
+  AMConfig,
 } from './types';
 import type { AssumptionConfig, LiveCalcConfig } from '../types';
 
@@ -94,13 +97,19 @@ const ASSUMPTION_REF_PATTERN = /^assumptions:\/\/([a-zA-Z0-9_-]+)(?::(.+))?$/;
  * - assumptions://table-name:draft (resolves to current draft)
  * - local://path/to/file.csv (local file references)
  * - Absolute and relative file paths
+ *
+ * Caching behavior:
+ * - Version-specific entries (e.g., v2.1) are cached indefinitely
+ * - 'latest' and 'draft' are NEVER cached (always fetch to get current)
+ * - Offline mode uses cache when API unavailable (with warning)
  */
 export class AssumptionResolver implements vscode.Disposable {
   private static instance: AssumptionResolver | undefined;
 
   private constructor(
     private readonly authManager: AuthManager,
-    private readonly client: AssumptionsManagerClient
+    private readonly client: AssumptionsManagerClient,
+    private readonly cache?: AMCache
   ) {}
 
   /**
@@ -108,10 +117,11 @@ export class AssumptionResolver implements vscode.Disposable {
    */
   public static getInstance(
     authManager: AuthManager,
-    client: AssumptionsManagerClient
+    client: AssumptionsManagerClient,
+    cache?: AMCache
   ): AssumptionResolver {
     if (!AssumptionResolver.instance) {
-      AssumptionResolver.instance = new AssumptionResolver(authManager, client);
+      AssumptionResolver.instance = new AssumptionResolver(authManager, client, cache);
     }
     return AssumptionResolver.instance;
   }
@@ -313,10 +323,26 @@ export class AssumptionResolver implements vscode.Disposable {
     resolvedVersions: Map<string, string>
   ): Promise<ResolutionResult> {
     const { name: tableName, version = 'latest', assumptionType } = ref;
+    const config = this.getConfig();
 
     try {
       // Check if authenticated
       if (!this.authManager.isAuthenticated()) {
+        // Check offline mode - try cache if available
+        if (this.cache && config.offlineMode === 'warn') {
+          const cachedResult = await this.tryOfflineResolution(
+            ref,
+            tableName,
+            version,
+            resolutionLog,
+            warnings,
+            resolvedVersions
+          );
+          if (cachedResult) {
+            return cachedResult;
+          }
+        }
+
         throw new ResolutionError(
           `Cannot resolve ${ref.original}: Not authenticated with Assumptions Manager. ` +
             'Please login using the "LiveCalc: Login to Assumptions Manager" command.',
@@ -325,8 +351,69 @@ export class AssumptionResolver implements vscode.Disposable {
         );
       }
 
+      // Check cache first for version-specific references (not 'latest' or 'draft')
+      if (this.cache && this.cache.isCacheable(version)) {
+        const cacheResult = await this.cache.get(tableName, version);
+        if (cacheResult.hit && cacheResult.data) {
+          // Cache hit - use cached data
+          const tableData = cacheResult.data;
+          const resolvedVersion = tableData.version;
+
+          resolutionLog.push(`Cache hit: ${tableName}:${resolvedVersion}`);
+          resolvedVersions.set(`${tableName}:${version}`, resolvedVersion);
+
+          // Check for warnings
+          this.addStatusWarnings(tableData, tableName, warnings);
+
+          // Convert to engine-compatible format
+          const data = this.convertToEngineFormat(tableData, assumptionType);
+
+          const resolved: ResolvedAssumption = {
+            reference: ref.original,
+            tableName,
+            version,
+            resolvedVersion,
+            source: 'am',
+            data,
+            columns: tableData.columns,
+            metadata: {
+              status: tableData.metadata.status,
+              approvedAt: tableData.metadata.approvedAt,
+              approvedBy: tableData.metadata.approvedBy,
+              contentHash: tableData.metadata.contentHash,
+              fetchedAt: cacheResult.fetchedAt,
+            },
+          };
+
+          return {
+            reference: ref,
+            resolved,
+            cached: true,
+          };
+        }
+      }
+
       // Fetch data from AM (client handles version resolution)
-      const tableData = await this.client.fetchData(tableName, version);
+      let tableData: AMTableData;
+      try {
+        tableData = await this.client.fetchData(tableName, version);
+      } catch (error) {
+        // On network error, try offline mode
+        if (this.shouldTryOfflineMode(error, config)) {
+          const cachedResult = await this.tryOfflineResolution(
+            ref,
+            tableName,
+            version,
+            resolutionLog,
+            warnings,
+            resolvedVersions
+          );
+          if (cachedResult) {
+            return cachedResult;
+          }
+        }
+        throw error;
+      }
 
       // Determine the resolved version
       const resolvedVersion = tableData.version;
@@ -343,16 +430,13 @@ export class AssumptionResolver implements vscode.Disposable {
       // Track resolved version for audit
       resolvedVersions.set(`${tableName}:${version}`, resolvedVersion);
 
-      // Check for warnings
-      if (tableData.metadata.status === 'draft') {
-        warnings.push(
-          `Using draft version of ${tableName}. This may not be approved for production use.`
-        );
-      } else if (tableData.metadata.status === 'pending') {
-        warnings.push(
-          `Using pending version of ${tableName}. This version is awaiting approval.`
-        );
+      // Store in cache (only for version-specific references)
+      if (this.cache && this.cache.isCacheable(resolvedVersion)) {
+        await this.cache.set(tableName, resolvedVersion, tableData);
       }
+
+      // Check for warnings
+      this.addStatusWarnings(tableData, tableName, warnings);
 
       // Convert to engine-compatible format
       const data = this.convertToEngineFormat(tableData, assumptionType);
@@ -377,7 +461,7 @@ export class AssumptionResolver implements vscode.Disposable {
       return {
         reference: ref,
         resolved,
-        cached: false, // TODO: Integrate with AM cache in US-005
+        cached: false,
       };
     } catch (error) {
       // Wrap errors with context
@@ -413,6 +497,155 @@ export class AssumptionResolver implements vscode.Disposable {
         error instanceof Error ? error : undefined
       );
     }
+  }
+
+  /**
+   * Add status-based warnings for non-approved assumptions
+   */
+  private addStatusWarnings(
+    tableData: AMTableData,
+    tableName: string,
+    warnings: string[]
+  ): void {
+    if (tableData.metadata.status === 'draft') {
+      warnings.push(
+        `Using draft version of ${tableName}. This may not be approved for production use.`
+      );
+    } else if (tableData.metadata.status === 'pending') {
+      warnings.push(
+        `Using pending version of ${tableName}. This version is awaiting approval.`
+      );
+    }
+  }
+
+  /**
+   * Check if we should try offline mode for a given error
+   */
+  private shouldTryOfflineMode(error: unknown, config: AMConfig): boolean {
+    if (config.offlineMode !== 'warn') {
+      return false;
+    }
+
+    if (error instanceof AMClientError) {
+      return (
+        error.code === 'NETWORK_ERROR' ||
+        error.code === 'TIMEOUT' ||
+        error.code === 'SERVER_ERROR'
+      );
+    }
+
+    return false;
+  }
+
+  /**
+   * Try to resolve from cache in offline mode
+   */
+  private async tryOfflineResolution(
+    ref: AssumptionReference,
+    tableName: string,
+    version: string,
+    resolutionLog: string[],
+    warnings: string[],
+    resolvedVersions: Map<string, string>
+  ): Promise<ResolutionResult | null> {
+    if (!this.cache) {
+      return null;
+    }
+
+    // For 'latest' and 'draft', we can't use cache (we don't know what version to look up)
+    if (!this.cache.isCacheable(version)) {
+      logger.debug(
+        `AMResolver: Cannot use cache for ${tableName}:${version} (not version-specific)`
+      );
+      return null;
+    }
+
+    const cacheResult = await this.cache.get(tableName, version);
+    if (!cacheResult.hit || !cacheResult.data) {
+      return null;
+    }
+
+    // Found in cache - use offline mode
+    const tableData = cacheResult.data;
+    const resolvedVersion = tableData.version;
+
+    resolutionLog.push(`Offline cache hit: ${tableName}:${resolvedVersion}`);
+    warnings.push(
+      `Using cached data for ${tableName}:${resolvedVersion} (fetched ${this.formatRelativeTime(cacheResult.fetchedAt)}). ` +
+        'Assumptions Manager is unavailable.'
+    );
+
+    resolvedVersions.set(`${tableName}:${version}`, resolvedVersion);
+
+    // Add status warnings
+    this.addStatusWarnings(tableData, tableName, warnings);
+
+    // Convert to engine-compatible format
+    const data = this.convertToEngineFormat(tableData, ref.assumptionType);
+
+    const resolved: ResolvedAssumption = {
+      reference: ref.original,
+      tableName,
+      version,
+      resolvedVersion,
+      source: 'am',
+      data,
+      columns: tableData.columns,
+      metadata: {
+        status: tableData.metadata.status,
+        approvedAt: tableData.metadata.approvedAt,
+        approvedBy: tableData.metadata.approvedBy,
+        contentHash: tableData.metadata.contentHash,
+        fetchedAt: cacheResult.fetchedAt,
+      },
+    };
+
+    return {
+      reference: ref,
+      resolved,
+      cached: true,
+    };
+  }
+
+  /**
+   * Format a timestamp as relative time (e.g., "2 hours ago")
+   */
+  private formatRelativeTime(timestamp?: string): string {
+    if (!timestamp) {
+      return 'unknown time';
+    }
+
+    const now = Date.now();
+    const then = new Date(timestamp).getTime();
+    const diffMs = now - then;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) {
+      return 'just now';
+    }
+    if (diffMinutes < 60) {
+      return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    }
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  }
+
+  /**
+   * Get configuration from VS Code settings
+   */
+  private getConfig(): AMConfig {
+    const config = vscode.workspace.getConfiguration('livecalc.assumptionsManager');
+    return {
+      url: config.get<string>('url', ''),
+      autoLogin: config.get<boolean>('autoLogin', true),
+      timeoutMs: config.get<number>('timeoutMs', 30000),
+      cacheSizeMb: config.get<number>('cacheSizeMb', 100),
+      offlineMode: config.get<'warn' | 'fail'>('offlineMode', 'warn'),
+    };
   }
 
   /**
