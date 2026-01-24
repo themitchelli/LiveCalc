@@ -461,3 +461,32 @@ For blocked stories, use:
   - livecalc-vscode/src/extension.ts (initialize engine manager)
 - Tests: Extension builds, type-checks, and packages successfully
 
+## 2026-01-24 00:45 - US-005: Run Command (PRD-LC-003) - COMPLETE
+
+- Verified all Run command functionality implemented in US-001 and US-004
+- Run command registered with ID livecalc.run and keyboard shortcut Cmd+Shift+R / Ctrl+Shift+R
+- Command available via Command Palette, editor title bar (play icon), and right-click context menu
+- Run disabled with message if no livecalc.config.json found (shows "Initialize Project" action)
+- Run disabled with message if config validation fails (shows Problems panel reference)
+- Progress notification shown during execution with percentage updates
+- Cancel button in progress notification terminates execution
+- Execution time shown on completion with policy/scenario counts
+- Error notifications with actionable "Show Output" button
+- Success notification with summary (e.g., 'Completed in 2.3s')
+- Results panel placeholder ready for PRD-LC-004 integration
+- All acceptance criteria verified:
+  - Command registered with correct ID
+  - Keyboard shortcuts for Mac and Windows/Linux
+  - All access points (palette, title bar, context menu)
+  - Config validation with error display
+  - Progress with percentage and cancellation
+  - Execution time and error handling
+- Files verified:
+  - livecalc-vscode/package.json (commands, keybindings, menus)
+  - livecalc-vscode/src/commands/run.ts (run handler with progress)
+  - livecalc-vscode/src/commands/index.ts (command registration)
+  - livecalc-vscode/src/ui/notifications.ts (user notifications)
+  - livecalc-vscode/src/ui/status-bar.ts (status indicators)
+  - livecalc-vscode/src/config/config-loader.ts (validation integration)
+- Tests: Extension compiles and packages successfully (84.48KB)
+

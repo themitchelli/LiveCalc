@@ -207,7 +207,7 @@
         "cancellation": "CancellationToken passed to engine",
         "statusBar": "Show running indicator in status bar during execution"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
