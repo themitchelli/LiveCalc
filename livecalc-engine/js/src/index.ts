@@ -262,6 +262,13 @@ export {
   isAtomicsNotifyAvailable,
   getHighResolutionTimestamp,
   formatNanoseconds,
+  // Pipeline error handling
+  PipelineError,
+  PipelineErrorHandler,
+  PipelineErrorCode,
+  createFailedResult,
+  createSuccessResult,
+  createEmptyNodeTiming,
 } from './orchestrator/index.js';
 export type {
   MemoryBlock,
@@ -274,4 +281,13 @@ export type {
   WaitResult,
   SignalTiming,
   MessageHandoffConfig,
+  // Pipeline error types
+  PipelineStage,
+  PipelineErrorSeverity,
+  PipelineErrorInfo,
+  BusDataSnapshot,
+  InputSnapshot,
+  PipelineExecutionResult,
+  NodeExecutionResult,
+  NodeTiming,
 } from './orchestrator/index.js';

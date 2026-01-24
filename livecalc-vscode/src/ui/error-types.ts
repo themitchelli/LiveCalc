@@ -19,6 +19,10 @@ export type LiveCalcErrorType =
   | 'ENGINE_INIT_FAILED'
   | 'CANCELLED'
   | 'VALIDATION_ERROR'
+  | 'PIPELINE_ERROR'
+  | 'PIPELINE_NODE_FAILED'
+  | 'PIPELINE_HANDOFF_FAILED'
+  | 'PIPELINE_INTEGRITY_FAILED'
   | 'UNKNOWN';
 
 /**
@@ -37,6 +41,33 @@ export interface LiveCalcError {
   filePath?: string;
   /** Whether this is a recoverable error */
   recoverable: boolean;
+  /** Pipeline-specific error info (if applicable) */
+  pipelineError?: PipelineErrorDisplay;
+}
+
+/**
+ * Pipeline-specific error display information
+ */
+export interface PipelineErrorDisplay {
+  /** Node ID where error occurred */
+  nodeId: string;
+  /** Stage of execution (init, load, execute, finalize, handoff) */
+  stage: string;
+  /** Pipeline error code */
+  code: string;
+  /** Input data snapshot at time of error */
+  inputSnapshot?: {
+    inputs: Array<{ name: string; sample: number[]; min?: number; max?: number; mean?: number }>;
+    outputs: Array<{ name: string; sample: number[]; min?: number; max?: number; mean?: number }>;
+  };
+  /** All node states at time of error */
+  nodeStates?: Record<string, string>;
+  /** Completed nodes before error */
+  completedNodes?: string[];
+  /** Skipped nodes due to error */
+  skippedNodes?: string[];
+  /** Partial results available */
+  hasPartialResults?: boolean;
 }
 
 /**
@@ -68,6 +99,10 @@ const ERROR_GUIDANCE: Record<LiveCalcErrorType, string> = {
   ENGINE_INIT_FAILED: 'Failed to initialize the WASM engine. Try reloading the window or reinstalling the extension.',
   CANCELLED: 'The operation was cancelled by the user.',
   VALIDATION_ERROR: 'Data validation failed. Check the Problems panel for specific issues with your data files.',
+  PIPELINE_ERROR: 'An error occurred during pipeline execution. Check the error details for the specific node that failed.',
+  PIPELINE_NODE_FAILED: 'A pipeline node failed to execute. Check the input data and node configuration.',
+  PIPELINE_HANDOFF_FAILED: 'Failed to hand off data between pipeline nodes. Check the bus:// references and memory allocation.',
+  PIPELINE_INTEGRITY_FAILED: 'Data integrity check failed. The bus data may have been corrupted by an upstream node.',
   UNKNOWN: 'An unexpected error occurred. Check the output logs for more details.',
 };
 
@@ -86,6 +121,10 @@ const ERROR_TITLES: Record<LiveCalcErrorType, string> = {
   ENGINE_INIT_FAILED: 'Engine Initialization Failed',
   CANCELLED: 'Cancelled',
   VALIDATION_ERROR: 'Validation Error',
+  PIPELINE_ERROR: 'Pipeline Execution Error',
+  PIPELINE_NODE_FAILED: 'Pipeline Node Failed',
+  PIPELINE_HANDOFF_FAILED: 'Pipeline Handoff Failed',
+  PIPELINE_INTEGRITY_FAILED: 'Data Integrity Check Failed',
   UNKNOWN: 'Error',
 };
 
@@ -167,6 +206,27 @@ function classifyErrorCode(
     // Resource errors
     'TIMEOUT': 'EXECUTION_TIMEOUT',
     'MEMORY_LIMIT': 'MEMORY_LIMIT',
+
+    // Pipeline errors
+    'PIPELINE_ERROR': 'PIPELINE_ERROR',
+    'ENGINE_INIT_FAILED': 'ENGINE_INIT_FAILED',
+    'ENGINE_NOT_FOUND': 'ENGINE_ERROR',
+    'MEMORY_ALLOCATION_FAILED': 'MEMORY_LIMIT',
+    'WORKER_INIT_FAILED': 'ENGINE_INIT_FAILED',
+    'DATA_LOAD_FAILED': 'FILE_INVALID',
+    'INVALID_INPUT_FORMAT': 'FILE_PARSE_ERROR',
+    'MISSING_REQUIRED_INPUT': 'FILE_NOT_FOUND',
+    'INPUT_SIZE_MISMATCH': 'VALIDATION_ERROR',
+    'EXECUTION_FAILED': 'PIPELINE_NODE_FAILED',
+    'OUT_OF_MEMORY': 'MEMORY_LIMIT',
+    'NUMERICAL_ERROR': 'PIPELINE_NODE_FAILED',
+    'ASSERTION_FAILED': 'PIPELINE_NODE_FAILED',
+    'HANDOFF_FAILED': 'PIPELINE_HANDOFF_FAILED',
+    'UPSTREAM_TIMEOUT': 'EXECUTION_TIMEOUT',
+    'UPSTREAM_ERROR': 'PIPELINE_NODE_FAILED',
+    'INTEGRITY_CHECK_FAILED': 'PIPELINE_INTEGRITY_FAILED',
+    'OUTPUT_WRITE_FAILED': 'PIPELINE_NODE_FAILED',
+    'OUTPUT_SIZE_MISMATCH': 'VALIDATION_ERROR',
   };
 
   const type = codeToType[code] || 'UNKNOWN';
@@ -219,6 +279,20 @@ function classifyErrorMessage(
   }
   if (lowerMessage.includes('cancelled') || lowerMessage.includes('canceled') || lowerMessage.includes('abort')) {
     return createError('CANCELLED', message, filePath, details);
+  }
+
+  // Pipeline errors
+  if (lowerMessage.includes('pipeline') || lowerMessage.includes('node')) {
+    if (lowerMessage.includes('handoff') || lowerMessage.includes('signal')) {
+      return createError('PIPELINE_HANDOFF_FAILED', message, filePath, details);
+    }
+    if (lowerMessage.includes('integrity') || lowerMessage.includes('checksum') || lowerMessage.includes('corrupt')) {
+      return createError('PIPELINE_INTEGRITY_FAILED', message, filePath, details);
+    }
+    if (lowerMessage.includes('failed') || lowerMessage.includes('error')) {
+      return createError('PIPELINE_NODE_FAILED', message, filePath, details);
+    }
+    return createError('PIPELINE_ERROR', message, filePath, details);
   }
 
   // Engine errors
@@ -316,4 +390,108 @@ export const COMMON_WARNINGS = {
     `Cloud assumption reference "${ref}" not yet supported. Using local file fallback.`,
     'config'
   ),
+  PIPELINE_PARTIAL_RESULTS: (completedNodes: string[], failedNode: string) => createWarning(
+    `Pipeline partially completed. ${completedNodes.length} nodes completed before "${failedNode}" failed.`,
+    'engine'
+  ),
+  PIPELINE_CONTINUE_MODE: () => createWarning(
+    'Pipeline is running in continue-on-error mode. Some nodes may have failed.',
+    'engine'
+  ),
+  PIPELINE_SLOW_NODE: (nodeId: string, timeMs: number) => createWarning(
+    `Pipeline node "${nodeId}" took ${(timeMs / 1000).toFixed(1)}s. Consider optimizing this stage.`,
+    'performance'
+  ),
+  PIPELINE_SKIPPED_NODES: (skippedNodes: string[]) => createWarning(
+    `Skipped ${skippedNodes.length} downstream nodes due to upstream failure: ${skippedNodes.join(', ')}`,
+    'engine'
+  ),
 };
+
+/**
+ * Create a structured error from a pipeline error
+ */
+export function createPipelineError(
+  pipelineError: {
+    nodeId: string;
+    stage: string;
+    message: string;
+    code: string;
+    guidance?: string;
+    inputSnapshot?: {
+      inputs: Map<string, { name: string; sample: number[]; min?: number; max?: number; mean?: number }>;
+      outputs: Map<string, { name: string; sample: number[]; min?: number; max?: number; mean?: number }>;
+    };
+    allNodeStates?: Record<string, number>;
+    stack?: string;
+  },
+  completedNodes?: string[],
+  skippedNodes?: string[]
+): LiveCalcError {
+  // Map pipeline error codes to LiveCalc error types
+  const codeToType: Record<string, LiveCalcErrorType> = {
+    ENGINE_INIT_FAILED: 'ENGINE_INIT_FAILED',
+    ENGINE_NOT_FOUND: 'ENGINE_ERROR',
+    MEMORY_ALLOCATION_FAILED: 'MEMORY_LIMIT',
+    WORKER_INIT_FAILED: 'ENGINE_INIT_FAILED',
+    DATA_LOAD_FAILED: 'FILE_INVALID',
+    INVALID_INPUT_FORMAT: 'FILE_PARSE_ERROR',
+    MISSING_REQUIRED_INPUT: 'FILE_NOT_FOUND',
+    INPUT_SIZE_MISMATCH: 'VALIDATION_ERROR',
+    EXECUTION_FAILED: 'PIPELINE_NODE_FAILED',
+    TIMEOUT: 'EXECUTION_TIMEOUT',
+    OUT_OF_MEMORY: 'MEMORY_LIMIT',
+    NUMERICAL_ERROR: 'PIPELINE_NODE_FAILED',
+    ASSERTION_FAILED: 'PIPELINE_NODE_FAILED',
+    HANDOFF_FAILED: 'PIPELINE_HANDOFF_FAILED',
+    UPSTREAM_TIMEOUT: 'EXECUTION_TIMEOUT',
+    UPSTREAM_ERROR: 'PIPELINE_NODE_FAILED',
+    INTEGRITY_CHECK_FAILED: 'PIPELINE_INTEGRITY_FAILED',
+    OUTPUT_WRITE_FAILED: 'PIPELINE_NODE_FAILED',
+    OUTPUT_SIZE_MISMATCH: 'VALIDATION_ERROR',
+    CANCELLED: 'CANCELLED',
+  };
+
+  const type = codeToType[pipelineError.code] || 'PIPELINE_ERROR';
+
+  // Convert node states to string format
+  const nodeStateNames: Record<number, string> = {
+    0: 'IDLE',
+    1: 'WAITING',
+    2: 'RUNNING',
+    3: 'COMPLETE',
+    4: 'ERROR',
+  };
+
+  const nodeStates: Record<string, string> | undefined = pipelineError.allNodeStates
+    ? Object.fromEntries(
+        Object.entries(pipelineError.allNodeStates).map(([k, v]) => [k, nodeStateNames[v] || 'UNKNOWN'])
+      )
+    : undefined;
+
+  // Convert input/output snapshots from Map to Array
+  const inputSnapshot = pipelineError.inputSnapshot
+    ? {
+        inputs: Array.from(pipelineError.inputSnapshot.inputs.values()),
+        outputs: Array.from(pipelineError.inputSnapshot.outputs.values()),
+      }
+    : undefined;
+
+  return {
+    type,
+    message: `Pipeline node "${pipelineError.nodeId}" failed at ${pipelineError.stage} stage: ${pipelineError.message}`,
+    guidance: pipelineError.guidance || ERROR_GUIDANCE[type],
+    details: pipelineError.stack,
+    recoverable: type !== 'MEMORY_LIMIT' && type !== 'ENGINE_INIT_FAILED',
+    pipelineError: {
+      nodeId: pipelineError.nodeId,
+      stage: pipelineError.stage,
+      code: pipelineError.code,
+      inputSnapshot,
+      nodeStates,
+      completedNodes,
+      skippedNodes,
+      hasPartialResults: completedNodes !== undefined && completedNodes.length > 0,
+    },
+  };
+}

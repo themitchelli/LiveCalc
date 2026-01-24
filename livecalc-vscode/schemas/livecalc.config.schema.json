@@ -226,6 +226,36 @@
               "default": true
             }
           }
+        },
+        "errorHandling": {
+          "type": "object",
+          "description": "Error handling configuration for pipeline execution",
+          "properties": {
+            "continueOnError": {
+              "type": "boolean",
+              "description": "Continue pipeline execution after a node fails (collect partial results)",
+              "default": false
+            },
+            "maxErrors": {
+              "type": "integer",
+              "description": "Maximum number of errors to collect before halting (when continueOnError is true)",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "description": "Timeout in milliseconds for each pipeline node",
+              "minimum": 1000,
+              "maximum": 600000,
+              "default": 30000
+            },
+            "captureSnapshots": {
+              "type": "boolean",
+              "description": "Capture bus data snapshots on error for debugging",
+              "default": true
+            }
+          }
         }
       }
     }

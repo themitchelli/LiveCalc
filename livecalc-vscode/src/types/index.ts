@@ -28,6 +28,8 @@ export interface PipelineConfig {
   nodes: PipelineNode[];
   /** Debug settings for pipeline execution */
   debug?: PipelineDebugConfig;
+  /** Error handling configuration */
+  errorHandling?: PipelineErrorHandlingConfig;
 }
 
 /**
@@ -58,6 +60,20 @@ export interface PipelineDebugConfig {
   breakpoints?: string[];
   /** Zero shared memory between runs for security */
   zeroMemoryBetweenRuns?: boolean;
+}
+
+/**
+ * Error handling configuration for pipeline execution
+ */
+export interface PipelineErrorHandlingConfig {
+  /** Continue pipeline execution after a node fails (collect partial results) */
+  continueOnError?: boolean;
+  /** Maximum number of errors to collect before halting (when continueOnError is true) */
+  maxErrors?: number;
+  /** Timeout in milliseconds for each pipeline node */
+  timeoutMs?: number;
+  /** Capture bus data snapshots on error for debugging */
+  captureSnapshots?: boolean;
 }
 
 export interface AssumptionConfig {

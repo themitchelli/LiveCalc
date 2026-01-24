@@ -2210,3 +2210,45 @@ For blocked stories, use:
   - livecalc-engine/js/src/index.ts (added atomic signal exports)
   - livecalc-engine/js/tests/atomic-signals.test.ts (new - 50 tests)
 - Tests: 271 total tests pass (221 existing + 50 new)
+
+## 2026-01-24 18:51 - US-004: Pipeline Error Handling (PRD-LC-010) - COMPLETE
+
+- Implemented comprehensive error handling for pipeline execution
+- Created pipeline-error.ts module with:
+  - PipelineError class extending Error with full context (nodeId, stage, code, guidance, inputSnapshot)
+  - PipelineErrorHandler class for collecting and managing errors during execution
+  - PipelineErrorCode enum with 20+ error codes covering init, load, execute, handoff, finalize stages
+  - PipelineErrorInfo interface with errorId, severity, nodeState, allNodeStates, executionTimeMs
+  - InputSnapshot and BusDataSnapshot for capturing bus data state at time of error
+  - PipelineExecutionResult type with success, partialResults, error, timing, completedNodes, failedNodes, skippedNodes
+  - NodeExecutionResult and NodeTiming types for per-node tracking
+  - createFailedResult() and createSuccessResult() helper functions
+  - Error classification function that maps error messages to codes
+  - Error guidance mapping with actionable advice for each error code
+- Added errorHandling configuration to pipeline schema:
+  - continueOnError: boolean (default: false) - fail-fast vs continue mode
+  - maxErrors: number (default: 10) - limit stored errors in continue mode
+  - timeoutMs: number (default: 30000) - per-node timeout
+  - captureSnapshots: boolean (default: true) - capture bus data on error
+- Updated VS Code extension error-types.ts:
+  - Added PIPELINE_ERROR, PIPELINE_NODE_FAILED, PIPELINE_HANDOFF_FAILED, PIPELINE_INTEGRITY_FAILED types
+  - Added PipelineErrorDisplay interface for structured pipeline error display
+  - Added createPipelineError() function for converting pipeline errors to LiveCalcError
+  - Added pipeline-specific warnings (PIPELINE_PARTIAL_RESULTS, PIPELINE_CONTINUE_MODE, etc.)
+  - Extended error classification to handle pipeline error codes
+- All acceptance criteria verified:
+  - Failed node reports error with full context (node id, inputs, error message) ✓
+  - Pipeline halts gracefully on first error (fail-fast) ✓
+  - Partial results available up to failure point ✓
+  - Error propagates to results panel with actionable guidance ✓
+  - Option to continue pipeline despite errors (configurable) ✓
+  - Error state visible in pipeline debug view ✓
+- Files changed:
+  - livecalc-engine/js/src/orchestrator/pipeline-error.ts (new - error handling module)
+  - livecalc-engine/js/src/orchestrator/index.ts (added error handling exports)
+  - livecalc-engine/js/src/index.ts (added error handling exports)
+  - livecalc-engine/js/tests/pipeline-error.test.ts (new - 30 tests)
+  - livecalc-vscode/schemas/livecalc.config.schema.json (added errorHandling config)
+  - livecalc-vscode/src/types/index.ts (added PipelineErrorHandlingConfig)
+  - livecalc-vscode/src/ui/error-types.ts (added pipeline error types and classification)
+- Tests: 301 total tests pass (271 existing + 30 new)

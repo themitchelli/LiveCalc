@@ -42,3 +42,24 @@ export type {
   SignalTiming,
   MessageHandoffConfig,
 } from './atomic-signals.js';
+
+// Pipeline error handling
+export {
+  PipelineError,
+  PipelineErrorHandler,
+  PipelineErrorCode,
+  createFailedResult,
+  createSuccessResult,
+  createEmptyNodeTiming,
+} from './pipeline-error.js';
+
+export type {
+  PipelineStage,
+  PipelineErrorSeverity,
+  PipelineErrorInfo,
+  BusDataSnapshot,
+  InputSnapshot,
+  PipelineExecutionResult,
+  NodeExecutionResult,
+  NodeTiming,
+} from './pipeline-error.js';
