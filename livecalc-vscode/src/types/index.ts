@@ -7,7 +7,11 @@
  */
 export interface LiveCalcConfig {
   $schema?: string;
+  /** Base config to inherit from (future feature) */
+  extends?: string;
   model: string;
+  /** Policy data source */
+  policies?: string;
   assumptions: AssumptionConfig;
   scenarios: ScenarioConfig;
   execution?: ExecutionConfig;

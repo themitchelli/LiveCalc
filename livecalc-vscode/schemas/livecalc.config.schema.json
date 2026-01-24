@@ -10,10 +10,20 @@
       "type": "string",
       "description": "JSON schema reference"
     },
+    "extends": {
+      "type": "string",
+      "description": "Path to base configuration file to inherit from (future feature - not yet implemented)",
+      "pattern": ".*\\.json$"
+    },
     "model": {
       "type": "string",
-      "description": "Path to the MGA model file",
+      "description": "Path to the MGA model file (required)",
       "pattern": ".*\\.mga$"
+    },
+    "policies": {
+      "type": "string",
+      "description": "Path to policy data file (local:// or assumptions://)",
+      "pattern": "^(local://|assumptions://).*"
     },
     "assumptions": {
       "type": "object",

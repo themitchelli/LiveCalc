@@ -395,3 +395,34 @@ For blocked stories, use:
   - livecalc-vscode/samples/simple-term-life/model.mga (sample file)
 - Tests: Syntax highlighting verified against sample file
 
+## 2026-01-24 00:20 - US-003: Project Configuration Schema (PRD-LC-003) - COMPLETE
+
+- Enhanced config validation with comprehensive field-level checks
+- Implemented ConfigValidator class with DiagnosticCollection for Problems panel integration
+- Validation reports errors/warnings to VS Code Problems panel with file locations
+- Added parent directory search for config file discovery (up to 5 levels)
+- Added placeholder support for config inheritance (`extends` field with warning)
+- Enhanced JSON schema with `extends` and `policies` fields
+- Updated TypeScript types to include new fields
+- Config file watcher triggers re-validation on changes
+- All acceptance criteria verified:
+  - livecalc.config.json schema defined and documented
+  - Config specifies model file path (required)
+  - Config specifies assumption file paths (mortality, lapse, expenses)
+  - Config specifies scenario settings (count, seed, interest rate parameters)
+  - Config specifies output preferences (percentiles, show distribution)
+  - Config specifies execution preferences (auto-run, timeout)
+  - Extension auto-discovers config in workspace root
+  - Extension searches parent directories if not in root
+  - Command 'LiveCalc: Initialize Project' creates default config
+  - JSON schema published for IntelliSense in config file
+  - Validation errors shown in Problems panel if config invalid
+  - Config file changes trigger re-validation
+  - Support for config inheritance/includes (future placeholder with warning)
+- Files changed:
+  - livecalc-vscode/src/config/config-validator.ts (new - validation with diagnostics)
+  - livecalc-vscode/src/config/config-loader.ts (parent directory search, validator integration)
+  - livecalc-vscode/src/types/index.ts (added extends, policies fields)
+  - livecalc-vscode/schemas/livecalc.config.schema.json (added extends, policies)
+- Tests: Extension compiles and packages successfully (16.32KB)
+

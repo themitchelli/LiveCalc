@@ -2,37 +2,70 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { LiveCalcConfig } from '../types';
 import { logger } from '../logging/logger';
+import { ConfigValidator } from './config-validator';
 
 /**
  * Config file loader and validator
  */
-export class ConfigLoader {
+export class ConfigLoader implements vscode.Disposable {
   private cachedConfig: LiveCalcConfig | null = null;
   private cachedConfigPath: string | null = null;
+  private cachedConfigText: string | null = null;
   private configWatcher: vscode.FileSystemWatcher | null = null;
+  private validator: ConfigValidator;
 
   constructor(context: vscode.ExtensionContext) {
+    this.validator = new ConfigValidator();
+    context.subscriptions.push(this.validator);
+
     // Watch for config file changes
     this.configWatcher = vscode.workspace.createFileSystemWatcher(
       '**/livecalc.config.json'
     );
 
-    this.configWatcher.onDidChange(() => {
+    this.configWatcher.onDidChange(async (uri) => {
       logger.debug('Config file changed, invalidating cache');
       this.invalidateCache();
+      // Re-validate the changed config file
+      await this.validateConfigFile(uri.fsPath);
     });
 
-    this.configWatcher.onDidDelete(() => {
+    this.configWatcher.onDidDelete((uri) => {
       logger.debug('Config file deleted, invalidating cache');
       this.invalidateCache();
+      // Clear diagnostics for deleted file
+      this.validator.clearDiagnostics(uri.fsPath);
+    });
+
+    this.configWatcher.onDidCreate(async (uri) => {
+      logger.debug('Config file created, validating');
+      await this.validateConfigFile(uri.fsPath);
     });
 
     context.subscriptions.push(this.configWatcher);
   }
 
   /**
+   * Validate a config file and update diagnostics
+   */
+  private async validateConfigFile(configPath: string): Promise<void> {
+    try {
+      const uri = vscode.Uri.file(configPath);
+      const content = await vscode.workspace.fs.readFile(uri);
+      const text = Buffer.from(content).toString('utf-8');
+
+      const config = JSON.parse(text) as LiveCalcConfig;
+      this.validator.validateAndReport(config, configPath, text);
+    } catch (error) {
+      // JSON parse error - report it as a diagnostic
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Config parse error: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Find the config file in the workspace
-   * Searches workspace root and parent directories
+   * Searches workspace root, then within workspace, then parent directories
    */
   public async findConfigFile(): Promise<string | null> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -40,25 +73,68 @@ export class ConfigLoader {
       return null;
     }
 
-    // First check workspace root
     const rootPath = workspaceFolders[0].uri.fsPath;
-    const configPath = path.join(rootPath, 'livecalc.config.json');
 
-    try {
-      await vscode.workspace.fs.stat(vscode.Uri.file(configPath));
-      logger.debug(`Found config at ${configPath}`);
+    // First check workspace root
+    const configPath = path.join(rootPath, 'livecalc.config.json');
+    if (await this.fileExists(configPath)) {
+      logger.debug(`Found config at workspace root: ${configPath}`);
       return configPath;
-    } catch {
-      // Not found in root, search for it in workspace
-      const files = await vscode.workspace.findFiles('**/livecalc.config.json', '**/node_modules/**', 1);
-      if (files.length > 0) {
-        const foundPath = files[0].fsPath;
-        logger.debug(`Found config at ${foundPath}`);
-        return foundPath;
-      }
+    }
+
+    // Search within workspace
+    const files = await vscode.workspace.findFiles('**/livecalc.config.json', '**/node_modules/**', 1);
+    if (files.length > 0) {
+      const foundPath = files[0].fsPath;
+      logger.debug(`Found config within workspace: ${foundPath}`);
+      return foundPath;
+    }
+
+    // Search parent directories (up to 5 levels)
+    const parentConfig = await this.searchParentDirectories(rootPath);
+    if (parentConfig) {
+      logger.debug(`Found config in parent directory: ${parentConfig}`);
+      return parentConfig;
     }
 
     return null;
+  }
+
+  /**
+   * Search parent directories for config file
+   */
+  private async searchParentDirectories(startPath: string): Promise<string | null> {
+    let currentPath = startPath;
+    const maxLevels = 5;
+
+    for (let i = 0; i < maxLevels; i++) {
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === currentPath) {
+        // Reached root
+        break;
+      }
+
+      const configPath = path.join(parentPath, 'livecalc.config.json');
+      if (await this.fileExists(configPath)) {
+        return configPath;
+      }
+
+      currentPath = parentPath;
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if a file exists
+   */
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -79,14 +155,18 @@ export class ConfigLoader {
       const config = JSON.parse(text) as LiveCalcConfig;
       logger.info(`Loaded config from ${configPath}`);
 
-      // Validate required fields
-      const errors = this.validateConfig(config);
-      if (errors.length > 0) {
+      // Validate using the validator (updates Problems panel)
+      const errors = this.validator.validateAndReport(config, configPath, text);
+      const hasErrors = errors.some(e => e.severity === vscode.DiagnosticSeverity.Error);
+
+      if (hasErrors) {
         for (const error of errors) {
-          logger.error(`Config validation error: ${error}`);
+          if (error.severity === vscode.DiagnosticSeverity.Error) {
+            logger.error(`Config validation error: ${error.message}`);
+          }
         }
         vscode.window.showErrorMessage(
-          `LiveCalc: Config validation failed: ${errors[0]}`
+          `LiveCalc: Config validation failed. See Problems panel for details.`
         );
         return null;
       }
@@ -94,6 +174,7 @@ export class ConfigLoader {
       // Cache the valid config
       this.cachedConfig = config;
       this.cachedConfigPath = configPath;
+      this.cachedConfigText = text;
 
       return config;
     } catch (error) {
@@ -105,44 +186,27 @@ export class ConfigLoader {
   }
 
   /**
-   * Validate the config structure
+   * Get the raw config text (for inheritance resolution)
    */
-  private validateConfig(config: LiveCalcConfig): string[] {
-    const errors: string[] = [];
+  public getCachedConfigText(): string | null {
+    return this.cachedConfigText;
+  }
 
-    if (!config.model) {
-      errors.push('Missing required field: model');
+  /**
+   * Check if the current config has validation errors
+   */
+  public hasValidationErrors(): boolean {
+    if (!this.cachedConfigPath) {
+      return false;
     }
+    return this.validator.hasErrors(this.cachedConfigPath);
+  }
 
-    if (!config.assumptions) {
-      errors.push('Missing required field: assumptions');
-    } else {
-      if (!config.assumptions.mortality) {
-        errors.push('Missing required field: assumptions.mortality');
-      }
-      if (!config.assumptions.lapse) {
-        errors.push('Missing required field: assumptions.lapse');
-      }
-      if (!config.assumptions.expenses) {
-        errors.push('Missing required field: assumptions.expenses');
-      }
-    }
-
-    if (!config.scenarios) {
-      errors.push('Missing required field: scenarios');
-    } else {
-      if (typeof config.scenarios.count !== 'number' || config.scenarios.count < 1) {
-        errors.push('scenarios.count must be a positive number');
-      }
-      if (typeof config.scenarios.seed !== 'number') {
-        errors.push('scenarios.seed must be a number');
-      }
-      if (!config.scenarios.interestRate) {
-        errors.push('Missing required field: scenarios.interestRate');
-      }
-    }
-
-    return errors;
+  /**
+   * Get the validator instance for direct validation access
+   */
+  public getValidator(): ConfigValidator {
+    return this.validator;
   }
 
   /**
