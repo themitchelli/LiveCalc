@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# SIMD build option (only applies to Emscripten WASM builds)
+option(ENABLE_SIMD "Enable SIMD128 instructions for WASM (requires browser support)" OFF)
+
 # Detect build environment
 # Emscripten: Browser/Node.js WASM with JS wrapper
 # WASI: Standalone WASM for Wasmtime/Wasmer CLI execution
@@ -97,15 +100,22 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
 # ============================================================================
 # WASM Build Configuration (Emscripten)
 # ============================================================================
-else()
+elseif(WASM_BUILD)
     # WASM library with exports
     set(WASM_SOURCES
         ${LIB_SOURCES}
         src/wasm/exports.cpp
     )
 
-    # WASM output name
-    set(WASM_OUTPUT_NAME "livecalc")
+    # WASM output name - changes based on SIMD flag
+    if(ENABLE_SIMD)
+        set(WASM_OUTPUT_NAME "livecalc-simd")
+        message(STATUS "SIMD128 enabled - output: livecalc-simd.wasm")
+        message(STATUS "  Browser support: Chrome 91+, Firefox 89+, Safari 16.4+, Node 16+")
+    else()
+        set(WASM_OUTPUT_NAME "livecalc")
+        message(STATUS "SIMD disabled - output: livecalc.wasm (scalar)")
+    endif()
 
     add_executable(${WASM_OUTPUT_NAME} ${WASM_SOURCES})
     target_include_directories(${WASM_OUTPUT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -149,6 +159,13 @@ else()
     # Exported runtime methods for JavaScript access
     set(EXPORTED_RUNTIME_METHODS "'cwrap','ccall','getValue','setValue','UTF8ToString','stringToUTF8','lengthBytesUTF8','HEAPU8','HEAPF64'")
 
+    # Module export name depends on SIMD
+    if(ENABLE_SIMD)
+        set(WASM_EXPORT_NAME "createLiveCalcModuleSimd")
+    else()
+        set(WASM_EXPORT_NAME "createLiveCalcModule")
+    endif()
+
     # Common WASM link flags
     set(WASM_COMMON_FLAGS
         "-s WASM=1"
@@ -160,12 +177,19 @@ else()
         "-s STACK_SIZE=1MB"
         "-s MODULARIZE=1"
         "-s EXPORT_ES6=1"
-        "-s EXPORT_NAME='createLiveCalcModule'"
+        "-s EXPORT_NAME='${WASM_EXPORT_NAME}'"
         "-s ENVIRONMENT='web,node'"
         "-s FILESYSTEM=0"
         "-s ASSERTIONS=0"
         "--no-entry"
     )
+
+    # SIMD-specific flags
+    if(ENABLE_SIMD)
+        list(APPEND WASM_COMMON_FLAGS "-msimd128")
+        # Note: SIMD requires 16-byte alignment for vector loads/stores
+        # See docs/simd-alignment.md for details
+    endif()
 
     # Build type specific flags
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -205,12 +229,26 @@ else()
         target_compile_options(${WASM_OUTPUT_NAME} PRIVATE -O3 -flto)
     endif()
 
+    # Add SIMD compile flag if enabled
+    if(ENABLE_SIMD)
+        target_compile_options(${WASM_OUTPUT_NAME} PRIVATE -msimd128)
+    endif()
+
     # Custom target to report WASM binary size
-    add_custom_command(TARGET ${WASM_OUTPUT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "WASM build complete:"
-        COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.wasm || true
-        COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.mjs || true
-    )
+    if(ENABLE_SIMD)
+        add_custom_command(TARGET ${WASM_OUTPUT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "WASM SIMD build complete:"
+            COMMAND ${CMAKE_COMMAND} -E echo "  SIMD128 instructions enabled"
+            COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.wasm || true
+            COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.mjs || true
+        )
+    else()
+        add_custom_command(TARGET ${WASM_OUTPUT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "WASM scalar build complete:"
+            COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.wasm || true
+            COMMAND ls -lh ${CMAKE_BINARY_DIR}/${WASM_OUTPUT_NAME}.mjs || true
+        )
+    endif()
 
 # ============================================================================
 # WASI Build Configuration (for Wasmtime/Wasmer)

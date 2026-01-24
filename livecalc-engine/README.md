@@ -39,12 +39,58 @@ emmake make
 - `livecalc.wasm` - WASM binary (~100KB release, ~3MB debug)
 - `livecalc.mjs` - ES6 JavaScript module (~18KB release)
 
+### SIMD Build (with SIMD128 instructions)
+
+SIMD-enabled builds use 128-bit vector instructions for potential performance improvements
+on supported browsers and runtimes.
+
+**Build SIMD-enabled WASM:**
+```bash
+mkdir build-wasm-simd && cd build-wasm-simd
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_SIMD=ON
+emmake make
+```
+
+**Output:**
+- `livecalc-simd.wasm` - SIMD-enabled WASM binary (~100KB)
+- `livecalc-simd.mjs` - ES6 JavaScript module with `createLiveCalcModuleSimd` export
+
+**Browser/Runtime Support for SIMD:**
+
+| Runtime | Minimum Version | Notes |
+|---------|-----------------|-------|
+| Chrome  | 91+ (May 2021)  | Native support |
+| Firefox | 89+ (June 2021) | Native support |
+| Safari  | 16.4+ (March 2023) | Native support |
+| Edge    | 91+ (May 2021)  | Chromium-based |
+| Node.js | 16+ | Native support (no flag needed since 16.4) |
+
+**Feature Detection in JavaScript:**
+```typescript
+import { isSimdSupported, selectSimdModule } from '@livecalc/engine';
+
+// Simple check
+if (isSimdSupported()) {
+  const module = await import('./livecalc-simd.mjs');
+} else {
+  const module = await import('./livecalc.mjs');
+}
+
+// Or use the helper function
+const selection = selectSimdModule({
+  simdModule: './livecalc-simd.mjs',
+  scalarModule: './livecalc.mjs',
+});
+const module = await import(selection.module);
+```
+
 ### Build Comparison
 
-| Build Type | WASM Size | JS Size | Source Maps |
-|------------|-----------|---------|-------------|
-| Release    | ~100 KB   | ~18 KB  | No          |
-| Debug      | ~3 MB     | ~77 KB  | Yes         |
+| Build Type | WASM Size | JS Size | SIMD | Source Maps |
+|------------|-----------|---------|------|-------------|
+| Release    | ~100 KB   | ~18 KB  | No   | No          |
+| Release+SIMD | ~100 KB | ~18 KB  | Yes  | No          |
+| Debug      | ~3 MB     | ~77 KB  | No   | Yes         |
 
 ## Running Tests
 

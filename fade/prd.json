@@ -155,7 +155,7 @@
         },
         "featureDetection": "WebAssembly.validate(simdTestModule)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-S05",

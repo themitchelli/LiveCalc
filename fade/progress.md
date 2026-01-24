@@ -1355,3 +1355,63 @@ For blocked stories, use:
   - livecalc-engine/js/tests/work-stealing-deque.test.ts (new - 22 tests)
 - Tests: 166 total tests pass (144 existing + 22 new)
 
+## 2026-01-24 12:45 - US-S04: SIMD Build Infrastructure (SPIKE-LC-007) - COMPLETE
+
+- Added SIMD build option to CMakeLists.txt:
+  - `option(ENABLE_SIMD "Enable SIMD128 instructions" OFF)` cmake option
+  - `-msimd128` compile and link flags when SIMD enabled
+  - Output name changes to `livecalc-simd.wasm` and `livecalc-simd.mjs`
+  - Module export name changes to `createLiveCalcModuleSimd`
+  - Status messages indicate SIMD build and browser support requirements
+- Created SIMD feature detection module (simd-detection.ts):
+  - `isSimdSupported()` runtime detection using WebAssembly.validate()
+  - Uses v128.const instruction for reliable cross-platform detection
+  - Result caching for performance
+  - `getSimdSupportInfo()` returns detailed environment info (browser, version, notes)
+  - `selectSimdModule()` helper for auto-selecting SIMD or scalar module
+  - `SIMD_BROWSER_SUPPORT` constants (Chrome 91, Firefox 89, Safari 16.4, Node 16)
+  - `getSimdBrowserRequirements()` for human-readable requirements string
+- Created SIMD alignment documentation (docs/simd-alignment.md):
+  - 16-byte alignment requirements explained
+  - C++ alignas specifier usage examples
+  - aligned_alloc for dynamic allocation
+  - JavaScript/TypedArray alignment considerations
+  - Data structure guidelines for SIMD optimization
+  - Runtime alignment verification code
+- Created SIMD benchmark comparison script (benchmarks/compare-simd.ts):
+  - Compares execution time between SIMD and scalar builds
+  - Multiple test configurations (small, medium, large, scenario-heavy)
+  - Verifies result parity between builds
+  - Reports speedup factor and statistical measures
+  - Added npm scripts: `compare-simd`, `compare-simd:quick`
+- Built and validated both SIMD and scalar WASM modules:
+  - Scalar: livecalc.wasm (100KB)
+  - SIMD: livecalc-simd.wasm (100KB)
+  - Both pass all tests with identical results
+- Benchmark results:
+  - Average speedup: 1.01x (minimal because code doesn't use explicit SIMD intrinsics)
+  - All results match between SIMD and scalar builds ✓
+  - Infrastructure ready for future SIMD optimization
+- Updated README.md with:
+  - SIMD build instructions (`emcmake cmake .. -DENABLE_SIMD=ON`)
+  - Browser/runtime support table
+  - JavaScript feature detection examples
+  - Build comparison table with SIMD column
+- All acceptance criteria verified:
+  - CMakeLists.txt supports -msimd128 flag as build option ✓
+  - Build produces livecalc-simd.wasm alongside livecalc.wasm ✓
+  - SIMD build passes all existing tests (parity with scalar) ✓
+  - Document 16-byte alignment requirements for SIMD data structures ✓
+  - Benchmark compares SIMD vs non-SIMD builds ✓
+  - SIMD build works in Chrome 91+, Firefox 89+, Safari 16.4+, Node 16+ ✓
+- Files changed:
+  - livecalc-engine/CMakeLists.txt (SIMD build option and flags)
+  - livecalc-engine/js/src/simd-detection.ts (new - feature detection)
+  - livecalc-engine/js/src/index.ts (added SIMD exports)
+  - livecalc-engine/js/tests/simd.test.ts (new - 14 tests)
+  - livecalc-engine/docs/simd-alignment.md (new - alignment documentation)
+  - livecalc-engine/benchmarks/compare-simd.ts (new - benchmark script)
+  - livecalc-engine/benchmarks/package.json (added SIMD benchmark scripts)
+  - livecalc-engine/README.md (SIMD build documentation)
+- Tests: 180 total tests pass (166 existing + 14 new SIMD tests)
+

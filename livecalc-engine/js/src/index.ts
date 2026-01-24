@@ -223,6 +223,21 @@ export type {
   WorkerProgressCallback,
 } from './types.js';
 
+// SIMD feature detection
+export {
+  isSimdSupported,
+  clearSimdCache,
+  getSimdSupportInfo,
+  selectSimdModule,
+  getSimdBrowserRequirements,
+  SIMD_BROWSER_SUPPORT,
+} from './simd-detection.js';
+export type {
+  SimdSupportInfo,
+  SimdModuleConfig,
+  SimdModuleSelection,
+} from './simd-detection.js';
+
 // Constants
 export {
   DEFAULT_SCENARIO_PARAMS,
