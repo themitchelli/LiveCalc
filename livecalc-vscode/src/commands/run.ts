@@ -12,6 +12,8 @@ import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
+import { PipelineView } from '../pipeline';
+import { hasPipeline } from '../pipeline/pipeline-validator';
 
 /**
  * Trigger info passed from auto-run controller
@@ -53,6 +55,7 @@ export async function runCommand(
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
+  pipelineView: PipelineView,
   options: RunOptions = {}
 ): Promise<void> {
   logger.separator();
@@ -78,6 +81,15 @@ export async function runCommand(
   }
   logger.endTimer('Config loading');
   logger.debug(`Scenarios: ${config.scenarios.count}, Seed: ${config.scenarios.seed}`);
+
+  // Check if config has pipeline
+  const usesPipeline = hasPipeline(config);
+  if (usesPipeline && config.pipeline) {
+    logger.info(`Pipeline detected with ${config.pipeline.nodes.length} nodes`);
+    pipelineView.initialize(config.pipeline);
+  } else {
+    logger.debug('No pipeline configuration found');
+  }
 
   // Update status bar with config path
   statusBar.setConfigPath(configPath);
@@ -334,7 +346,8 @@ export function registerRunCommand(
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
-  runHistoryManager: RunHistoryManager
+  runHistoryManager: RunHistoryManager,
+  pipelineView: PipelineView
 ): vscode.Disposable {
   // Set up message handler for comparison and export actions from webview
   resultsPanel.onMessage(async (message: ExtensionMessage) => {
@@ -440,6 +453,6 @@ export function registerRunCommand(
 
   // Manual run from command palette is not an auto-run
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, { isAutoRun: false })
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, { isAutoRun: false })
   );
 }

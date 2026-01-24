@@ -62,6 +62,24 @@ function copyMediaFiles() {
     }
   }
 
+  // Copy pipeline view files
+  const pipelineSrcDir = path.join(mediaSourceDir, 'pipeline');
+  const pipelineDestDir = path.join(mediaDestDir, 'pipeline');
+  if (fs.existsSync(pipelineSrcDir)) {
+    if (!fs.existsSync(pipelineDestDir)) {
+      fs.mkdirSync(pipelineDestDir, { recursive: true });
+    }
+    const pipelineFiles = fs.readdirSync(pipelineSrcDir);
+    for (const file of pipelineFiles) {
+      const sourcePath = path.join(pipelineSrcDir, file);
+      const destPath = path.join(pipelineDestDir, file);
+      if (fs.statSync(sourcePath).isFile()) {
+        fs.copyFileSync(sourcePath, destPath);
+        console.log(`Copied ${file} to dist/media/pipeline/`);
+      }
+    }
+  }
+
   // Copy vendor files (Chart.js, etc.)
   const vendorSrcDir = path.join(mediaSourceDir, 'vendor');
   const vendorDestDir = path.join(mediaDestDir, 'vendor');

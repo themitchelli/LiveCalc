@@ -7,6 +7,7 @@ import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
 import { RunHistoryManager } from '../auto-run/run-history';
 import { AutoRunController } from '../auto-run';
+import { PipelineView } from '../pipeline';
 import { AuthManager, AMStatusBar, AMCache, AssumptionTreeDataProvider, AssumptionTreeItem, AssumptionsManagerClient } from '../assumptions-manager';
 import { executeAMLogin } from './am-login';
 import { executeAMLogout, executeAMClearCache } from './am-logout';
@@ -23,13 +24,14 @@ export function registerCommands(
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
   autoRunController: AutoRunController,
+  pipelineView: PipelineView,
   authManager?: AuthManager,
   amStatusBar?: AMStatusBar,
   amCache?: AMCache,
   assumptionTreeProvider?: AssumptionTreeDataProvider
 ): void {
   // Register run command
-  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager));
+  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView));
 
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));
@@ -49,6 +51,14 @@ export function registerCommands(
     vscode.commands.registerCommand('livecalc.openResults', () => {
       logger.info('Open Results command invoked');
       resultsPanel.show();
+    })
+  );
+
+  // Register open pipeline view command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.openPipelineView', () => {
+      logger.info('Open Pipeline View command invoked');
+      pipelineView.show();
     })
   );
 

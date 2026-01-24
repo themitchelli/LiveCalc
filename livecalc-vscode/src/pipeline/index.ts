@@ -14,3 +14,13 @@ export {
   PipelineErrorCode,
   PipelineWarningCode,
 } from './pipeline-validator';
+
+export {
+  PipelineView,
+  NodeStatus,
+  PipelineNodeState,
+  PipelineConnection,
+  PipelineExecutionState,
+  PipelineViewMessage,
+  PipelineWebviewMessage,
+} from './pipeline-view';

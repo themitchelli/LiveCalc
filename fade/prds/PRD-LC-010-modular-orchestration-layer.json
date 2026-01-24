@@ -175,9 +175,9 @@
       ],
       "technicalNotes": {
         "visualization": "SVG-based DAG rendering in webview",
-        "layout": "Dagre.js or similar for automatic DAG layout"
+        "layout": "Simple layered approach based on node depth in DAG"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

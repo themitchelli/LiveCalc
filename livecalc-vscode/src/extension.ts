@@ -11,6 +11,7 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
+import { PipelineView } from './pipeline';
 import {
   AuthManager,
   AMStatusBar,
@@ -34,6 +35,7 @@ let resultsPanel: ResultsPanel | undefined;
 let comparisonManager: ComparisonManager | undefined;
 let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
+let pipelineView: PipelineView | undefined;
 let authManager: AuthManager | undefined;
 let amStatusBar: AMStatusBar | undefined;
 let amCache: AMCache | undefined;
@@ -82,14 +84,18 @@ export function activate(context: vscode.ExtensionContext): void {
   runHistoryManager = RunHistoryManager.getInstance(context);
   context.subscriptions.push(runHistoryManager);
 
+  // Create pipeline view (singleton)
+  pipelineView = PipelineView.getInstance(context.extensionUri);
+  context.subscriptions.push(pipelineView);
+
   // Create auto-run controller
   autoRunController = new AutoRunController(context, configLoader, statusBar);
   context.subscriptions.push(autoRunController);
 
   // Set up auto-run to execute the run command
   autoRunController.setRunCommand(async (options) => {
-    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager) {
-      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, options);
+    if (statusBar && configLoader && resultsPanel && comparisonManager && runHistoryManager && pipelineView) {
+      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, options);
     }
   });
 
@@ -186,7 +192,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar, amCache, assumptionTreeProvider);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, authManager, amStatusBar, amCache, assumptionTreeProvider);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -278,6 +284,7 @@ export function deactivate(): void {
   comparisonManager = undefined;
   runHistoryManager = undefined;
   autoRunController = undefined;
+  pipelineView = undefined;
   authManager = undefined;
   amStatusBar = undefined;
   amCache = undefined;

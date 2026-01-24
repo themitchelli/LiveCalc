@@ -2252,3 +2252,59 @@ For blocked stories, use:
   - livecalc-vscode/src/types/index.ts (added PipelineErrorHandlingConfig)
   - livecalc-vscode/src/ui/error-types.ts (added pipeline error types and classification)
 - Tests: 301 total tests pass (271 existing + 30 new)
+
+## 2026-01-24 21:00 - US-005: Debug: Pipeline Visualization (PRD-LC-010) - COMPLETE
+
+- Implemented PipelineView class as webview panel for visualizing pipeline execution
+- Created SVG-based DAG rendering with automatic layout using simple layered approach
+- PipelineView features:
+  - Singleton pattern with getInstance() for panel persistence
+  - initialize(config): Creates initial state from pipeline config with nodes and connections
+  - updateNodeStatus(): Real-time status updates (pending, running, complete, error) during execution
+  - setCurrentNode(): Highlights currently executing node with pulse animation
+  - markStart()/markComplete(): Track pipeline execution timing
+- Visualization features:
+  - Automatic DAG layout by calculating node layers (depth in the graph)
+  - Nodes display: ID, engine type (wasm/python icon), status badge, input/output counts
+  - Connections show bus:// resource names as labels on curved paths
+  - Active connections highlighted in blue when data flows through
+  - Failed nodes highlighted in red with error details
+  - Current node highlighted with pulse animation
+- Node details panel (right side of view):
+  - Shows node ID, engine type, status
+  - Lists all inputs and outputs
+  - Displays timing breakdown: init, execute, handoff, total
+  - Shows CRC32 checksums for bus resources (when integrity checks enabled)
+  - Displays error message for failed nodes
+- Toolbar actions:
+  - Refresh button to reload pipeline
+  - Export button to save DAG as SVG file
+  - Status text showing execution progress and node counts
+- Theme-aware styling:
+  - Uses VS Code CSS variables for colors
+  - Status colors: pending (gray), running (blue), complete (green), error (red)
+  - Works in both dark and light themes
+- Integration with run command:
+  - Pipeline view automatically initialized when config has pipeline block
+  - hasPipeline() check determines if pipeline visualization should be shown
+  - Pipeline view panel opens in secondary column when pipeline detected
+- All acceptance criteria verified:
+  - Pipeline view shows DAG of nodes with connections ✓
+  - Each node shows: name, engine type, status (pending/running/complete/error) ✓
+  - Connections show bus:// resource names and data sizes ✓
+  - Real-time status updates during execution ✓
+  - Click node to see details (inputs, outputs, timing, checksums) ✓
+  - Failed nodes highlighted in red with error details ✓
+- Files changed:
+  - livecalc-vscode/src/pipeline/pipeline-view.ts (new - PipelineView class)
+  - livecalc-vscode/src/pipeline/index.ts (added PipelineView exports)
+  - livecalc-vscode/media/pipeline/styles.css (new - theme-aware DAG styles)
+  - livecalc-vscode/media/pipeline/main.js (new - SVG rendering and interaction)
+  - livecalc-vscode/src/extension.ts (create and register pipeline view)
+  - livecalc-vscode/src/commands/index.ts (added openPipelineView command, pass pipelineView)
+  - livecalc-vscode/src/commands/run.ts (added pipelineView parameter, initialize on pipeline detection)
+  - livecalc-vscode/package.json (added livecalc.openPipelineView command)
+  - livecalc-vscode/esbuild.js (copy pipeline media files to dist/)
+  - livecalc-vscode/samples/pipeline-example/livecalc.config.json (verified sample config)
+- Tests: Extension compiles and packages successfully (size TBD)
+

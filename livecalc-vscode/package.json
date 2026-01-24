@@ -152,6 +152,12 @@
         "title": "Filter Tables",
         "category": "LiveCalc",
         "icon": "$(filter)"
+      },
+      {
+        "command": "livecalc.openPipelineView",
+        "title": "Open Pipeline View",
+        "category": "LiveCalc",
+        "icon": "$(graph)"
       }
     ],
     "keybindings": [
