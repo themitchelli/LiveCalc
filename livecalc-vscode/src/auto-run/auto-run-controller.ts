@@ -36,8 +36,9 @@ export class AutoRunController implements vscode.Disposable {
   private configLoader: ConfigLoader;
   private statusBar: StatusBar;
   private currentCancellation: vscode.CancellationTokenSource | undefined;
-  private runCommand: (() => Promise<void>) | undefined;
+  private runCommand: ((options?: { isAutoRun?: boolean }) => Promise<void>) | undefined;
   private lastTrigger: AutoRunTrigger | undefined;
+  private cancelledForNewRun: boolean = false;
   private pendingChanges: Map<string, FileChangeEvent> = new Map();
   private isRunning: boolean = false;
   private onAutoRunTriggeredEmitter = new vscode.EventEmitter<AutoRunTrigger>();
@@ -115,7 +116,7 @@ export class AutoRunController implements vscode.Disposable {
   /**
    * Set the run command callback
    */
-  public setRunCommand(command: () => Promise<void>): void {
+  public setRunCommand(command: (options?: { isAutoRun?: boolean }) => Promise<void>): void {
     this.runCommand = command;
   }
 
@@ -179,14 +180,23 @@ export class AutoRunController implements vscode.Disposable {
 
   /**
    * Cancel any in-progress run
+   * @param forNewRun - If true, indicates cancellation is for a new auto-run
    */
-  public cancelCurrentRun(): void {
+  public cancelCurrentRun(forNewRun: boolean = false): void {
     if (this.currentCancellation) {
-      logger.info('Cancelling current run for new auto-run');
+      this.cancelledForNewRun = forNewRun;
+      logger.info(`Cancelling current run${forNewRun ? ' for new auto-run' : ''}`);
       this.currentCancellation.cancel();
       this.currentCancellation.dispose();
       this.currentCancellation = undefined;
     }
+  }
+
+  /**
+   * Check if the last cancellation was for a new run starting
+   */
+  public wasCancelledForNewRun(): boolean {
+    return this.cancelledForNewRun;
   }
 
   /**
@@ -264,11 +274,16 @@ export class AutoRunController implements vscode.Disposable {
    */
   private async reloadConfigAndWatchers(): Promise<void> {
     try {
-      const result = await this.configLoader.loadConfig();
-      if (result) {
+      const configPath = await this.configLoader.findConfigFile();
+      if (!configPath) {
+        logger.warn('No config file found during reload');
+        return;
+      }
+      const config = await this.configLoader.loadConfig(configPath);
+      if (config) {
         const configDir = this.configLoader.getConfigDirectory();
         if (configDir) {
-          this.fileWatcher.updateConfig(result.config, configDir);
+          this.fileWatcher.updateConfig(config, configDir);
           logger.info('Watchers recreated after config change');
         }
       }
@@ -312,18 +327,22 @@ export class AutoRunController implements vscode.Disposable {
     const fileNames = this.lastTrigger.files.join(', ');
     logger.info(`Auto-run triggered by: ${fileNames}`);
 
-    // Cancel any in-progress run
-    this.cancelCurrentRun();
+    // Cancel any in-progress run (with flag indicating new run starting)
+    this.cancelCurrentRun(true);
 
     // Create new cancellation token
     this.currentCancellation = new vscode.CancellationTokenSource();
+
+    // Reset the cancelled flag now that we're starting a new run
+    this.cancelledForNewRun = false;
 
     // Mark as running
     this.isRunning = true;
     this.updateStatusBar();
 
     try {
-      await this.runCommand();
+      // Pass isAutoRun flag to run command
+      await this.runCommand({ isAutoRun: true });
     } catch (error) {
       // Errors are handled by the run command itself
       logger.debug('Auto-run completed with error (handled by run command)');
@@ -331,6 +350,7 @@ export class AutoRunController implements vscode.Disposable {
       this.isRunning = false;
       this.currentCancellation?.dispose();
       this.currentCancellation = undefined;
+      this.cancelledForNewRun = false;
       this.updateStatusBar();
     }
   }

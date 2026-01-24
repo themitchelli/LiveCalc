@@ -180,6 +180,9 @@ function handleMessage(message) {
     case 'setLoading':
       showLoading(message.message);
       break;
+    case 'setCancelled':
+      showCancelled(message.message, message.newRunStarting);
+      break;
     case 'setError':
       showError(message.error, message.details);
       break;
@@ -267,6 +270,31 @@ function showLoading(message) {
   hideAllStates();
   elements.loadingMessage.textContent = message || 'Loading...';
   elements.loadingState.classList.remove('hidden');
+}
+
+/**
+ * Show cancelled state
+ * Shows a cancelled message with optional indication that a new run is starting
+ */
+function showCancelled(message, newRunStarting) {
+  currentState = { type: 'loading', message };
+  hideAllStates();
+
+  // Use loading state but with cancelled message
+  const displayMessage = message || (newRunStarting ? 'Cancelled - new run starting...' : 'Execution cancelled');
+  elements.loadingMessage.textContent = displayMessage;
+  elements.loadingState.classList.remove('hidden');
+
+  // Add cancelled styling class temporarily
+  elements.loadingState.classList.add('cancelled');
+
+  // If new run is starting, the loading state will be replaced
+  // If not, transition to appropriate state after a brief pause
+  if (!newRunStarting) {
+    setTimeout(() => {
+      elements.loadingState.classList.remove('cancelled');
+    }, 2000);
+  }
 }
 
 /**

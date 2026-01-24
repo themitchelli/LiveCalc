@@ -131,6 +131,19 @@ export class StatusBar {
     this.updateTooltip();
   }
 
+  /**
+   * Set status bar to cancelled state briefly
+   * Shows 'Cancelled' for a short period then returns to ready
+   */
+  public setCancelled(reason?: string): void {
+    this.stopSpinner();
+    this.statusBarItem.text = '$(circle-slash) LiveCalc: Cancelled';
+    this.statusBarItem.backgroundColor = undefined;
+    this.statusBarItem.tooltip = new vscode.MarkdownString(
+      `**LiveCalc: Cancelled**\n\n${reason || 'Run was cancelled'}\n\n_Click to open output channel_`
+    );
+  }
+
   public show(): void {
     this.statusBarItem.show();
   }

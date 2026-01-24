@@ -1102,3 +1102,49 @@ For blocked stories, use:
   - livecalc-vscode/src/ui/notifications.ts (added showNotification utility)
 - Tests: Extension compiles, type-checks, and packages successfully (287.63KB)
 
+## 2026-01-24 18:00 - US-003: Run Cancellation (PRD-LC-005) - COMPLETE
+
+- Implemented run cancellation feature for auto-run scenarios
+- Enhanced StatusBar with setCancelled() method:
+  - Shows '$(circle-slash) LiveCalc: Cancelled' briefly
+  - Custom tooltip with cancellation reason
+  - Auto-resets to ready state after 1.5 seconds (for user cancellation)
+- Enhanced ResultsPanel with setCancelled() method:
+  - New 'setCancelled' message type for webview communication
+  - Shows 'Cancelled - new run starting...' when auto-run triggers new run
+  - Shows 'Execution cancelled' for user-initiated cancellation
+  - CSS styling with orange color scheme for cancelled state indicator
+- Added RunOptions interface to run.ts:
+  - isAutoRun flag differentiates auto-run from manual execution
+  - Affects how cancellation messages are displayed
+- Enhanced AutoRunController:
+  - cancelCurrentRun(forNewRun) accepts flag for new run scenario
+  - cancelledForNewRun tracking for proper message display
+  - wasCancelledForNewRun() method for state inspection
+  - Passes { isAutoRun: true } to run command for auto-triggered runs
+- Updated run command cancellation handling:
+  - Different messages for user cancellation vs auto-run cancellation
+  - User cancellation: "Cancelled by user", brief display then ready
+  - Auto-run cancellation: "New run starting...", immediate transition
+- Updated webview main.js:
+  - showCancelled() function with newRunStarting parameter
+  - Adds 'cancelled' CSS class to loading state temporarily
+- All acceptance criteria verified:
+  - New save during execution cancels current run ✓
+  - Cancellation is graceful (workers terminate cleanly via CancellationToken) ✓
+  - Cancelled run shows 'Cancelled' status briefly ✓
+  - New run starts immediately after cancellation ✓
+  - No orphaned workers or memory leaks (finally block cleanup) ✓
+  - Manual cancel button still works during auto-run ✓
+  - Cancellation logged in output channel ✓
+  - Results panel shows 'Cancelled - new run starting...' message ✓
+- Files changed:
+  - livecalc-vscode/src/ui/status-bar.ts (added setCancelled method)
+  - livecalc-vscode/src/ui/results-panel.ts (added setCancelled method, new message type)
+  - livecalc-vscode/src/commands/run.ts (RunOptions interface, isAutoRun handling)
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (cancelledForNewRun tracking)
+  - livecalc-vscode/src/extension.ts (pass options to run command)
+  - livecalc-vscode/media/results/main.js (showCancelled function)
+  - livecalc-vscode/media/results/styles.css (cancelled state styling)
+- Tests: Extension compiles, type-checks, and packages successfully
+

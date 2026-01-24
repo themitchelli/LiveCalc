@@ -32,6 +32,7 @@ export interface WebviewErrorState {
 export type WebviewMessage =
   | { type: 'setState'; state: PanelState }
   | { type: 'setLoading'; message?: string }
+  | { type: 'setCancelled'; message?: string; newRunStarting?: boolean }
   | { type: 'setError'; error: string; details?: string }
   | { type: 'setErrorState'; errorState: WebviewErrorState }
   | { type: 'setResults'; results: ResultsState }
@@ -116,6 +117,18 @@ export class ResultsPanel implements vscode.Disposable {
   public setLoading(message?: string): void {
     this.currentState = { type: 'loading', message };
     this.postMessage({ type: 'setLoading', message });
+  }
+
+  /**
+   * Set panel to cancelled state
+   * Shows "Cancelled" or "Cancelled - new run starting..." message
+   */
+  public setCancelled(message?: string, newRunStarting: boolean = false): void {
+    const displayMessage = newRunStarting
+      ? 'Cancelled - new run starting...'
+      : message || 'Execution cancelled';
+    this.currentState = { type: 'loading', message: displayMessage };
+    this.postMessage({ type: 'setCancelled', message: displayMessage, newRunStarting });
   }
 
   /**

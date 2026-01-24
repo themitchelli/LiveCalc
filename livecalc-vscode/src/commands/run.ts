@@ -13,6 +13,17 @@ import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
 
 /**
+ * Options for run command execution
+ */
+export interface RunOptions {
+  /**
+   * Indicates this run was triggered by auto-run
+   * Affects how cancellation is displayed
+   */
+  isAutoRun?: boolean;
+}
+
+/**
  * Run command handler
  * Executes the valuation using the WASM engine
  */
@@ -20,7 +31,8 @@ export async function runCommand(
   statusBar: StatusBar,
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
-  comparisonManager: ComparisonManager
+  comparisonManager: ComparisonManager,
+  options: RunOptions = {}
 ): Promise<void> {
   logger.separator();
   logger.milestone('Run command invoked');
@@ -86,9 +98,11 @@ export async function runCommand(
         await engineManager.initialize();
 
         if (token.isCancellationRequested) {
-          logger.info('Execution cancelled by user');
-          statusBar.setReady();
-          resultsPanel.setError('Execution cancelled');
+          logger.info('Execution cancelled');
+          statusBar.setCancelled('Cancelled before data loading');
+          resultsPanel.setCancelled('Execution cancelled', false);
+          // Reset status bar to ready after brief display
+          setTimeout(() => statusBar.setReady(), 1500);
           return;
         }
 
@@ -117,9 +131,11 @@ export async function runCommand(
         logger.info(`Loaded ${data.policyCount} policies`);
 
         if (token.isCancellationRequested) {
-          logger.info('Execution cancelled by user');
-          statusBar.setReady();
-          resultsPanel.setError('Execution cancelled');
+          logger.info('Execution cancelled after data loading');
+          statusBar.setCancelled('Cancelled before valuation');
+          resultsPanel.setCancelled('Execution cancelled', false);
+          // Reset status bar to ready after brief display
+          setTimeout(() => statusBar.setReady(), 1500);
           return;
         }
 
@@ -220,10 +236,17 @@ export async function runCommand(
 
         // Handle cancellation
         if (error instanceof EngineError && error.code === 'CANCELLED') {
-          logger.info('Execution cancelled by user');
-          statusBar.setReady();
-          const cancelledError = classifyError(error);
-          resultsPanel.setStructuredError(cancelledError);
+          logger.info(`Execution cancelled${options.isAutoRun ? ' (new run starting)' : ' by user'}`);
+          // For auto-run cancellation, show "new run starting" message
+          if (options.isAutoRun) {
+            statusBar.setCancelled('New run starting...');
+            resultsPanel.setCancelled(undefined, true);
+          } else {
+            statusBar.setCancelled('Cancelled by user');
+            resultsPanel.setCancelled('Execution cancelled', false);
+            // Reset status bar to ready after brief display
+            setTimeout(() => statusBar.setReady(), 1500);
+          }
           return;
         }
 
@@ -299,7 +322,8 @@ export function registerRunCommand(
     }
   });
 
+  // Manual run from command palette is not an auto-run
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel, comparisonManager)
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, { isAutoRun: false })
   );
 }

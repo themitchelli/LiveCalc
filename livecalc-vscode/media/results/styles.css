@@ -72,6 +72,17 @@ body {
   color: var(--vscode-descriptionForeground, #808080);
 }
 
+/* Cancelled state indicator (added to loading state) */
+#loading-state.cancelled .loading-spinner {
+  border-color: var(--vscode-charts-orange, #cca700);
+  border-top-color: transparent;
+  animation: none;
+}
+
+#loading-state.cancelled #loading-message {
+  color: var(--vscode-charts-orange, #cca700);
+}
+
 /* Empty state */
 #empty-state {
   display: flex;

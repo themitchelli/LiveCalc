@@ -60,9 +60,9 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(autoRunController);
 
   // Set up auto-run to execute the run command
-  autoRunController.setRunCommand(async () => {
+  autoRunController.setRunCommand(async (options) => {
     if (statusBar && configLoader && resultsPanel && comparisonManager) {
-      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager);
+      await runCommand(statusBar, configLoader, resultsPanel, comparisonManager, options);
     }
   });
 

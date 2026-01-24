@@ -108,7 +108,7 @@
         "workerTermination": "worker.terminate() or postMessage({ type: 'cancel' })",
         "cleanup": "Ensure all Promises resolve/reject on cancellation"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
