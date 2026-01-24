@@ -941,3 +941,60 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (added export message handler)
 - Tests: Extension compiles, type-checks, and packages successfully (279.82KB)
 
+## 2026-01-24 14:00 - US-008: Error and Warning Display (PRD-LC-004) - COMPLETE
+
+- Implemented comprehensive error classification and warning display system
+- Created error-types.ts module with:
+  - LiveCalcErrorType enum: CONFIG_NOT_FOUND, CONFIG_INVALID, FILE_NOT_FOUND, FILE_INVALID, FILE_PARSE_ERROR, EXECUTION_TIMEOUT, MEMORY_LIMIT, ENGINE_ERROR, ENGINE_INIT_FAILED, CANCELLED, VALIDATION_ERROR, UNKNOWN
+  - LiveCalcError interface with type, message, guidance, details, filePath, recoverable
+  - LiveCalcWarning interface with message, context, filePath, category (performance/data/config/engine)
+  - classifyError() function that maps error codes and message patterns to structured errors
+  - ERROR_GUIDANCE map with actionable advice for each error type
+  - COMMON_WARNINGS factory functions for large files, slow execution, age capping, etc.
+- Enhanced error state UI in results panel:
+  - Error type badge showing classified error type
+  - Clear error title based on error type
+  - Actionable guidance section with icon (how to fix the error)
+  - File path link (clickable to open file in editor)
+  - Expandable stack trace section for debugging
+  - Retry button conditionally shown based on recoverability
+- Implemented warning banner display:
+  - Yellow banner shown at top of results state when warnings present
+  - Warning count header with dismiss button
+  - Scrollable list of warnings with category badges
+  - Clickable file links for warnings with file paths
+- Enhanced run command to use structured errors:
+  - Uses classifyError() for all error handling
+  - Sets structured error with setStructuredError()
+  - Collects and displays performance warnings (large files, slow execution)
+- Added CSS styles:
+  - .error-type-badge with uppercase, colored badge
+  - .error-guidance with left border accent and info icon
+  - .error-file with clickable file link
+  - .warnings-banner with yellow theme
+  - .warnings-header with icon and dismiss button
+  - .warnings-list with category badges and file links
+- Updated webview JavaScript:
+  - showStructuredError() for enhanced error display
+  - showWarnings() for warning banner management
+  - formatErrorType() converts SNAKE_CASE to Title Case
+  - Retry button visibility based on error.recoverable
+  - Warning list with click handlers for file links
+- All acceptance criteria verified:
+  - Error state shows clear error message ✓
+  - Error message includes actionable guidance where possible ✓
+  - Stack trace available in expandable section (for debugging) ✓
+  - Common errors have specific messages: file not found, invalid CSV, timeout, memory limit ✓
+  - Warnings displayed in yellow banner (non-fatal issues) ✓
+  - Example warning: 'Large policy file may cause slow execution' ✓
+  - Example warning: 'Some policies have age > 100, using capped mortality' ✓
+  - 'Retry' button available after error ✓
+  - 'View Logs' button opens output channel ✓
+- Files changed:
+  - livecalc-vscode/src/ui/error-types.ts (new - error classification system)
+  - livecalc-vscode/src/ui/results-panel.ts (enhanced error UI, warning banner HTML, setStructuredError, setWarnings)
+  - livecalc-vscode/src/commands/run.ts (use classifyError, add warnings)
+  - livecalc-vscode/media/results/styles.css (error guidance, warning banner styles)
+  - livecalc-vscode/media/results/main.js (structured error display, warnings handling)
+- Tests: Extension compiles, type-checks, and packages successfully (284.52KB)
+

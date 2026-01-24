@@ -28,6 +28,9 @@ let displaySettings = {
 // DOM elements (cached on init)
 const elements = {};
 
+// Warnings state
+let currentWarnings = [];
+
 /**
  * Initialize the webview
  */
@@ -42,6 +45,15 @@ function init() {
   elements.errorMessage = document.getElementById('error-message');
   elements.errorDetails = document.getElementById('error-details');
   elements.errorDetailsContainer = document.getElementById('error-details-container');
+  elements.errorTypeBadge = document.getElementById('error-type-badge');
+  elements.errorGuidanceContainer = document.getElementById('error-guidance-container');
+  elements.errorGuidance = document.getElementById('error-guidance');
+  elements.errorFileContainer = document.getElementById('error-file-container');
+  elements.errorFile = document.getElementById('error-file');
+  elements.warningsBanner = document.getElementById('warnings-banner');
+  elements.warningsCount = document.getElementById('warnings-count');
+  elements.warningsList = document.getElementById('warnings-list');
+  elements.dismissWarningsBtn = document.getElementById('dismiss-warnings-btn');
   elements.exportBtn = document.getElementById('export-btn');
   elements.exportMenu = document.getElementById('export-menu');
   elements.chartCanvas = document.getElementById('distribution-chart');
@@ -144,6 +156,12 @@ function setupEventListeners() {
     vscode.postMessage({ type: 'toggleChartOverlay' });
   });
 
+  // Dismiss warnings button
+  elements.dismissWarningsBtn?.addEventListener('click', () => {
+    currentWarnings = [];
+    elements.warningsBanner?.classList.add('hidden');
+  });
+
   // Handle messages from extension
   window.addEventListener('message', (event) => {
     const message = event.data;
@@ -164,6 +182,12 @@ function handleMessage(message) {
       break;
     case 'setError':
       showError(message.error, message.details);
+      break;
+    case 'setErrorState':
+      showStructuredError(message.errorState);
+      break;
+    case 'setWarnings':
+      showWarnings(message.warnings);
       break;
     case 'setResults':
       showResults(message.results);
@@ -255,11 +279,18 @@ function showEmpty() {
 }
 
 /**
- * Show error state
+ * Show error state (simple string error)
  */
 function showError(error, details) {
   currentState = { type: 'error', error, details };
   hideAllStates();
+
+  // Hide enhanced error elements
+  elements.errorTypeBadge?.classList.add('hidden');
+  elements.errorGuidanceContainer?.classList.add('hidden');
+  elements.errorFileContainer?.classList.add('hidden');
+
+  elements.errorTitle.textContent = 'Error';
   elements.errorMessage.textContent = error;
 
   if (details) {
@@ -270,6 +301,122 @@ function showError(error, details) {
   }
 
   elements.errorState.classList.remove('hidden');
+}
+
+/**
+ * Show structured error with guidance
+ */
+function showStructuredError(errorState) {
+  currentState = { type: 'error', error: errorState.message, details: errorState.details };
+  hideAllStates();
+
+  // Show error type badge
+  if (elements.errorTypeBadge) {
+    elements.errorTypeBadge.textContent = formatErrorType(errorState.type);
+    elements.errorTypeBadge.classList.remove('hidden');
+  }
+
+  // Set title and message
+  elements.errorTitle.textContent = errorState.title || 'Error';
+  elements.errorMessage.textContent = errorState.message;
+
+  // Show guidance if available
+  if (errorState.guidance && elements.errorGuidance) {
+    elements.errorGuidance.textContent = errorState.guidance;
+    elements.errorGuidanceContainer.classList.remove('hidden');
+  } else {
+    elements.errorGuidanceContainer?.classList.add('hidden');
+  }
+
+  // Show file path if available
+  if (errorState.filePath && elements.errorFile) {
+    elements.errorFile.textContent = errorState.filePath;
+    elements.errorFile.dataset.path = errorState.filePath;
+    elements.errorFileContainer.classList.remove('hidden');
+
+    // Add click handler for file link
+    elements.errorFile.onclick = () => {
+      vscode.postMessage({ type: 'openFile', path: errorState.filePath });
+    };
+  } else {
+    elements.errorFileContainer?.classList.add('hidden');
+  }
+
+  // Show details/stack trace if available
+  if (errorState.details) {
+    elements.errorDetails.textContent = errorState.details;
+    elements.errorDetailsContainer.classList.remove('hidden');
+  } else {
+    elements.errorDetailsContainer.classList.add('hidden');
+  }
+
+  // Update retry button based on recoverability
+  const retryBtn = document.getElementById('retry-btn');
+  if (retryBtn) {
+    if (errorState.recoverable) {
+      retryBtn.classList.remove('hidden');
+    } else {
+      retryBtn.classList.add('hidden');
+    }
+  }
+
+  elements.errorState.classList.remove('hidden');
+}
+
+/**
+ * Format error type for display
+ */
+function formatErrorType(type) {
+  // Convert SNAKE_CASE to Title Case with spaces
+  return type
+    .split('_')
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Show warnings banner
+ */
+function showWarnings(warnings) {
+  currentWarnings = warnings || [];
+
+  if (!elements.warningsBanner || !elements.warningsList) return;
+
+  if (currentWarnings.length === 0) {
+    elements.warningsBanner.classList.add('hidden');
+    return;
+  }
+
+  // Update count
+  if (elements.warningsCount) {
+    const plural = currentWarnings.length === 1 ? '' : 's';
+    elements.warningsCount.textContent = `${currentWarnings.length} Warning${plural}`;
+  }
+
+  // Build warnings list
+  elements.warningsList.innerHTML = currentWarnings
+    .map((warning) => {
+      const categoryHtml = `<span class="warning-category">${escapeHtml(warning.category)}</span>`;
+      const messageHtml = `<span class="warning-message">${escapeHtml(warning.message)}</span>`;
+      const fileHtml = warning.filePath
+        ? `<span class="warning-file" data-path="${escapeHtml(warning.filePath)}" title="Click to open">${escapeHtml(getFileName(warning.filePath))}</span>`
+        : '';
+
+      return `<li>${categoryHtml}${messageHtml}${fileHtml}</li>`;
+    })
+    .join('');
+
+  // Add click handlers for file links
+  elements.warningsList.querySelectorAll('.warning-file').forEach((el) => {
+    el.addEventListener('click', () => {
+      const filePath = el.dataset.path;
+      if (filePath) {
+        vscode.postMessage({ type: 'openFile', path: filePath });
+      }
+    });
+  });
+
+  elements.warningsBanner.classList.remove('hidden');
 }
 
 /**
@@ -304,6 +451,19 @@ function showResults(results) {
 
   // Update footer
   updateFooter(results);
+
+  // Show warnings if any
+  if (results.warnings && results.warnings.length > 0) {
+    // Convert string warnings to warning objects with default category
+    const warningObjects = results.warnings.map((msg) => ({
+      message: msg,
+      category: 'data',
+    }));
+    showWarnings(warningObjects);
+  } else {
+    // Clear warnings
+    elements.warningsBanner?.classList.add('hidden');
+  }
 
   // Update comparison if baseline exists
   if (comparisonBaseline || previousResults) {

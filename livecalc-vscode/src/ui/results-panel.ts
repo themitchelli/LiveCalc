@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ResultsState, PanelState, ComparisonState, StatisticDelta } from './results-state';
 import { ComparisonInfo } from './comparison';
+import { LiveCalcError, LiveCalcWarning, getErrorTitle } from './error-types';
 import { logger } from '../logging/logger';
 
 /**
@@ -13,13 +14,28 @@ export interface DisplaySettings {
 }
 
 /**
+ * Extended error state for webview
+ */
+export interface WebviewErrorState {
+  type: string;
+  title: string;
+  message: string;
+  guidance?: string;
+  details?: string;
+  filePath?: string;
+  recoverable: boolean;
+}
+
+/**
  * Message types for communication between extension and webview
  */
 export type WebviewMessage =
   | { type: 'setState'; state: PanelState }
   | { type: 'setLoading'; message?: string }
   | { type: 'setError'; error: string; details?: string }
+  | { type: 'setErrorState'; errorState: WebviewErrorState }
   | { type: 'setResults'; results: ResultsState }
+  | { type: 'setWarnings'; warnings: LiveCalcWarning[] }
   | { type: 'clearComparison' }
   | { type: 'pinComparison' }
   | { type: 'setSettings'; settings: DisplaySettings }
@@ -103,11 +119,38 @@ export class ResultsPanel implements vscode.Disposable {
   }
 
   /**
-   * Set panel to error state
+   * Set panel to error state (simple string error)
    */
   public setError(error: string, details?: string): void {
     this.currentState = { type: 'error', error, details };
     this.postMessage({ type: 'setError', error, details });
+  }
+
+  /**
+   * Set panel to error state with structured error info
+   */
+  public setStructuredError(error: LiveCalcError): void {
+    const title = getErrorTitle(error.type);
+    this.currentState = { type: 'error', error: error.message, details: error.details };
+    this.postMessage({
+      type: 'setErrorState',
+      errorState: {
+        type: error.type,
+        title,
+        message: error.message,
+        guidance: error.guidance,
+        details: error.details,
+        filePath: error.filePath,
+        recoverable: error.recoverable,
+      },
+    });
+  }
+
+  /**
+   * Set warnings for display (non-fatal issues)
+   */
+  public setWarnings(warnings: LiveCalcWarning[]): void {
+    this.postMessage({ type: 'setWarnings', warnings });
   }
 
   /**
@@ -301,10 +344,26 @@ export class ResultsPanel implements vscode.Disposable {
     <!-- Error State -->
     <div id="error-state" class="state-container hidden">
       <div class="error-icon">!</div>
+      <span class="error-type-badge" id="error-type-badge"></span>
       <h2 id="error-title">Error</h2>
       <p id="error-message"></p>
+      <div id="error-guidance-container" class="error-guidance hidden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4"/>
+          <path d="M12 8h.01"/>
+        </svg>
+        <span id="error-guidance"></span>
+      </div>
+      <div id="error-file-container" class="error-file hidden">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span id="error-file" class="error-file-link"></span>
+      </div>
       <details id="error-details-container" class="hidden">
-        <summary>Details</summary>
+        <summary>Stack Trace</summary>
         <pre id="error-details"></pre>
       </details>
       <div class="error-actions">
@@ -330,6 +389,27 @@ export class ResultsPanel implements vscode.Disposable {
 
     <!-- Results State -->
     <div id="results-state" class="state-container hidden">
+      <!-- Warnings Banner -->
+      <div id="warnings-banner" class="warnings-banner hidden">
+        <div class="warnings-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span id="warnings-count">Warnings</span>
+          <button id="dismiss-warnings-btn" class="btn-dismiss" title="Dismiss warnings">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <ul id="warnings-list" class="warnings-list">
+          <!-- Populated dynamically -->
+        </ul>
+      </div>
+
       <!-- Toolbar -->
       <div class="toolbar">
         <div class="toolbar-left">

@@ -8,6 +8,7 @@ import { ResultsPanel, ExtensionMessage } from '../ui/results-panel';
 import { createResultsState } from '../ui/results-state';
 import { ComparisonManager } from '../ui/comparison';
 import { ResultsExporter, ExportFormat } from '../ui/export';
+import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
 
@@ -175,9 +176,26 @@ export async function runCommand(
           multipliers: undefined,
         });
 
-        // Add warnings if any (convert CsvValidationError to string messages)
+        // Collect warnings for display
+        const allWarnings: string[] = [];
+
+        // Add data validation warnings
         if (data.warnings.length > 0) {
-          resultsState.warnings = data.warnings.map((w) => w.message);
+          allWarnings.push(...data.warnings.map((w) => w.message));
+        }
+
+        // Add performance warnings
+        if (data.policyCount > 50000) {
+          allWarnings.push(COMMON_WARNINGS.LARGE_POLICY_FILE(data.policyCount).message);
+        }
+
+        if (result.executionTimeMs > 10000) {
+          allWarnings.push(COMMON_WARNINGS.EXECUTION_SLOW(result.executionTimeMs / 1000).message);
+        }
+
+        // Set warnings on results state
+        if (allWarnings.length > 0) {
+          resultsState.warnings = allWarnings;
         }
 
         // Send results to panel
@@ -204,31 +222,19 @@ export async function runCommand(
         if (error instanceof EngineError && error.code === 'CANCELLED') {
           logger.info('Execution cancelled by user');
           statusBar.setReady();
-          resultsPanel.setError('Execution cancelled by user');
+          const cancelledError = classifyError(error);
+          resultsPanel.setStructuredError(cancelledError);
           return;
         }
 
-        // Log and display error
-        let errorMessage: string;
-        let errorDetails: string | undefined;
-
-        if (error instanceof DataLoadError) {
-          errorMessage = `Data loading failed: ${error.message}`;
-          if (error.filePath) {
-            errorMessage += ` (${error.filePath})`;
-          }
-        } else if (error instanceof EngineError) {
-          errorMessage = `Engine error: ${error.message}`;
-          errorDetails = error.stack;
-        } else {
-          errorMessage = error instanceof Error ? error.message : String(error);
-          errorDetails = error instanceof Error ? error.stack : undefined;
-        }
+        // Classify the error and get structured error info
+        const filePath = error instanceof DataLoadError ? error.filePath : undefined;
+        const structuredError = classifyError(error, { filePath });
 
         logger.error(`Valuation failed after ${elapsed}ms`, error instanceof Error ? error : undefined);
-        statusBar.setError(errorMessage);
-        resultsPanel.setError(errorMessage, errorDetails);
-        await Notifications.error(errorMessage);
+        statusBar.setError(structuredError.message);
+        resultsPanel.setStructuredError(structuredError);
+        await Notifications.error(structuredError.message);
       }
     }
   );
