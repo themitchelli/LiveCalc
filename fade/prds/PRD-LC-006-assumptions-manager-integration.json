@@ -90,7 +90,7 @@
           "error": "$(cloud-error)"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

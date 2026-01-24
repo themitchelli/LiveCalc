@@ -102,6 +102,27 @@
         "command": "livecalc.togglePause",
         "title": "Toggle Pause Auto-Run",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amLogin",
+        "title": "Login to Assumptions Manager",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amLogout",
+        "title": "Logout from Assumptions Manager",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amClearCache",
+        "title": "Clear Assumptions Cache",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.amRefresh",
+        "title": "Refresh Assumptions List",
+        "category": "LiveCalc",
+        "icon": "$(refresh)"
       }
     ],
     "keybindings": [
@@ -241,6 +262,40 @@
           "type": "boolean",
           "default": true,
           "description": "Show toast notification on errors regardless of notifyOnAutoRun setting"
+        },
+        "livecalc.assumptionsManager.url": {
+          "type": "string",
+          "default": "",
+          "description": "Assumptions Manager API URL (e.g., https://assumptionsmanager.ddns.net)"
+        },
+        "livecalc.assumptionsManager.autoLogin": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically login on extension activation if credentials stored"
+        },
+        "livecalc.assumptionsManager.timeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 5000,
+          "maximum": 120000,
+          "description": "API request timeout in milliseconds"
+        },
+        "livecalc.assumptionsManager.cacheSizeMb": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum cache size in megabytes"
+        },
+        "livecalc.assumptionsManager.offlineMode": {
+          "type": "string",
+          "enum": ["warn", "fail"],
+          "default": "warn",
+          "enumDescriptions": [
+            "Use cached data with warning if API unavailable",
+            "Fail with error if API unavailable"
+          ],
+          "description": "Behavior when Assumptions Manager is unavailable"
         }
       }
     },

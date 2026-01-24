@@ -7,6 +7,9 @@ import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
 import { RunHistoryManager } from '../auto-run/run-history';
 import { AutoRunController } from '../auto-run';
+import { AuthManager, AMStatusBar } from '../assumptions-manager';
+import { executeAMLogin } from './am-login';
+import { executeAMLogout, executeAMClearCache } from './am-logout';
 import { logger } from '../logging/logger';
 
 /**
@@ -19,7 +22,9 @@ export function registerCommands(
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
   runHistoryManager: RunHistoryManager,
-  autoRunController: AutoRunController
+  autoRunController: AutoRunController,
+  authManager?: AuthManager,
+  amStatusBar?: AMStatusBar
 ): void {
   // Register run command
   context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager));
@@ -194,6 +199,48 @@ export function registerCommands(
       }
     })
   );
+
+  // Register Assumptions Manager commands
+  if (authManager) {
+    // Login command
+    context.subscriptions.push(
+      vscode.commands.registerCommand('livecalc.amLogin', async () => {
+        await executeAMLogin(authManager);
+      })
+    );
+
+    // Logout command
+    context.subscriptions.push(
+      vscode.commands.registerCommand('livecalc.amLogout', async () => {
+        await executeAMLogout(authManager);
+      })
+    );
+
+    // Clear cache command
+    context.subscriptions.push(
+      vscode.commands.registerCommand('livecalc.amClearCache', async () => {
+        await executeAMClearCache();
+      })
+    );
+
+    // Refresh command (placeholder for US-003)
+    context.subscriptions.push(
+      vscode.commands.registerCommand('livecalc.amRefresh', async () => {
+        logger.info('AM Refresh command invoked');
+        // Will trigger tree view refresh in US-008
+        vscode.window.showInformationMessage('LiveCalc: Assumptions list refreshed');
+      })
+    );
+
+    // Quick actions command (for status bar click)
+    if (amStatusBar) {
+      context.subscriptions.push(
+        vscode.commands.registerCommand('livecalc.amQuickActions', async () => {
+          await amStatusBar.showQuickActions();
+        })
+      );
+    }
+  }
 
   logger.debug('All commands registered');
 }

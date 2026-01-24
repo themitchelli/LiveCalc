@@ -1658,3 +1658,70 @@ For blocked stories, use:
   - livecalc-vscode/src/ui/notifications.ts (enhanced with preference handling, sound playback)
   - livecalc-vscode/src/commands/run.ts (pass isAutoRun to notification methods)
 - Tests: Extension compiles, type-checks, and packages successfully (315.94KB)
+
+## 2026-01-24 - US-001: Authentication Flow (PRD-LC-006) - COMPLETE
+
+- Implemented Assumptions Manager authentication with JWT-based login
+- Added VS Code settings for Assumptions Manager configuration:
+  - livecalc.assumptionsManager.url: API URL (default: empty)
+  - livecalc.assumptionsManager.autoLogin: Auto-login on activation (default: true)
+  - livecalc.assumptionsManager.timeoutMs: Request timeout (default: 30000)
+  - livecalc.assumptionsManager.cacheSizeMb: Cache size limit (default: 100)
+  - livecalc.assumptionsManager.offlineMode: 'warn' or 'fail' (default: 'warn')
+- Created assumptions-manager/types.ts with comprehensive type definitions:
+  - AMConnectionState: 'connected' | 'disconnected' | 'error' | 'offline'
+  - AMUserInfo, AMAuthResponse, AMAuthState, AMCredentials
+  - AMTableInfo, AMVersionInfo, AMTableData for API responses
+  - AMConfig, AMCacheEntry, AMCacheIndex for internal use
+- Created AuthManager class (auth.ts):
+  - Singleton pattern with getInstance() and disposeInstance()
+  - JWT token storage in VS Code SecretStorage (encrypted)
+  - Automatic token refresh before expiry (5 minute threshold)
+  - Token never logged, even in debug mode
+  - login(credentials): Username/password authentication
+  - loginViaBrowser(): OAuth-style browser flow with CSRF protection
+  - logout(): Clears stored credentials
+  - getToken(): Returns current token, auto-refreshes if needed
+  - Event emitters: onDidLogin, onDidLogout, onDidChangeState, onDidTokenRefresh
+  - Connection checking every 5 minutes with offline mode support
+- Created AMStatusBar class (status-bar.ts):
+  - Separate status bar item from main LiveCalc status (priority 99)
+  - Connection state icons: connected (cloud), disconnected (cloud-offline), error (cloud-error), offline (cloud-download)
+  - Click opens quick actions menu with context-aware options
+  - Quick actions: Login, Logout, Clear Cache, Open in Browser, Settings, Retry Connection
+  - Detailed tooltips showing user email, tenant name, and state
+- Created login/logout commands:
+  - livecalc.amLogin: Login with credentials or browser flow selection
+  - livecalc.amLogout: Logout with confirmation dialog
+  - livecalc.amClearCache: Clear assumptions cache (placeholder for US-005)
+  - livecalc.amRefresh: Refresh assumptions list (placeholder for US-003)
+  - livecalc.amQuickActions: Quick actions menu from status bar
+- Integrated into extension.ts:
+  - AuthManager initialized on activation
+  - AMStatusBar created and subscribed to auth events
+  - Status bar visibility tied to LiveCalc context
+  - Proper cleanup on deactivation
+- All acceptance criteria verified:
+  - Setting: livecalc.assumptionsManager.url (default: empty) ✓
+  - Command: 'LiveCalc: Login to Assumptions Manager' ✓
+  - Login opens browser for authentication (OAuth-style flow) ✓
+  - Alternatively: prompt for username/password in VS Code ✓
+  - JWT token stored securely in VS Code SecretStorage ✓
+  - Token automatically refreshed before expiry ✓
+  - Command: 'LiveCalc: Logout from Assumptions Manager' ✓
+  - Logout clears stored credentials ✓
+  - Status bar shows connection status icon ✓
+  - Status bar tooltip shows: 'Connected to AM as user@example.com' ✓
+  - Graceful handling of auth failures with clear messages ✓
+  - Setting: livecalc.assumptionsManager.autoLogin (default: true) ✓
+- Files changed:
+  - livecalc-vscode/package.json (new settings and commands)
+  - livecalc-vscode/src/assumptions-manager/types.ts (new)
+  - livecalc-vscode/src/assumptions-manager/auth.ts (new - AuthManager)
+  - livecalc-vscode/src/assumptions-manager/status-bar.ts (new - AMStatusBar)
+  - livecalc-vscode/src/assumptions-manager/index.ts (new - exports)
+  - livecalc-vscode/src/commands/am-login.ts (new)
+  - livecalc-vscode/src/commands/am-logout.ts (new)
+  - livecalc-vscode/src/commands/index.ts (register AM commands)
+  - livecalc-vscode/src/extension.ts (initialize AM components)
+- Tests: Extension compiles, type-checks, and packages successfully (320.98KB)

@@ -11,6 +11,7 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
+import { AuthManager, AMStatusBar, disposeAuthManager } from './assumptions-manager';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
@@ -18,6 +19,8 @@ let resultsPanel: ResultsPanel | undefined;
 let comparisonManager: ComparisonManager | undefined;
 let runHistoryManager: RunHistoryManager | undefined;
 let autoRunController: AutoRunController | undefined;
+let authManager: AuthManager | undefined;
+let amStatusBar: AMStatusBar | undefined;
 
 /**
  * Extension activation
@@ -75,6 +78,19 @@ export function activate(context: vscode.ExtensionContext): void {
   // Update status bar with initial auto-run state
   statusBar.setAutoRunEnabled(autoRunController.isEnabled());
 
+  // Initialize Assumptions Manager authentication
+  authManager = AuthManager.getInstance(context);
+  context.subscriptions.push(authManager);
+
+  // Create AM status bar (separate from main status bar)
+  amStatusBar = new AMStatusBar(authManager);
+  context.subscriptions.push(amStatusBar);
+
+  // Initialize auth manager (restore state, auto-login if configured)
+  authManager.initialize().catch(() => {
+    logger.warn('AuthManager initialization failed');
+  });
+
   // Listen for pause state changes to update status bar
   context.subscriptions.push(
     autoRunController.onPauseStateChanged((pauseState) => {
@@ -92,7 +108,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, authManager, amStatusBar);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -133,8 +149,11 @@ function updateStatusBarVisibility(): void {
 
   if (shouldShow) {
     statusBar.show();
+    // Also show AM status bar if configured
+    amStatusBar?.show();
   } else {
     statusBar.hide();
+    amStatusBar?.hide();
   }
 }
 
@@ -165,6 +184,7 @@ export function deactivate(): void {
   disposeComparisonManager();
   disposeRunHistoryManager();
   disposeCacheManager();
+  disposeAuthManager();
 
   // Cleanup is handled via context.subscriptions
   statusBar = undefined;
@@ -173,6 +193,8 @@ export function deactivate(): void {
   comparisonManager = undefined;
   runHistoryManager = undefined;
   autoRunController = undefined;
+  authManager = undefined;
+  amStatusBar = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }
