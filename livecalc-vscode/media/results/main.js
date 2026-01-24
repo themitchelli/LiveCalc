@@ -18,6 +18,8 @@ let showChartOverlay = false; // Whether to show baseline overlay on chart
 let chart = null;
 let chartType = 'histogram'; // 'histogram' or 'density'
 let histogramBinData = { bins: [], binWidth: 0 }; // Store bin data for tooltips
+let currentTriggerInfo = null; // Trigger info for auto-run indicator
+let triggerAutoHideTimer = null; // Timer for auto-hiding trigger banner
 
 // Display settings (configurable from extension)
 let displaySettings = {
@@ -68,6 +70,9 @@ function init() {
   elements.pinComparisonBtn = document.getElementById('pin-comparison-btn');
   elements.comparisonBadge = document.getElementById('comparison-badge');
   elements.toggleChartOverlay = document.getElementById('toggle-chart-overlay');
+  elements.triggerBanner = document.getElementById('trigger-banner');
+  elements.triggerFiles = document.getElementById('trigger-files');
+  elements.dismissTriggerBtn = document.getElementById('dismiss-trigger-btn');
 
   // Setup event listeners
   setupEventListeners();
@@ -162,6 +167,12 @@ function setupEventListeners() {
     elements.warningsBanner?.classList.add('hidden');
   });
 
+  // Dismiss trigger banner button
+  elements.dismissTriggerBtn?.addEventListener('click', () => {
+    hideTriggerBanner();
+    vscode.postMessage({ type: 'dismissTrigger' });
+  });
+
   // Handle messages from extension
   window.addEventListener('message', (event) => {
     const message = event.data;
@@ -235,6 +246,13 @@ function handleMessage(message) {
       // Re-render statistics if we have results
       if (currentState.type === 'results') {
         updateStatistics(currentState.results.statistics);
+      }
+      break;
+    case 'setTriggerInfo':
+      if (message.trigger) {
+        showTriggerBanner(message.trigger);
+      } else {
+        hideTriggerBanner();
       }
       break;
   }
@@ -445,6 +463,75 @@ function showWarnings(warnings) {
   });
 
   elements.warningsBanner.classList.remove('hidden');
+}
+
+/**
+ * Show trigger info banner for auto-run
+ * Shows which files triggered the re-run
+ * @param {Object} trigger - Trigger info with files, types, and isAutoRun flag
+ */
+function showTriggerBanner(trigger) {
+  // Only show for auto-triggered runs
+  if (!trigger.isAutoRun) {
+    hideTriggerBanner();
+    return;
+  }
+
+  currentTriggerInfo = trigger;
+
+  if (!elements.triggerBanner || !elements.triggerFiles) {
+    return;
+  }
+
+  // Clear any existing auto-hide timer
+  if (triggerAutoHideTimer) {
+    clearTimeout(triggerAutoHideTimer);
+    triggerAutoHideTimer = null;
+  }
+
+  // Build file list HTML
+  const fileItems = trigger.files.map((file, index) => {
+    const type = trigger.types[index] || 'modified';
+    // Map internal types to display types
+    const displayType = type === 'changed' ? 'modified' : type;
+    const typeBadge = `<span class="trigger-type-badge ${displayType}">${displayType}</span>`;
+    return `<span class="trigger-file-item" data-file="${escapeHtml(file)}">${escapeHtml(file)}${typeBadge}</span>`;
+  });
+
+  // Join with commas if multiple files
+  elements.triggerFiles.innerHTML = fileItems.join(', ');
+
+  // Add click handlers to file items
+  elements.triggerFiles.querySelectorAll('.trigger-file-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const fileName = el.dataset.file;
+      // Note: We don't have the full path here, just the filename
+      // The click handler is informational - we'll log which file was clicked
+      vscode.postMessage({ type: 'openFile', path: fileName });
+    });
+  });
+
+  // Show the banner
+  elements.triggerBanner.classList.remove('hidden');
+
+  // Auto-hide after 5 seconds
+  triggerAutoHideTimer = setTimeout(() => {
+    hideTriggerBanner();
+  }, 5000);
+}
+
+/**
+ * Hide trigger info banner
+ */
+function hideTriggerBanner() {
+  currentTriggerInfo = null;
+
+  if (triggerAutoHideTimer) {
+    clearTimeout(triggerAutoHideTimer);
+    triggerAutoHideTimer = null;
+  }
+
+  elements.triggerBanner?.classList.add('hidden');
 }
 
 /**

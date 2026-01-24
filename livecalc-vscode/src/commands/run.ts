@@ -4,13 +4,23 @@ import { logger } from '../logging/logger';
 import { StatusBar } from '../ui/status-bar';
 import { Notifications } from '../ui/notifications';
 import { ConfigLoader } from '../config/config-loader';
-import { ResultsPanel, ExtensionMessage } from '../ui/results-panel';
+import { ResultsPanel, ExtensionMessage, TriggerInfo } from '../ui/results-panel';
 import { createResultsState } from '../ui/results-state';
 import { ComparisonManager } from '../ui/comparison';
 import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
+
+/**
+ * Trigger info passed from auto-run controller
+ */
+export interface TriggerFiles {
+  /** File names that triggered the run */
+  files: string[];
+  /** Change types for each file */
+  types: ('changed' | 'created' | 'deleted')[];
+}
 
 /**
  * Options for run command execution
@@ -21,6 +31,10 @@ export interface RunOptions {
    * Affects how cancellation is displayed
    */
   isAutoRun?: boolean;
+  /**
+   * Files that triggered the auto-run (only when isAutoRun is true)
+   */
+  triggerInfo?: TriggerFiles;
 }
 
 /**
@@ -216,6 +230,21 @@ export async function runCommand(
 
         // Send results to panel
         resultsPanel.setResults(resultsState);
+
+        // Send trigger info for auto-run change indicator
+        if (options.isAutoRun && options.triggerInfo) {
+          const triggerInfo: TriggerInfo = {
+            files: options.triggerInfo.files,
+            types: options.triggerInfo.types.map((t) =>
+              t === 'changed' ? 'modified' : t
+            ) as ('modified' | 'created' | 'deleted')[],
+            isAutoRun: true,
+          };
+          resultsPanel.setTriggerInfo(triggerInfo);
+        } else {
+          // Clear any previous trigger info for manual runs
+          resultsPanel.setTriggerInfo(null);
+        }
 
         // Handle comparison (only if setting enabled)
         const showComparison = vsConfig.get<boolean>('showComparison', true);

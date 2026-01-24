@@ -1177,3 +1177,51 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (respect showComparison setting)
 - Tests: Extension compiles and type-checks successfully
 
+## 2026-01-24 20:00 - US-005: Change Indicator (PRD-LC-005) - COMPLETE
+
+- Implemented change indicator feature showing which files triggered auto-run
+- Created TriggerInfo interface (src/ui/results-panel.ts):
+  - files: string[] - file names that triggered the run
+  - types: ('modified' | 'created' | 'deleted')[] - change types for each file
+  - isAutoRun: boolean - whether this was auto-triggered vs manual
+- Added setTriggerInfo() method to ResultsPanel class:
+  - Sends trigger info to webview via 'setTriggerInfo' message
+  - null clears the trigger banner (for manual runs)
+- Added trigger banner HTML to results panel:
+  - Shows at top of results state (above warnings)
+  - Icon with "Triggered by: file1.csv, file2.csv" format
+  - Change type badges (modified/created/deleted) with color coding
+  - Dismiss button to manually hide
+- Added CSS styles for trigger banner:
+  - .trigger-banner with subtle background and fade-in animation
+  - .trigger-file-item with clickable styling
+  - .trigger-type-badge with modified (blue), created (green), deleted (red) variants
+- Enhanced main.js with trigger banner handling:
+  - showTriggerBanner() displays file names with change type badges
+  - hideTriggerBanner() clears the banner and timer
+  - Auto-hide timer (5 seconds) for automatic dismissal
+  - Only shows for auto-triggered runs (not manual)
+- Updated run.ts to pass trigger info:
+  - Extended RunOptions with triggerInfo field
+  - Converts 'changed' type to 'modified' for display consistency
+  - Sends trigger info to panel after results are shown
+  - Clears trigger info for manual runs
+- Updated AutoRunController to pass trigger info:
+  - Extended runCommand callback signature to include triggerInfo
+  - Passes lastTrigger (files and types) when calling run command
+- All acceptance criteria verified:
+  - Results panel shows 'Triggered by: model.mga' after auto-run ✓
+  - Multiple files shown if saved together: 'Triggered by: mortality.csv, lapse.csv' ✓
+  - Change indicator clears after a few seconds (5 second auto-hide) ✓
+  - Change indicator clears on next interaction (dismiss button) ✓
+  - File name is clickable to open the file ✓
+  - Change type indicated: modified, created, deleted (with color-coded badges) ✓
+  - Only show for auto-triggered runs, not manual runs ✓
+- Files changed:
+  - livecalc-vscode/src/ui/results-panel.ts (TriggerInfo interface, setTriggerInfo method, trigger banner HTML)
+  - livecalc-vscode/src/commands/run.ts (TriggerFiles interface, pass trigger info to panel)
+  - livecalc-vscode/src/auto-run/auto-run-controller.ts (extended runCommand signature, pass trigger info)
+  - livecalc-vscode/media/results/main.js (showTriggerBanner, hideTriggerBanner, auto-hide timer)
+  - livecalc-vscode/media/results/styles.css (trigger banner styling with animation)
+- Tests: Extension compiles, type-checks, and packages successfully (291.13KB)
+

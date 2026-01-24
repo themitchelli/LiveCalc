@@ -27,6 +27,18 @@ export interface WebviewErrorState {
 }
 
 /**
+ * Trigger info for auto-run change indicator
+ */
+export interface TriggerInfo {
+  /** File names that triggered the run */
+  files: string[];
+  /** Change types for each file */
+  types: ('modified' | 'created' | 'deleted')[];
+  /** Whether this was an auto-triggered run (vs manual) */
+  isAutoRun: boolean;
+}
+
+/**
  * Message types for communication between extension and webview
  */
 export type WebviewMessage =
@@ -41,7 +53,8 @@ export type WebviewMessage =
   | { type: 'pinComparison' }
   | { type: 'setSettings'; settings: DisplaySettings }
   | { type: 'setComparison'; comparison: ComparisonState | null; info: ComparisonInfo | null }
-  | { type: 'setComparisonBaseline'; distribution: number[] | null };
+  | { type: 'setComparisonBaseline'; distribution: number[] | null }
+  | { type: 'setTriggerInfo'; trigger: TriggerInfo | null };
 
 /**
  * Message types from webview to extension
@@ -55,6 +68,7 @@ export type ExtensionMessage =
   | { type: 'pinComparison' }
   | { type: 'toggleChartType' }
   | { type: 'toggleChartOverlay' }
+  | { type: 'dismissTrigger' }
   | { type: 'ready' };
 
 /**
@@ -200,6 +214,14 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public setSettings(settings: DisplaySettings): void {
     this.postMessage({ type: 'setSettings', settings });
+  }
+
+  /**
+   * Set trigger info for auto-run change indicator
+   * Shows which files triggered the re-run
+   */
+  public setTriggerInfo(trigger: TriggerInfo | null): void {
+    this.postMessage({ type: 'setTriggerInfo', trigger });
   }
 
   /**
@@ -402,6 +424,29 @@ export class ResultsPanel implements vscode.Disposable {
 
     <!-- Results State -->
     <div id="results-state" class="state-container hidden">
+      <!-- Trigger Info Banner (shows what files triggered auto-run) -->
+      <div id="trigger-banner" class="trigger-banner hidden">
+        <div class="trigger-content">
+          <svg class="trigger-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4"/>
+            <path d="M12 18v4"/>
+            <path d="M4.93 4.93l2.83 2.83"/>
+            <path d="M16.24 16.24l2.83 2.83"/>
+            <path d="M2 12h4"/>
+            <path d="M18 12h4"/>
+            <path d="M4.93 19.07l2.83-2.83"/>
+            <path d="M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span class="trigger-text">Triggered by: <span id="trigger-files" class="trigger-files"></span></span>
+        </div>
+        <button id="dismiss-trigger-btn" class="btn-dismiss" title="Dismiss">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
       <!-- Warnings Banner -->
       <div id="warnings-banner" class="warnings-banner hidden">
         <div class="warnings-header">

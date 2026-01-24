@@ -36,7 +36,12 @@ export class AutoRunController implements vscode.Disposable {
   private configLoader: ConfigLoader;
   private statusBar: StatusBar;
   private currentCancellation: vscode.CancellationTokenSource | undefined;
-  private runCommand: ((options?: { isAutoRun?: boolean }) => Promise<void>) | undefined;
+  private runCommand:
+    | ((options?: {
+        isAutoRun?: boolean;
+        triggerInfo?: { files: string[]; types: ('changed' | 'created' | 'deleted')[] };
+      }) => Promise<void>)
+    | undefined;
   private lastTrigger: AutoRunTrigger | undefined;
   private cancelledForNewRun: boolean = false;
   private pendingChanges: Map<string, FileChangeEvent> = new Map();
@@ -116,7 +121,12 @@ export class AutoRunController implements vscode.Disposable {
   /**
    * Set the run command callback
    */
-  public setRunCommand(command: (options?: { isAutoRun?: boolean }) => Promise<void>): void {
+  public setRunCommand(
+    command: (options?: {
+      isAutoRun?: boolean;
+      triggerInfo?: { files: string[]; types: ('changed' | 'created' | 'deleted')[] };
+    }) => Promise<void>
+  ): void {
     this.runCommand = command;
   }
 
@@ -341,8 +351,16 @@ export class AutoRunController implements vscode.Disposable {
     this.updateStatusBar();
 
     try {
-      // Pass isAutoRun flag to run command
-      await this.runCommand({ isAutoRun: true });
+      // Pass isAutoRun flag and trigger info to run command
+      await this.runCommand({
+        isAutoRun: true,
+        triggerInfo: this.lastTrigger
+          ? {
+              files: this.lastTrigger.files,
+              types: this.lastTrigger.types,
+            }
+          : undefined,
+      });
     } catch (error) {
       // Errors are handled by the run command itself
       logger.debug('Auto-run completed with error (handled by run command)');
