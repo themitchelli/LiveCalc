@@ -1,0 +1,234 @@
+{
+  "id": "SPIKE-LC-007",
+  "title": "Engine Performance Infrastructure: Work-Stealing and SIMD Build",
+  "type": "spike",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 2,
+  "scheduledAfter": "PRD-LC-006",
+  "scheduledBefore": "PRD-LC-008",
+  "description": "A research and implementation spike to build engine-agnostic performance infrastructure: a work-stealing scheduler and SIMD-enabled WASM build pipeline. This infrastructure will support any calc engine (LiveCalc example, Milliman Integrate, Milliman MIND) that may be plugged in.",
+  "origin": {
+    "concept": "Gemini",
+    "refinement": "Claude",
+    "date": "2026-01-24",
+    "originalPrd": "PRD-LC-SPIKE-001 (Gemini)"
+  },
+  "problem": [
+    "Current static worker partitioning leads to suboptimal core utilization",
+    "Multi-threaded execution is 77% SLOWER than single-threaded (overhead issue)",
+    "No SIMD build infrastructure for future engine optimization",
+    "No calc engine abstraction - code is tightly coupled to example engine",
+    "Performance work on example engine will be throwaway when real engine plugs in"
+  ],
+  "solution": [
+    "Build engine-agnostic work-stealing scheduler using SharedArrayBuffer and Atomics",
+    "Create SIMD-enabled WASM build configuration (-msimd128)",
+    "Define CalcEngine interface abstraction for pluggable engines",
+    "Fix multi-threading regression before adding complexity",
+    "Use feature branch 'spike/engine-performance' for all modifications",
+    "Compare results against 2026-01-23 benchmark baseline"
+  ],
+  "nonGoals": [
+    "Rewriting projection.cpp with SIMD intrinsics (engine will be replaced)",
+    "Engine-specific loop optimizations (unknown future engine structure)",
+    "Production-ready implementation (this is a spike for validation)"
+  ],
+  "technicalNotes": {
+    "branchingStrategy": "Trunk-based development with short-lived spike branch. Branch exists only during spike execution (max 3 sessions). Outcome: learnings documented, prototype discarded, production implementation done cleanly in trunk.",
+    "simdBuildFlags": {
+      "flag": "-msimd128",
+      "optimization": "-O3",
+      "alignment": "16-byte alignment required for SIMD loads/stores (alignas(16))"
+    },
+    "workStealingArchitecture": {
+      "dataStructure": "Double-ended queue (Deque) per worker",
+      "synchronization": "SharedArrayBuffer with Atomics for lock-free operations",
+      "stealingPolicy": "Random victim selection, steal half of victim's queue"
+    },
+    "calcEngineInterface": {
+      "method": "runChunk(policies: ArrayBuffer, assumptions: ArrayBuffer, scenarioRange: [number, number]): Float64Array",
+      "contract": "Stateless, deterministic, no side effects"
+    },
+    "benchmarkHierarchy": {
+      "baseline": "benchmarks/baselines/v1.0.0.json (current main)",
+      "spike": "benchmarks/results/spike-engine-performance.json",
+      "comparison": "Automated delta calculation and reporting"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-S01",
+      "title": "Fix Multi-Threading Regression",
+      "story": "As a developer, I need to understand why 8 workers is slower than 1 worker so we can fix it before adding complexity",
+      "acceptanceCriteria": [
+        "Profile worker pool to identify overhead sources (startup, data copy, messaging)",
+        "Document root cause of 77% performance regression",
+        "Fix the regression: 8 workers must be at least 4x faster than single-threaded",
+        "Benchmark validates improvement before proceeding to work-stealing"
+      ],
+      "technicalNotes": {
+        "profilingApproach": [
+          "Measure worker initialization time",
+          "Measure data serialization/transfer time",
+          "Measure message passing latency",
+          "Compare SharedArrayBuffer mode vs postMessage mode"
+        ],
+        "successMetric": "8 workers >= 4x single-threaded throughput"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-S02",
+      "title": "Calc Engine Interface Abstraction",
+      "story": "As a developer, I need a pluggable calc engine interface so we can swap in Milliman Integrate or MIND without changing the scheduler",
+      "acceptanceCriteria": [
+        "CalcEngine TypeScript interface defined with runChunk() method",
+        "Current LiveCalc WASM engine implements the interface",
+        "Worker pool calls engine through interface, not directly",
+        "MockCalcEngine for testing scheduler without real engine",
+        "Documentation for how to implement a new engine adapter"
+      ],
+      "technicalNotes": {
+        "interface": {
+          "name": "CalcEngine",
+          "methods": [
+            "initialize(): Promise<void>",
+            "runChunk(policies: ArrayBuffer, assumptions: AssumptionBuffers, scenarioStart: number, scenarioEnd: number): Promise<Float64Array>",
+            "dispose(): void"
+          ]
+        },
+        "adapters": [
+          "LiveCalcEngineAdapter (current)",
+          "MillimanIntegrateAdapter (future)",
+          "MillimanMINDAdapter (future)"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-S03",
+      "title": "Work-Stealing Scheduler",
+      "story": "As a developer, I need a dynamic work-stealing scheduler so idle workers can take work from busy workers",
+      "acceptanceCriteria": [
+        "WorkStealingPool class with per-worker deques",
+        "Workers pull tasks from own deque (LIFO for cache locality)",
+        "Idle workers steal from random victim's deque (FIFO for fairness)",
+        "Lock-free implementation using SharedArrayBuffer and Atomics",
+        "CPU utilization across 8 cores remains >90% until job completion",
+        "Elimination of 'long-tail' wait time in scenario-heavy benchmarks",
+        "Fallback to static partitioning if SAB not available"
+      ],
+      "technicalNotes": {
+        "dequeOperations": {
+          "push": "Owner pushes to bottom (local, no sync needed)",
+          "pop": "Owner pops from bottom (local, CAS for last item)",
+          "steal": "Thief steals from top (remote, CAS required)"
+        },
+        "taskGranularity": "Experiment with scenario chunks vs individual scenarios",
+        "terminationDetection": "Global flag with Atomics.wait/notify"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-S04",
+      "title": "SIMD Build Infrastructure",
+      "story": "As a developer, I need SIMD-enabled WASM builds so future engine optimizations can leverage vector instructions",
+      "acceptanceCriteria": [
+        "CMakeLists.txt supports -msimd128 flag as build option",
+        "Build produces livecalc-simd.wasm alongside livecalc.wasm",
+        "SIMD build passes all existing tests (parity with scalar)",
+        "Document 16-byte alignment requirements for SIMD data structures",
+        "Benchmark compares SIMD vs non-SIMD builds",
+        "SIMD build works in Chrome 91+, Firefox 89+, Safari 16.4+, Node 16+"
+      ],
+      "technicalNotes": {
+        "cmakeOption": "option(ENABLE_SIMD \"Enable SIMD128 instructions\" OFF)",
+        "buildCommand": "emcmake cmake -DENABLE_SIMD=ON ..",
+        "browserSupport": {
+          "chrome": "91+ (May 2021)",
+          "firefox": "89+ (June 2021)",
+          "safari": "16.4+ (March 2023)",
+          "node": "16+ with --experimental-wasm-simd flag"
+        },
+        "featureDetection": "WebAssembly.validate(simdTestModule)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-S05",
+      "title": "Benchmark Comparison Report",
+      "story": "As a developer, I need a benchmark comparison report so we can validate the spike achieved its goals",
+      "acceptanceCriteria": [
+        "Baseline benchmark captured from main branch",
+        "Spike benchmark run on spike/engine-performance branch",
+        "Comparison report shows: baseline vs spike for each metric",
+        "Report includes: throughput, latency, memory, CPU utilization",
+        "Clear recommendation: merge, iterate, or abandon spike",
+        "Report format compatible with proposed FADE benchmarking standard"
+      ],
+      "technicalNotes": {
+        "reportSections": [
+          "Executive Summary (merge/no-merge recommendation)",
+          "Throughput Comparison (projections/sec)",
+          "Scalability Comparison (1 vs 2 vs 4 vs 8 workers)",
+          "Memory Comparison (per-worker, total)",
+          "CPU Utilization (via performance.measureUserAgentSpecificMemory or similar)",
+          "Risks and Caveats"
+        ],
+        "outputFormat": "Markdown report + JSON data"
+      },
+      "passes": false
+    }
+  ],
+  "definitionOfDone": [
+    "Multi-threading regression fixed (8 workers >= 4x single-threaded)",
+    "CalcEngine interface defined and current engine adapted",
+    "Work-stealing scheduler implemented and tested",
+    "SIMD build infrastructure in place",
+    "Benchmark comparison report generated",
+    "Recommendation document with data-driven merge decision",
+    "All changes on spike/engine-performance branch"
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "8 workers achieves at least 4x speedup over single-threaded",
+      "Work-stealing eliminates long-tail wait times",
+      "CalcEngine interface allows engine swapping"
+    ],
+    "niceToHave": [
+      "Throughput exceeds 40M projections/second",
+      "SIMD build shows measurable improvement",
+      "CPU utilization >95% across all cores"
+    ]
+  },
+  "estimatedDuration": "2-3 FADE sessions",
+  "risks": [
+    {
+      "risk": "Work-stealing overhead exceeds static partitioning benefit",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Benchmark at each step, can fallback to improved static partitioning"
+    },
+    {
+      "risk": "Lock-free implementation complexity leads to bugs",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Extensive testing, formal verification of deque operations if needed"
+    },
+    {
+      "risk": "SIMD browser support gaps block deployment",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Feature detection with fallback to scalar build"
+    },
+    {
+      "risk": "Multi-threading regression has fundamental cause (not fixable)",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "If unfixable, document learnings and proceed with single-threaded optimization"
+    }
+  ]
+}
