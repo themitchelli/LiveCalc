@@ -3,6 +3,7 @@ import { registerRunCommand } from './run';
 import { registerInitializeCommand } from './initialize';
 import { StatusBar } from '../ui/status-bar';
 import { ConfigLoader } from '../config/config-loader';
+import { ResultsPanel } from '../ui/results-panel';
 import { logger } from '../logging/logger';
 
 /**
@@ -11,10 +12,11 @@ import { logger } from '../logging/logger';
 export function registerCommands(
   context: vscode.ExtensionContext,
   statusBar: StatusBar,
-  configLoader: ConfigLoader
+  configLoader: ConfigLoader,
+  resultsPanel: ResultsPanel
 ): void {
   // Register run command
-  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader));
+  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel));
 
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));
@@ -29,13 +31,11 @@ export function registerCommands(
     })
   );
 
-  // Register open results command (placeholder for PRD-LC-004)
+  // Register open results command
   context.subscriptions.push(
     vscode.commands.registerCommand('livecalc.openResults', () => {
-      logger.info('Open Results command invoked (not yet implemented)');
-      vscode.window.showInformationMessage(
-        'LiveCalc: Results panel will be available in a future release'
-      );
+      logger.info('Open Results command invoked');
+      resultsPanel.show();
     })
   );
 

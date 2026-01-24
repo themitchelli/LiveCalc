@@ -33,6 +33,63 @@ function copyWasmFiles() {
 }
 
 /**
+ * Copy media files (CSS, JS, vendor) to dist/
+ */
+function copyMediaFiles() {
+  const mediaSourceDir = path.resolve(__dirname, 'media');
+  const mediaDestDir = path.resolve(__dirname, 'dist/media');
+
+  // Ensure destination directory exists
+  if (!fs.existsSync(mediaDestDir)) {
+    fs.mkdirSync(mediaDestDir, { recursive: true });
+  }
+
+  // Copy results panel files
+  const resultsSrcDir = path.join(mediaSourceDir, 'results');
+  const resultsDestDir = path.join(mediaDestDir, 'results');
+  if (fs.existsSync(resultsSrcDir)) {
+    if (!fs.existsSync(resultsDestDir)) {
+      fs.mkdirSync(resultsDestDir, { recursive: true });
+    }
+    const resultFiles = fs.readdirSync(resultsSrcDir);
+    for (const file of resultFiles) {
+      const sourcePath = path.join(resultsSrcDir, file);
+      const destPath = path.join(resultsDestDir, file);
+      if (fs.statSync(sourcePath).isFile()) {
+        fs.copyFileSync(sourcePath, destPath);
+        console.log(`Copied ${file} to dist/media/results/`);
+      }
+    }
+  }
+
+  // Copy vendor files (Chart.js, etc.)
+  const vendorSrcDir = path.join(mediaSourceDir, 'vendor');
+  const vendorDestDir = path.join(mediaDestDir, 'vendor');
+  if (fs.existsSync(vendorSrcDir)) {
+    if (!fs.existsSync(vendorDestDir)) {
+      fs.mkdirSync(vendorDestDir, { recursive: true });
+    }
+    const vendorFiles = fs.readdirSync(vendorSrcDir);
+    for (const file of vendorFiles) {
+      const sourcePath = path.join(vendorSrcDir, file);
+      const destPath = path.join(vendorDestDir, file);
+      if (fs.statSync(sourcePath).isFile()) {
+        fs.copyFileSync(sourcePath, destPath);
+        console.log(`Copied ${file} to dist/media/vendor/`);
+      }
+    }
+  }
+
+  // Copy icon to dist/media (for webview access)
+  const iconSource = path.join(mediaSourceDir, 'icon.png');
+  const iconDest = path.join(mediaDestDir, 'icon.png');
+  if (fs.existsSync(iconSource)) {
+    fs.copyFileSync(iconSource, iconDest);
+    console.log('Copied icon.png to dist/media/');
+  }
+}
+
+/**
  * Copy node-worker.mjs from livecalc-engine/js/dist/ for parallel execution
  */
 function copyWorkerFiles() {
@@ -68,9 +125,10 @@ function copyWorkerFiles() {
 }
 
 async function main() {
-  // Copy WASM and worker files before build
+  // Copy WASM, worker, and media files before build
   copyWasmFiles();
   copyWorkerFiles();
+  copyMediaFiles();
 
   const ctx = await esbuild.context({
     entryPoints: ['src/extension.ts'],

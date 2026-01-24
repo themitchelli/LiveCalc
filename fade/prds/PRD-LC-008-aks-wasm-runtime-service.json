@@ -1,0 +1,656 @@
+{
+  "id": "PRD-LC-008",
+  "title": "AKS WASM Runtime Service",
+  "type": "infrastructure",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Deploy a WASM runtime service on Azure Kubernetes Service that executes the same projection engine binary as the client-side version. This enables workloads that exceed client laptop capacity while maintaining identical results.",
+  "problem": [
+    "Client laptops limited to ~2GB RAM, ~100K policies",
+    "Large production runs (10M policies) cannot run client-side",
+    "No way to scale beyond single machine",
+    "Actuaries blocked when workload exceeds local capacity"
+  ],
+  "solution": [
+    "Deploy Wasmtime-based containers on AKS",
+    "Same WASM binary as client-side (byte-identical)",
+    "Horizontal scaling via Kubernetes pod autoscaling",
+    "Job queue for fair multi-tenant scheduling",
+    "Pay-per-use model for cloud compute"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-002",
+      "title": "WASM Compilation and Web Worker Threading",
+      "status": "required",
+      "notes": "WASM binary must exist and be validated"
+    }
+  ],
+  "technicalNotes": {
+    "runtime": "Wasmtime 14+ (Rust-based, production-ready)",
+    "orchestration": "Azure Kubernetes Service (AKS)",
+    "containerBase": "Distroless or Alpine Linux",
+    "apiFramework": "FastAPI (Python) or Axum (Rust)",
+    "queue": "Azure Service Bus",
+    "storage": "Azure Blob Storage",
+    "monitoring": "Prometheus + Grafana + Azure Monitor"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "WASM Runtime Container",
+      "story": "As a platform engineer, I need a container that runs WASM binaries so we can execute projections server-side",
+      "acceptanceCriteria": [
+        "Docker image based on distroless/cc or alpine:3.19",
+        "Wasmtime CLI installed and configured",
+        "Same livecalc.wasm binary as client-side (byte-identical)",
+        "Container accepts job config via environment variables or stdin",
+        "Container reads policy data from mounted volume or blob URL",
+        "Container reads assumption data from blob URL or embedded",
+        "Container writes results to stdout (JSON) or blob URL",
+        "Container exits with code 0 on success, non-zero on failure",
+        "Memory limit configurable via WASM_MAX_MEMORY (default: 8GB)",
+        "CPU limit respected via cgroups",
+        "Execution timeout configurable via WASM_TIMEOUT (default: 300s)",
+        "Health check endpoint available when running as service",
+        "Container image size < 100MB",
+        "Container cold start < 2 seconds",
+        "Multi-architecture support: amd64 and arm64"
+      ],
+      "technicalNotes": {
+        "dockerfile": {
+          "base": "gcr.io/distroless/cc-debian12",
+          "wasmtime": "Copy from builder stage",
+          "binary": "COPY livecalc.wasm /app/",
+          "entrypoint": "wasmtime run with resource limits"
+        },
+        "resourceFlags": "--max-memory-size --fuel-limit for CPU",
+        "exitCodes": {
+          "0": "Success",
+          "1": "Runtime error",
+          "2": "Invalid input",
+          "3": "Timeout",
+          "4": "Out of memory"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Job API Service",
+      "story": "As a VS Code extension, I need an API to submit jobs and retrieve results so users can run large workloads in the cloud",
+      "acceptanceCriteria": [
+        "REST API with OpenAPI 3.0 specification",
+        "POST /v1/jobs - Submit new job, returns job ID",
+        "GET /v1/jobs/{id} - Get job status and progress",
+        "GET /v1/jobs/{id}/results - Get job results (when complete)",
+        "DELETE /v1/jobs/{id} - Cancel job",
+        "GET /v1/jobs - List user's jobs (paginated)",
+        "GET /v1/usage - Get user's usage statistics",
+        "Authentication via JWT Bearer token (from Assumptions Manager)",
+        "Rate limiting: 10 submissions/minute, 100 requests/minute",
+        "Request validation with clear error messages",
+        "CORS configured for VS Code extension origin",
+        "API versioning via URL path (/v1/)",
+        "Response compression (gzip)",
+        "Request ID in headers for tracing"
+      ],
+      "technicalNotes": {
+        "framework": "FastAPI (Python) for rapid development",
+        "auth": "Validate JWT against Assumptions Manager JWKS",
+        "rateLimit": "Redis-based sliding window",
+        "schemas": {
+          "submitJob": {
+            "request": {
+              "policyDataUrl": "string (Azure Blob SAS URL)",
+              "assumptionRefs": "object (name → version)",
+              "scenarios": {
+                "count": "integer",
+                "seed": "integer",
+                "interestRate": "object"
+              },
+              "options": {
+                "timeout": "integer (seconds)",
+                "priority": "string (normal|high)",
+                "callbackUrl": "string (optional webhook)"
+              }
+            },
+            "response": {
+              "jobId": "UUID",
+              "status": "queued",
+              "position": "integer",
+              "estimatedStartTime": "ISO8601",
+              "estimatedDuration": "integer (seconds)"
+            }
+          },
+          "jobStatus": {
+            "jobId": "UUID",
+            "status": "queued|starting|running|completed|failed|cancelled",
+            "progress": "float (0.0-1.0)",
+            "policiesProcessed": "integer",
+            "policiesTotal": "integer",
+            "startedAt": "ISO8601|null",
+            "completedAt": "ISO8601|null",
+            "error": "string|null"
+          },
+          "jobResults": {
+            "jobId": "UUID",
+            "executionTimeMs": "integer",
+            "results": {
+              "meanNpv": "float",
+              "stdDev": "float",
+              "percentiles": "object",
+              "cte95": "float"
+            },
+            "resultsUrl": "string (full results blob URL)",
+            "cost": {
+              "computeSeconds": "integer",
+              "estimatedCost": "float",
+              "currency": "GBP"
+            }
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Job Queue and Worker Pool",
+      "story": "As a platform engineer, I need a job queue so workloads are processed fairly and workers scale automatically",
+      "acceptanceCriteria": [
+        "Azure Service Bus queue for job messages",
+        "Worker deployment consumes from queue",
+        "Fair queuing across tenants (weighted by tier)",
+        "Priority queue support (high priority jobs processed first)",
+        "Dead letter queue for failed jobs (after 3 retries)",
+        "Retry logic with exponential backoff: 1s, 4s, 16s",
+        "Job timeout enforcement (kill worker if exceeded)",
+        "Worker heartbeat every 30 seconds (detect stuck workers)",
+        "Graceful shutdown: finish current job before terminating",
+        "Horizontal Pod Autoscaler based on queue depth",
+        "Scale to zero when queue empty (cost saving)",
+        "Scale up within 30 seconds when jobs arrive",
+        "Maximum workers configurable per environment"
+      ],
+      "technicalNotes": {
+        "serviceBus": {
+          "namespace": "livecalc-{env}",
+          "queue": "jobs",
+          "dlq": "jobs/$deadletterqueue",
+          "maxDeliveryCount": 3
+        },
+        "hpa": {
+          "metric": "Service Bus queue depth",
+          "targetValue": 5,
+          "minReplicas": 0,
+          "maxReplicas": 20,
+          "scaleUpStabilization": "30s",
+          "scaleDownStabilization": "300s"
+        },
+        "workerProcess": {
+          "loop": "Receive message → Process → Complete/Abandon",
+          "visibility": "Lock message for processing duration + buffer",
+          "heartbeat": "Extend lock periodically during processing"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Multi-Tenant Isolation",
+      "story": "As a platform engineer, I need tenant isolation so clients cannot access each other's data or exhaust shared resources",
+      "acceptanceCriteria": [
+        "Tenant ID extracted from JWT and validated",
+        "All API calls scoped to tenant (cannot see other tenants' jobs)",
+        "Blob storage paths include tenant ID prefix",
+        "Resource quotas enforced per tenant:",
+        "  - Max concurrent jobs (e.g., 5 for standard, 20 for enterprise)",
+        "  - Max memory per job (e.g., 16GB standard, 64GB enterprise)",
+        "  - Max compute hours per month (e.g., 100h standard)",
+        "Quota exceeded returns 429 with clear message",
+        "Quota usage queryable via API",
+        "Audit log of all tenant actions (job submit, cancel, access)",
+        "No cross-tenant data leakage (verified by security review)",
+        "Tenant tier stored in database (standard, professional, enterprise)"
+      ],
+      "technicalNotes": {
+        "quotaStorage": "PostgreSQL table: tenant_quotas",
+        "quotaEnforcement": "Check before job submission and during execution",
+        "auditLog": "Azure Log Analytics or dedicated audit table",
+        "tierConfig": {
+          "standard": {
+            "maxConcurrentJobs": 3,
+            "maxMemoryGb": 16,
+            "maxComputeHoursPerMonth": 50,
+            "priority": "normal"
+          },
+          "professional": {
+            "maxConcurrentJobs": 10,
+            "maxMemoryGb": 32,
+            "maxComputeHoursPerMonth": 200,
+            "priority": "normal"
+          },
+          "enterprise": {
+            "maxConcurrentJobs": 50,
+            "maxMemoryGb": 64,
+            "maxComputeHoursPerMonth": 1000,
+            "priority": "high"
+          }
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Kubernetes Deployment",
+      "story": "As a platform engineer, I need Kubernetes manifests so the service deploys reliably to AKS",
+      "acceptanceCriteria": [
+        "Helm chart for complete deployment",
+        "Separate deployments: api (2+ replicas), worker (0-20 replicas)",
+        "Namespace per environment: livecalc-dev, livecalc-staging, livecalc-prod",
+        "ConfigMaps for runtime configuration",
+        "Secrets from Azure Key Vault (via CSI driver)",
+        "Persistent Volume Claims for scratch space (worker)",
+        "Network policies: api can reach worker, worker can reach blob",
+        "Ingress with TLS termination (Azure Application Gateway or nginx)",
+        "Pod Disruption Budget: minAvailable 1 for api",
+        "Resource requests and limits defined for all containers",
+        "Liveness probe: /health endpoint",
+        "Readiness probe: /ready endpoint (checks queue connection)",
+        "Rolling update strategy with maxUnavailable: 0"
+      ],
+      "technicalNotes": {
+        "helmChart": {
+          "values": {
+            "api": {
+              "replicaCount": 2,
+              "resources": {
+                "requests": { "cpu": "500m", "memory": "512Mi" },
+                "limits": { "cpu": "1000m", "memory": "1Gi" }
+              }
+            },
+            "worker": {
+              "minReplicas": 0,
+              "maxReplicas": 20,
+              "resources": {
+                "requests": { "cpu": "2000m", "memory": "8Gi" },
+                "limits": { "cpu": "4000m", "memory": "16Gi" }
+              }
+            }
+          }
+        },
+        "keyVaultSecrets": [
+          "db-connection-string",
+          "service-bus-connection-string",
+          "storage-account-key",
+          "jwt-signing-key"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Blob Storage Integration",
+      "story": "As a platform engineer, I need blob storage integration so large policy files and results can be stored efficiently",
+      "acceptanceCriteria": [
+        "Azure Blob Storage account per environment",
+        "Container structure: {tenant-id}/policies/, {tenant-id}/results/",
+        "Policy upload: client uploads directly with SAS token",
+        "SAS token generation via API (short-lived, scoped to tenant)",
+        "Results written by worker to blob, URL returned to client",
+        "Results retention: 7 days default, configurable per tenant",
+        "Automatic cleanup of expired results (Azure lifecycle policy)",
+        "Large file support: up to 10GB policy files",
+        "Chunked upload support for reliability",
+        "Content hash verification after upload",
+        "Private endpoint for worker access (no public internet)"
+      ],
+      "technicalNotes": {
+        "sasTokenConfig": {
+          "expiryMinutes": 60,
+          "permissions": "racw (read, add, create, write)",
+          "scope": "Container + tenant prefix"
+        },
+        "lifecyclePolicy": {
+          "deleteAfterDays": 7,
+          "tierToCoolAfterDays": 1
+        },
+        "uploadFlow": [
+          "1. Client requests upload URL from API",
+          "2. API generates SAS token scoped to tenant",
+          "3. Client uploads directly to blob storage",
+          "4. Client submits job with blob URL",
+          "5. Worker reads from blob, processes, writes results",
+          "6. Client retrieves results URL from job status"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Monitoring and Alerting",
+      "story": "As a platform engineer, I need monitoring so I can ensure service reliability and debug issues",
+      "acceptanceCriteria": [
+        "Prometheus metrics from all components",
+        "Grafana dashboards deployed via Helm",
+        "API dashboard: request rate, latency (p50, p95, p99), error rate",
+        "Worker dashboard: jobs processed, duration, memory usage",
+        "Queue dashboard: depth, age of oldest message, throughput",
+        "Tenant dashboard: usage per tenant, quota utilization",
+        "Cost dashboard: compute hours, estimated cost per tenant",
+        "Alerts configured for:",
+        "  - API error rate > 1% (warning), > 5% (critical)",
+        "  - Queue depth > 50 (warning), > 200 (critical)",
+        "  - Worker memory > 80% (warning), > 95% (critical)",
+        "  - Job failure rate > 5% (warning), > 20% (critical)",
+        "  - P95 latency > 60s (warning)",
+        "Alert routing to PagerDuty/Slack/Teams",
+        "Log aggregation in Azure Log Analytics",
+        "Distributed tracing with correlation IDs"
+      ],
+      "technicalNotes": {
+        "metrics": {
+          "api": [
+            "livecalc_api_requests_total{method, endpoint, status}",
+            "livecalc_api_request_duration_seconds{method, endpoint}",
+            "livecalc_api_active_requests{}"
+          ],
+          "worker": [
+            "livecalc_worker_jobs_total{status}",
+            "livecalc_worker_job_duration_seconds{}",
+            "livecalc_worker_memory_bytes{}",
+            "livecalc_worker_policies_processed_total{}"
+          ],
+          "queue": [
+            "livecalc_queue_depth{}",
+            "livecalc_queue_oldest_message_age_seconds{}",
+            "livecalc_queue_messages_processed_total{}"
+          ],
+          "tenant": [
+            "livecalc_tenant_jobs_total{tenant}",
+            "livecalc_tenant_compute_seconds_total{tenant}",
+            "livecalc_tenant_quota_usage_ratio{tenant, resource}"
+          ]
+        },
+        "alertManager": "Prometheus Alertmanager or Azure Monitor alerts"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Cost Tracking and Billing",
+      "story": "As a platform engineer, I need cost tracking so we can bill tenants accurately and monitor infrastructure costs",
+      "acceptanceCriteria": [
+        "Track compute seconds per job",
+        "Track memory-seconds per job (memory × duration)",
+        "Track blob storage usage per tenant",
+        "Aggregate usage per tenant per day/month",
+        "Cost calculation based on resource consumption",
+        "Usage API: GET /v1/usage returns current period usage",
+        "Usage breakdown by job available",
+        "Export usage data for billing system integration",
+        "Cost estimation before job submission",
+        "Budget alerts when approaching quota",
+        "Historical usage queryable (last 12 months)"
+      ],
+      "technicalNotes": {
+        "costModel": {
+          "computePerSecond": 0.0001,
+          "memoryGbPerSecond": 0.00002,
+          "storageGbPerMonth": 0.02,
+          "currency": "GBP"
+        },
+        "usageTable": {
+          "columns": [
+            "tenant_id",
+            "job_id",
+            "started_at",
+            "completed_at",
+            "compute_seconds",
+            "memory_gb_seconds",
+            "policies_count",
+            "scenarios_count",
+            "estimated_cost"
+          ]
+        },
+        "aggregation": "Daily rollup job for reporting"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Cloud Data Source Integration",
+      "story": "As an actuary, I want to run jobs against policy data already in cloud storage so I don't need to upload large files from my laptop",
+      "acceptanceCriteria": [
+        "Support data references instead of file uploads:",
+        "  - blob:// URIs for Azure Blob Storage",
+        "  - adl:// URIs for Azure Data Lake",
+        "  - Database connection references",
+        "GET /v1/datasets returns list of available datasets for tenant",
+        "GET /v1/datasets/{id}/metadata returns row count, size, schema without loading data",
+        "GET /v1/datasets/{id}/sample?n=N&seed=S returns reproducible random sample",
+        "Sample endpoint responds in <5 seconds regardless of dataset size",
+        "Job submission accepts dataRef instead of requiring file upload",
+        "Batch workers read directly from blob (zero data movement through user)",
+        "Support for Parquet, CSV, and binary policy formats",
+        "Dataset versioning: track which version was used for each job",
+        "Filter expressions: optional SQL-like filters on dataset (e.g., region='UK')",
+        "Caching: sample responses cached for 5 minutes (same seed = same result)",
+        "Authentication: same JWT as job API, scoped to tenant's datasets"
+      ],
+      "technicalNotes": {
+        "dataReferenceModel": {
+          "type": "local | blob | dataLake | database",
+          "uri": "string (path or cloud URI)",
+          "version": "string (optional, for immutable datasets)",
+          "filter": "string (optional, SQL-like filter expression)"
+        },
+        "sampleStrategies": {
+          "randomSample": "SELECT * FROM policies TABLESAMPLE(n/total * 100%)",
+          "stratifiedSample": "Sample proportionally from each segment",
+          "firstN": "SELECT * FROM policies LIMIT N (for quick testing)"
+        },
+        "metadataResponse": {
+          "datasetId": "string",
+          "rowCount": "integer",
+          "sizeBytes": "integer",
+          "columns": [{ "name": "string", "type": "string" }],
+          "lastModified": "ISO8601",
+          "version": "string"
+        },
+        "sampleResponse": {
+          "datasetId": "string",
+          "totalRows": "integer",
+          "sampleSize": "integer",
+          "seed": "integer",
+          "data": "array of policy objects (~3MB for 10K policies)"
+        },
+        "memoryImplications": {
+          "userBrowser": "Only sample (~3MB) + results (~1KB) loaded",
+          "cloudWorker": "Reads chunk directly from blob, ~500MB per worker",
+          "fullDataset": "Never loaded into user's browser memory"
+        }
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/Dockerfile.worker",
+    "livecalc-cloud/Dockerfile.api",
+    "livecalc-cloud/api/main.py",
+    "livecalc-cloud/api/routers/jobs.py",
+    "livecalc-cloud/api/routers/usage.py",
+    "livecalc-cloud/api/routers/upload.py",
+    "livecalc-cloud/api/routers/datasets.py",
+    "livecalc-cloud/api/services/data_source.py",
+    "livecalc-cloud/api/services/sampling.py",
+    "livecalc-cloud/api/models/job.py",
+    "livecalc-cloud/api/models/tenant.py",
+    "livecalc-cloud/api/services/queue.py",
+    "livecalc-cloud/api/services/storage.py",
+    "livecalc-cloud/api/services/quota.py",
+    "livecalc-cloud/api/services/auth.py",
+    "livecalc-cloud/api/dependencies.py",
+    "livecalc-cloud/api/config.py",
+    "livecalc-cloud/worker/main.py",
+    "livecalc-cloud/worker/processor.py",
+    "livecalc-cloud/worker/wasm_runner.py",
+    "livecalc-cloud/worker/heartbeat.py",
+    "livecalc-cloud/helm/Chart.yaml",
+    "livecalc-cloud/helm/values.yaml",
+    "livecalc-cloud/helm/values-dev.yaml",
+    "livecalc-cloud/helm/values-staging.yaml",
+    "livecalc-cloud/helm/values-prod.yaml",
+    "livecalc-cloud/helm/templates/api-deployment.yaml",
+    "livecalc-cloud/helm/templates/api-service.yaml",
+    "livecalc-cloud/helm/templates/api-ingress.yaml",
+    "livecalc-cloud/helm/templates/worker-deployment.yaml",
+    "livecalc-cloud/helm/templates/worker-hpa.yaml",
+    "livecalc-cloud/helm/templates/configmap.yaml",
+    "livecalc-cloud/helm/templates/secrets.yaml",
+    "livecalc-cloud/helm/templates/networkpolicy.yaml",
+    "livecalc-cloud/helm/templates/pdb.yaml",
+    "livecalc-cloud/helm/templates/serviceaccount.yaml",
+    "livecalc-cloud/monitoring/prometheus-rules.yaml",
+    "livecalc-cloud/monitoring/grafana-dashboards/api.json",
+    "livecalc-cloud/monitoring/grafana-dashboards/worker.json",
+    "livecalc-cloud/monitoring/grafana-dashboards/queue.json",
+    "livecalc-cloud/monitoring/grafana-dashboards/tenant.json",
+    "livecalc-cloud/monitoring/alertmanager-config.yaml",
+    "livecalc-cloud/terraform/main.tf",
+    "livecalc-cloud/terraform/aks.tf",
+    "livecalc-cloud/terraform/storage.tf",
+    "livecalc-cloud/terraform/servicebus.tf",
+    "livecalc-cloud/terraform/keyvault.tf",
+    "livecalc-cloud/terraform/variables.tf",
+    "livecalc-cloud/terraform/outputs.tf",
+    "livecalc-cloud/.github/workflows/build.yml",
+    "livecalc-cloud/.github/workflows/deploy.yml",
+    "livecalc-cloud/tests/test_api.py",
+    "livecalc-cloud/tests/test_worker.py",
+    "livecalc-cloud/tests/test_quota.py",
+    "livecalc-cloud/tests/test_datasets.py",
+    "livecalc-cloud/README.md"
+  ],
+  "infrastructureArchitecture": {
+    "diagram": [
+      "┌─────────────────────────────────────────────────────────────────────────┐",
+      "│                              INTERNET                                   │",
+      "└───────────────────────────────────┬─────────────────────────────────────┘",
+      "                                    │",
+      "                                    ▼",
+      "┌─────────────────────────────────────────────────────────────────────────┐",
+      "│                     Azure Application Gateway                           │",
+      "│                     (TLS termination, WAF)                              │",
+      "└───────────────────────────────────┬─────────────────────────────────────┘",
+      "                                    │",
+      "┌───────────────────────────────────┼─────────────────────────────────────┐",
+      "│                              AKS Cluster                                │",
+      "│  ┌─────────────────────────────────────────────────────────────────┐   │",
+      "│  │                        livecalc Namespace                        │   │",
+      "│  │                                                                  │   │",
+      "│  │   ┌──────────────┐                     ┌───────────────────┐    │   │",
+      "│  │   │   API Pod    │                     │   Worker Pods     │    │   │",
+      "│  │   │   (x2-3)     │                     │   (x0-20, HPA)    │    │   │",
+      "│  │   │              │──── Queue ────────▶ │                   │    │   │",
+      "│  │   │  FastAPI     │                     │  Wasmtime +       │    │   │",
+      "│  │   │  + Uvicorn   │                     │  livecalc.wasm    │    │   │",
+      "│  │   └──────────────┘                     └───────────────────┘    │   │",
+      "│  │          │                                      │               │   │",
+      "│  └──────────┼──────────────────────────────────────┼───────────────┘   │",
+      "│             │                                      │                    │",
+      "└─────────────┼──────────────────────────────────────┼────────────────────┘",
+      "              │                                      │",
+      "              ▼                                      ▼",
+      "┌──────────────────────┐              ┌──────────────────────────────────┐",
+      "│   Azure Service Bus  │              │      Azure Blob Storage          │",
+      "│   (Job Queue)        │              │      (Policies + Results)        │",
+      "└──────────────────────┘              └──────────────────────────────────┘",
+      "              │",
+      "              ▼",
+      "┌──────────────────────┐              ┌──────────────────────────────────┐",
+      "│   Azure PostgreSQL   │              │      Azure Key Vault             │",
+      "│   (Jobs, Tenants,    │              │      (Secrets)                   │",
+      "│    Usage)            │              │                                  │",
+      "└──────────────────────┘              └──────────────────────────────────┘"
+    ]
+  },
+  "costEstimate": {
+    "monthly": {
+      "aks": {
+        "controlPlane": "£60 (free tier available)",
+        "apiNodes": "£120 (2x B2s)",
+        "workerNodes": "£0-400 (scale to zero, D4s on demand)"
+      },
+      "serviceBus": "£10 (Standard tier)",
+      "storage": "£20 (100GB, including transactions)",
+      "postgresql": "£50 (Basic tier)",
+      "keyVault": "£5",
+      "monitoring": "£50 (Log Analytics + metrics)",
+      "networking": "£30 (egress, load balancer)",
+      "total": "£345-745/month depending on usage"
+    },
+    "perJob": {
+      "typical100kPolicies": "~£0.02 (2 minutes compute)",
+      "large1mPolicies": "~£0.10 (10 minutes compute)"
+    }
+  },
+  "securityConsiderations": [
+    "All traffic encrypted in transit (TLS 1.3)",
+    "Data encrypted at rest (Azure Storage encryption)",
+    "JWT validation against Assumptions Manager",
+    "SAS tokens short-lived and scoped to tenant",
+    "Network policies restrict pod-to-pod communication",
+    "Private endpoints for storage and database",
+    "No secrets in code or config (Key Vault only)",
+    "Pod security policies enforced",
+    "Regular security scanning of container images",
+    "Audit logging for compliance"
+  ],
+  "definitionOfDone": [
+    "WASM worker container runs projections correctly",
+    "API accepts jobs and returns results",
+    "Queue processing with autoscaling works",
+    "Multi-tenant isolation verified (security review)",
+    "Blob storage upload/download works end-to-end",
+    "Cloud data sources: datasets API returns metadata and samples without full data load",
+    "Cloud data sources: jobs can reference blob/dataLake URIs instead of uploading",
+    "Monitoring dashboards show all key metrics",
+    "Alerts configured and tested",
+    "Cost tracking accurate to within 5%",
+    "Load test: 50 concurrent jobs sustained",
+    "Helm chart deploys to all environments",
+    "Documentation complete (API, deployment, runbook)",
+    "All 9 user stories pass acceptance criteria"
+  ],
+  "estimatedSessions": "4-5 FADE sessions",
+  "risks": [
+    {
+      "risk": "Wasmtime performance differs from browser",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Benchmark early, both should be near-native"
+    },
+    {
+      "risk": "AKS complexity and cost overruns",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Scale to zero, spot instances, careful monitoring"
+    },
+    {
+      "risk": "Multi-tenant security vulnerability",
+      "likelihood": "low",
+      "impact": "critical",
+      "mitigation": "Security review, penetration testing before prod"
+    },
+    {
+      "risk": "Queue message loss or duplication",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Service Bus guarantees, idempotent processing"
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import { logger } from '../logging/logger';
 import { StatusBar } from '../ui/status-bar';
 import { Notifications } from '../ui/notifications';
 import { ConfigLoader } from '../config/config-loader';
+import { ResultsPanel } from '../ui/results-panel';
+import { createResultsState } from '../ui/results-state';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
 
@@ -13,7 +15,8 @@ import { loadData, DataLoadError } from '../data/data-loader';
  */
 export async function runCommand(
   statusBar: StatusBar,
-  configLoader: ConfigLoader
+  configLoader: ConfigLoader,
+  resultsPanel: ResultsPanel
 ): Promise<void> {
   logger.separator();
   logger.milestone('Run command invoked');
@@ -45,6 +48,10 @@ export async function runCommand(
   // Get config directory for resolving relative paths
   const configDir = path.dirname(configPath);
 
+  // Show results panel with loading state
+  resultsPanel.show();
+  resultsPanel.setLoading('Initializing...');
+
   // Execute with progress
   await vscode.window.withProgress(
     {
@@ -58,6 +65,7 @@ export async function runCommand(
       try {
         statusBar.setRunning();
         progress.report({ message: 'Initializing engine...' });
+        resultsPanel.setLoading('Initializing engine...');
 
         // Get engine manager
         const engineManager = getEngineManager();
@@ -68,10 +76,12 @@ export async function runCommand(
         if (token.isCancellationRequested) {
           logger.info('Execution cancelled by user');
           statusBar.setReady();
+          resultsPanel.setError('Execution cancelled');
           return;
         }
 
         progress.report({ message: 'Loading data files...' });
+        resultsPanel.setLoading('Loading data files...');
         logger.milestone('Loading data files');
         logger.startTimer('Data loading');
 
@@ -97,10 +107,12 @@ export async function runCommand(
         if (token.isCancellationRequested) {
           logger.info('Execution cancelled by user');
           statusBar.setReady();
+          resultsPanel.setError('Execution cancelled');
           return;
         }
 
         progress.report({ message: `Running valuation (${data.policyCount} policies)...` });
+        resultsPanel.setLoading(`Running valuation (${data.policyCount.toLocaleString()} policies)...`);
         logger.milestone('Running valuation');
         logger.startTimer('Valuation execution');
 
@@ -110,6 +122,7 @@ export async function runCommand(
             message: `Running valuation... ${percent}%`,
           });
           statusBar.setProgress(percent);
+          resultsPanel.setLoading(`Running valuation... ${percent}%`);
         };
 
         // Run valuation
@@ -144,7 +157,15 @@ export async function runCommand(
         );
         logger.milestone('Run complete');
 
-        // TODO: Open results panel (PRD-LC-004)
+        // Create results state and send to panel
+        const resultsState = createResultsState(result, config, configDir, data.policyCount);
+
+        // Add warnings if any (convert CsvValidationError to string messages)
+        if (data.warnings.length > 0) {
+          resultsState.warnings = data.warnings.map((w) => w.message);
+        }
+
+        resultsPanel.setResults(resultsState);
       } catch (error) {
         const elapsed = Date.now() - startTime;
 
@@ -152,11 +173,14 @@ export async function runCommand(
         if (error instanceof EngineError && error.code === 'CANCELLED') {
           logger.info('Execution cancelled by user');
           statusBar.setReady();
+          resultsPanel.setError('Execution cancelled by user');
           return;
         }
 
         // Log and display error
         let errorMessage: string;
+        let errorDetails: string | undefined;
+
         if (error instanceof DataLoadError) {
           errorMessage = `Data loading failed: ${error.message}`;
           if (error.filePath) {
@@ -164,12 +188,15 @@ export async function runCommand(
           }
         } else if (error instanceof EngineError) {
           errorMessage = `Engine error: ${error.message}`;
+          errorDetails = error.stack;
         } else {
           errorMessage = error instanceof Error ? error.message : String(error);
+          errorDetails = error instanceof Error ? error.stack : undefined;
         }
 
         logger.error(`Valuation failed after ${elapsed}ms`, error instanceof Error ? error : undefined);
         statusBar.setError(errorMessage);
+        resultsPanel.setError(errorMessage, errorDetails);
         await Notifications.error(errorMessage);
       }
     }
@@ -182,9 +209,10 @@ export async function runCommand(
 export function registerRunCommand(
   context: vscode.ExtensionContext,
   statusBar: StatusBar,
-  configLoader: ConfigLoader
+  configLoader: ConfigLoader,
+  resultsPanel: ResultsPanel
 ): vscode.Disposable {
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader)
+    runCommand(statusBar, configLoader, resultsPanel)
   );
 }

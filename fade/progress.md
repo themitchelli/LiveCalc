@@ -590,6 +590,34 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (pass policy/scenario count to status bar, set config path)
 - Tests: Extension compiles and packages successfully
 
+## 2026-01-24 - Architecture Documentation: Data Flow and Scaling - COMPLETE
+
+- Created comprehensive architecture documentation for data flow and scaling
+- Documented tiered execution model: <10GB local, >10GB cloud (Azure Batch)
+- Created diagrams for:
+  - Local file scenario: user's machine → blob storage → Azure Batch → results
+  - Cloud-native scenario: data stays in cloud, user receives only samples and results
+  - Memory budgets showing users never need to load full datasets into browser
+  - Azure Batch distributed processing for 50GB+ datasets
+- Key insight: User with 8GB RAM can work with 500GB dataset - only samples loaded locally
+- Added US-009 (Cloud Data Source Integration) to PRD-LC-008:
+  - Support for blob://, adl://, database data references
+  - GET /datasets/{id}/metadata for row count, size, schema without loading
+  - GET /datasets/{id}/sample?n=N&seed=S for reproducible random samples
+  - Jobs can reference data URIs instead of requiring file uploads
+  - Batch workers read directly from blob (zero data movement through user)
+- Updated PRD-LC-008 definition of done to include cloud data sources
+- Added new files to PRD-LC-008 filesToCreate:
+  - livecalc-cloud/api/routers/datasets.py
+  - livecalc-cloud/api/services/data_source.py
+  - livecalc-cloud/api/services/sampling.py
+  - livecalc-cloud/tests/test_datasets.py
+- Files changed:
+  - docs/README.md (new - documentation index)
+  - docs/architecture/data-flow-and-scaling.md (new - comprehensive architecture doc)
+  - fade/prds/PRD-LC-008-aks-wasm-runtime-service.json (added US-009, updated DoD)
+- Documentation includes memory estimation formulas and user experience flows
+
 ## 2026-01-24 02:15 - US-008: Output Channel Logging (PRD-LC-003) - COMPLETE
 
 - Enhanced Logger class with performance metrics and timing utilities
@@ -626,4 +654,61 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/index.ts (registered clearOutput command)
   - livecalc-vscode/src/commands/run.ts (comprehensive logging with timing)
 - Tests: Extension compiles and type-checks successfully
+
+## 2026-01-24 08:15 - US-001: Results Webview Panel (PRD-LC-004) - COMPLETE
+
+- Implemented ResultsPanel class as VS Code webview panel for displaying valuation results
+- Created singleton pattern with getInstance() to persist panel across runs
+- Panel opens in secondary column (ViewColumn.Two) with preserveFocus
+- Panel title "LiveCalc Results" with LiveCalc icon in tab
+- Panel state management with three states: loading, error, results
+- Webview configuration:
+  - retainContextWhenHidden: true for state preservation
+  - enableScripts: true for Chart.js interactivity
+  - localResourceRoots: media/ for CSS, JS, and vendor files
+- Created HTML template with:
+  - Loading state with spinner and progress message
+  - Error state with error message, details section, retry/view logs buttons
+  - Empty state with instructions
+  - Results state with statistics grid, chart container, metadata sections
+- Created CSS with full VS Code theme support:
+  - Uses CSS variables (--vscode-*) for all colors
+  - Works in both dark and light themes
+  - Responsive grid layout (3 columns → 2 → 1 based on width)
+  - Minimum width 400px
+  - Touch-friendly 44px tap targets
+- Created JavaScript for webview interactivity:
+  - Message handling between extension and webview
+  - Chart.js histogram with percentile annotations
+  - Statistics formatting with currency symbols
+  - State restoration via vscode.getState/setState
+- Downloaded and vendored Chart.js v4.4.1 and chartjs-plugin-annotation v3.0.1
+- Updated esbuild.js to copy media files to dist/
+- Registered livecalc.openResults command for manual panel opening
+- Integrated with run command: panel shows loading→results flow
+- All acceptance criteria verified:
+  - Results panel opens in editor area (secondary column by default) ✓
+  - Panel title shows 'LiveCalc Results' ✓
+  - Panel has LiveCalc icon in tab ✓
+  - Panel shows loading state during execution ✓
+  - Panel shows error state with message if run fails ✓
+  - Panel shows results state when complete ✓
+  - Panel persists across runs (updates in place, doesn't create new tabs) ✓
+  - Panel can be closed and reopened via command ✓
+  - Panel state preserved when switching editor tabs ✓
+  - Panel responsive to different widths (min: 400px) ✓
+  - Panel uses VS Code theme colors (dark/light aware) ✓
+  - Command 'LiveCalc: Open Results Panel' available ✓
+- Files changed:
+  - livecalc-vscode/src/ui/results-panel.ts (new - webview panel provider)
+  - livecalc-vscode/src/ui/results-state.ts (new - state types and formatting)
+  - livecalc-vscode/media/results/styles.css (new - theme-aware styles)
+  - livecalc-vscode/media/results/main.js (new - webview JavaScript)
+  - livecalc-vscode/media/vendor/chart.min.js (new - Chart.js library)
+  - livecalc-vscode/media/vendor/chartjs-plugin-annotation.min.js (new)
+  - livecalc-vscode/src/extension.ts (create and register results panel)
+  - livecalc-vscode/src/commands/index.ts (register openResults command, pass panel to run)
+  - livecalc-vscode/src/commands/run.ts (integrate results panel, send results on completion)
+  - livecalc-vscode/esbuild.js (copy media files to dist/)
+- Tests: Extension compiles, type-checks, and packages successfully (268.57KB)
 

@@ -1,0 +1,381 @@
+{
+  "id": "PRD-LC-004",
+  "title": "Results Panel and Visualisation",
+  "type": "feature",
+  "priority": "critical",
+  "status": "planned",
+  "created": "2026-01-23",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Create a webview panel in VS Code that displays valuation results with summary statistics, distribution charts, and detailed breakdowns. This is where actuaries see the output of their models and understand the impact of assumption changes.",
+  "problem": [
+    "Raw JSON output is not actionable for actuaries",
+    "No visual representation of risk distribution",
+    "Hard to compare results across runs",
+    "No way to see which assumptions drove the results"
+  ],
+  "solution": [
+    "Build webview panel with professional dashboard layout",
+    "Display key statistics prominently (Mean, P95, CTE)",
+    "Render interactive distribution chart",
+    "Show assumption summary for traceability",
+    "Enable export to CSV/JSON for further analysis"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-003",
+      "title": "VS Code Extension Foundation",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "panelType": "VS Code Webview Panel",
+    "rendering": "HTML + CSS + JavaScript (no framework, keep lightweight)",
+    "charting": "Chart.js (small footprint, no build step)",
+    "styling": "VS Code theme-aware CSS variables",
+    "communication": "postMessage between extension and webview"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Results Webview Panel",
+      "story": "As an actuary, I want results displayed in a dedicated panel so I can see output without leaving VS Code",
+      "acceptanceCriteria": [
+        "Results panel opens in editor area (secondary column by default)",
+        "Panel title shows 'LiveCalc Results'",
+        "Panel has LiveCalc icon in tab",
+        "Panel shows loading state during execution",
+        "Panel shows error state with message if run fails",
+        "Panel shows results state when complete",
+        "Panel persists across runs (updates in place, doesn't create new tabs)",
+        "Panel can be closed and reopened via command",
+        "Panel state preserved when switching editor tabs",
+        "Panel responsive to different widths (min: 400px)",
+        "Panel uses VS Code theme colors (dark/light aware)",
+        "Command 'LiveCalc: Open Results Panel' available"
+      ],
+      "technicalNotes": {
+        "viewType": "livecalc.results",
+        "retainContextWhenHidden": true,
+        "enableScripts": true,
+        "localResourceRoots": ["media/", "node_modules/chart.js/"]
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Summary Statistics Display",
+      "story": "As an actuary, I want key statistics displayed prominently so I can quickly assess valuation results",
+      "acceptanceCriteria": [
+        "Mean NPV displayed as primary metric (large, prominent)",
+        "Standard deviation displayed",
+        "Percentiles displayed: P50, P75, P90, P95, P99",
+        "CTE 95 (Conditional Tail Expectation) displayed",
+        "Min and Max scenario values displayed",
+        "Number of policies processed displayed",
+        "Number of scenarios processed displayed",
+        "Execution time displayed (e.g., '2.3 seconds')",
+        "All values formatted appropriately (currency symbol, thousands separators)",
+        "Configurable decimal places (default: 0 for large numbers, 2 for percentages)",
+        "Negative values shown in red",
+        "Statistics update without full page refresh"
+      ],
+      "technicalNotes": {
+        "formatting": {
+          "currency": "Intl.NumberFormat with GBP (configurable)",
+          "largeNumbers": "Abbreviate millions/billions: £1.23M",
+          "percentiles": "Show as currency, not percentage"
+        },
+        "layout": "CSS Grid, 2-3 columns depending on width"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Distribution Chart",
+      "story": "As an actuary, I want to see the distribution of scenario results so I understand the risk profile",
+      "acceptanceCriteria": [
+        "Histogram of scenario NPVs displayed",
+        "X-axis: NPV value with appropriate scale and currency formatting",
+        "Y-axis: Frequency (count of scenarios)",
+        "50-100 bins for smooth distribution (auto-calculated)",
+        "Mean line marked on chart (vertical dashed line, labeled)",
+        "P95 line marked on chart (vertical line, labeled)",
+        "P99 line marked on chart (vertical line, labeled)",
+        "CTE region shaded (tail beyond P95)",
+        "Chart resizes with panel width",
+        "Chart renders in <200ms for 10K scenarios",
+        "Tooltips show bin range and count on hover",
+        "Chart uses theme-appropriate colors",
+        "Option to toggle between histogram and density plot"
+      ],
+      "technicalNotes": {
+        "library": "Chart.js v4.x",
+        "chartType": "bar (histogram)",
+        "annotations": "chartjs-plugin-annotation for percentile lines",
+        "responsive": true,
+        "animation": "Disable for fast updates"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Run Metadata Display",
+      "story": "As an actuary, I want to see run metadata so I know exactly what configuration produced these results",
+      "acceptanceCriteria": [
+        "Run timestamp displayed",
+        "Model file path displayed",
+        "Scenario configuration displayed (count, seed)",
+        "Collapsible section (default: collapsed)",
+        "Interest rate parameters shown if applicable",
+        "Policy file path and count displayed",
+        "Execution mode shown (Local / Cloud)",
+        "If cloud: job ID and cost displayed",
+        "Run ID generated for each execution (for audit trail)"
+      ],
+      "technicalNotes": {
+        "section": "Accordion-style collapsible",
+        "runId": "UUID v4 generated at execution start"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Assumption Summary Display",
+      "story": "As an actuary, I want to see which assumptions were used so I can verify the run configuration",
+      "acceptanceCriteria": [
+        "List of all assumptions used in run",
+        "For each assumption: name, source (local file or AM reference), version if applicable",
+        "For AM assumptions: link to view in Assumptions Manager (future)",
+        "Assumption multipliers shown if applied (e.g., 'Mortality: 1.1x')",
+        "Collapsible section (default: collapsed)",
+        "Click on local file opens it in editor",
+        "Visual indicator if assumption file modified since run started",
+        "Hash/checksum of assumption data for reproducibility"
+      ],
+      "technicalNotes": {
+        "fileLinks": "Use vscode.open command via postMessage",
+        "amLinks": "Placeholder until PRD-LC-006 integration"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Results Comparison",
+      "story": "As an actuary, I want to compare current results with previous so I can see the impact of my changes",
+      "acceptanceCriteria": [
+        "Previous run results cached in memory",
+        "Delta values shown for each statistic (current vs previous)",
+        "Delta formatted as absolute and percentage change",
+        "Positive changes styled green, negative styled red",
+        "Neutral styling for changes < 0.1%",
+        "'Clear Comparison' button to reset baseline",
+        "Option to pin a specific run as comparison baseline",
+        "Distribution chart overlay option (current vs previous)",
+        "Comparison persists until manually cleared or extension reloads"
+      ],
+      "technicalNotes": {
+        "storage": "Extension context.workspaceState for persistence",
+        "comparison": {
+          "absolute": "current - previous",
+          "percentage": "((current - previous) / |previous|) * 100"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Export Results",
+      "story": "As an actuary, I want to export results so I can use them in reports or further analysis",
+      "acceptanceCriteria": [
+        "Export button in results panel toolbar",
+        "Export dropdown with format options",
+        "Export to CSV: statistics + all scenario NPVs",
+        "Export to JSON: full results object with metadata",
+        "Export to clipboard: summary statistics as text",
+        "Export includes run metadata (timestamp, config, assumptions)",
+        "File save dialog with sensible default name (e.g., 'livecalc-results-2026-01-23.csv')",
+        "Success toast notification on export",
+        "Large exports (>100K scenarios) show progress"
+      ],
+      "technicalNotes": {
+        "csvFormat": {
+          "header": "scenario_id,npv",
+          "rows": "One row per scenario",
+          "summary": "Statistics in separate section at top"
+        },
+        "jsonFormat": {
+          "metadata": "timestamp, config, assumptions",
+          "statistics": "mean, stdDev, percentiles, cte",
+          "scenarios": "Array of NPV values"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Error and Warning Display",
+      "story": "As an actuary, I want clear error messages so I can understand and fix problems",
+      "acceptanceCriteria": [
+        "Error state shows clear error message",
+        "Error message includes actionable guidance where possible",
+        "Stack trace available in expandable section (for debugging)",
+        "Common errors have specific messages: file not found, invalid CSV, timeout, memory limit",
+        "Warnings displayed in yellow banner (non-fatal issues)",
+        "Example warning: 'Large policy file may cause slow execution'",
+        "Example warning: 'Some policies have age > 100, using capped mortality'",
+        "'Retry' button available after error",
+        "'View Logs' button opens output channel"
+      ],
+      "technicalNotes": {
+        "errorTypes": [
+          "CONFIG_NOT_FOUND",
+          "CONFIG_INVALID",
+          "FILE_NOT_FOUND",
+          "FILE_INVALID",
+          "EXECUTION_TIMEOUT",
+          "MEMORY_LIMIT",
+          "ENGINE_ERROR",
+          "CANCELLED"
+        ]
+      },
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Responsive Layout",
+      "story": "As an actuary, I want the results panel to work well at different sizes so I can arrange my workspace flexibly",
+      "acceptanceCriteria": [
+        "Panel works at minimum width of 400px",
+        "Panel works at maximum width of 1200px+",
+        "Statistics grid reflows: 3 columns → 2 columns → 1 column",
+        "Chart maintains aspect ratio and readability",
+        "Collapsible sections work at all widths",
+        "No horizontal scrolling required",
+        "Touch-friendly tap targets (44px minimum)",
+        "Panel height scrolls if content exceeds viewport"
+      ],
+      "technicalNotes": {
+        "breakpoints": {
+          "small": "<500px (1 column)",
+          "medium": "500-800px (2 columns)",
+          "large": ">800px (3 columns)"
+        },
+        "cssApproach": "CSS Grid with auto-fit/minmax"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-vscode/src/ui/results-panel.ts",
+    "livecalc-vscode/src/ui/results-state.ts",
+    "livecalc-vscode/src/ui/comparison.ts",
+    "livecalc-vscode/src/ui/export.ts",
+    "livecalc-vscode/media/results/index.html",
+    "livecalc-vscode/media/results/styles.css",
+    "livecalc-vscode/media/results/main.js",
+    "livecalc-vscode/media/results/chart.js",
+    "livecalc-vscode/media/results/statistics.js",
+    "livecalc-vscode/media/results/comparison.js",
+    "livecalc-vscode/media/results/export.js",
+    "livecalc-vscode/media/vendor/chart.min.js",
+    "livecalc-vscode/media/vendor/chartjs-plugin-annotation.min.js",
+    "livecalc-vscode/test/suite/results-panel.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/extension.ts",
+      "changes": "Register results panel provider, wire up to run command"
+    },
+    {
+      "file": "livecalc-vscode/src/commands/run.ts",
+      "changes": "Send results to panel on completion"
+    },
+    {
+      "file": "livecalc-vscode/package.json",
+      "changes": "Add results panel view, commands, menus"
+    }
+  ],
+  "wireframes": {
+    "layout": [
+      "┌─────────────────────────────────────────────────────────────────┐",
+      "│  LiveCalc Results                              [Export ▼] [×]  │",
+      "├─────────────────────────────────────────────────────────────────┤",
+      "│                                                                 │",
+      "│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │",
+      "│  │ MEAN NPV    │ │ STD DEV     │ │ CTE 95      │               │",
+      "│  │ £1,234,567  │ │ £234,567    │ │ £876,543    │               │",
+      "│  │ +£12,345 ▲  │ │ -£1,234 ▼   │ │ +£5,432 ▲   │               │",
+      "│  └─────────────┘ └─────────────┘ └─────────────┘               │",
+      "│                                                                 │",
+      "│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │",
+      "│  │ P50         │ │ P95         │ │ P99         │               │",
+      "│  │ £1,200,000  │ │ £870,000    │ │ £720,000    │               │",
+      "│  └─────────────┘ └─────────────┘ └─────────────┘               │",
+      "│                                                                 │",
+      "│  ┌─────────────────────────────────────────────────────────┐   │",
+      "│  │                                                         │   │",
+      "│  │              DISTRIBUTION HISTOGRAM                     │   │",
+      "│  │                                                         │   │",
+      "│  │    ▂▃▅▇█████▇▅▃▂▁                                      │   │",
+      "│  │         │    │  │                                       │   │",
+      "│  │        Mean  P95 P99                                    │   │",
+      "│  │                                                         │   │",
+      "│  └─────────────────────────────────────────────────────────┘   │",
+      "│                                                                 │",
+      "│  ▶ Run Metadata (click to expand)                              │",
+      "│  ▶ Assumptions Used (click to expand)                          │",
+      "│                                                                 │",
+      "│  ─────────────────────────────────────────────────────────     │",
+      "│  10,000 policies × 1,000 scenarios • Completed in 2.3s         │",
+      "│                                                                 │",
+      "└─────────────────────────────────────────────────────────────────┘"
+    ]
+  },
+  "themeColors": {
+    "description": "Use VS Code CSS variables for theme compatibility",
+    "variables": {
+      "--vscode-editor-background": "Panel background",
+      "--vscode-editor-foreground": "Primary text",
+      "--vscode-descriptionForeground": "Secondary text",
+      "--vscode-charts-blue": "Primary chart color",
+      "--vscode-charts-red": "Negative values",
+      "--vscode-charts-green": "Positive values",
+      "--vscode-button-background": "Action buttons",
+      "--vscode-input-border": "Card borders"
+    }
+  },
+  "definitionOfDone": [
+    "Results panel displays all statistics correctly",
+    "Distribution chart renders with percentile markers",
+    "Comparison mode shows deltas for all statistics",
+    "Export works for CSV, JSON, and clipboard",
+    "Panel responsive from 400px to 1200px+",
+    "Theme-aware (works in dark and light modes)",
+    "Error states display clearly with guidance",
+    "All 9 user stories pass acceptance criteria",
+    "Panel loads and renders in <100ms",
+    "Integration tests verify panel updates on run completion"
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Chart.js bundle size too large",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Use CDN or minimal custom build"
+    },
+    {
+      "risk": "Webview communication complexity",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Simple message protocol, typed interfaces"
+    },
+    {
+      "risk": "Performance with large scenario counts (100K+)",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Downsample for chart, paginate for export"
+    }
+  ]
+}

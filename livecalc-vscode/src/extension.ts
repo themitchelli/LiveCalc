@@ -6,9 +6,11 @@ import { registerCommands } from './commands';
 import { getEngineManager } from './engine/livecalc-engine';
 import { disposeDataCache } from './data/cache';
 import { disposeDataValidator } from './data/data-validator';
+import { ResultsPanel } from './ui/results-panel';
 
 let statusBar: StatusBar | undefined;
 let configLoader: ConfigLoader | undefined;
+let resultsPanel: ResultsPanel | undefined;
 
 /**
  * Extension activation
@@ -40,8 +42,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(engineManager);
 
+  // Create results panel (singleton)
+  resultsPanel = ResultsPanel.getInstance(context.extensionUri);
+  context.subscriptions.push(resultsPanel);
+
   // Register commands
-  registerCommands(context, statusBar, configLoader);
+  registerCommands(context, statusBar, configLoader, resultsPanel);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();
@@ -115,6 +121,7 @@ export function deactivate(): void {
   // Cleanup is handled via context.subscriptions
   statusBar = undefined;
   configLoader = undefined;
+  resultsPanel = undefined;
 
   logger.info('LiveCalc extension deactivated');
 }

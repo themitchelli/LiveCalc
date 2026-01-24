@@ -99,3 +99,15 @@ Only add learnings that are:
 - **What:** While SharedArrayBuffer can be passed to workers via postMessage, it is not "transferred" (moved) but rather shared. The same buffer is accessible from both main thread and workers simultaneously. This is different from Transferable objects (like ArrayBuffer) which are moved and become unusable in the sender
 - **Why it matters:** Design the buffer layout with concurrent access in mind. Use separate sections for different workers' results to avoid write conflicts. Atomics can be used for synchronization when needed
 
+## 2026-01-24 - Cloud-native data means user never loads full dataset
+**Source:** PRD-LC-008 US-009, Architecture Documentation
+
+- **What:** When policy data lives in cloud storage (blob/data lake), users only receive: (1) metadata via API call (~1KB), (2) random sample for preview (~3MB for 10K policies), (3) summary results (~1KB). The full dataset (2GB-50GB) never leaves the cloud - Batch workers read directly from blob.
+- **Why it matters:** A user with 8GB available RAM can work with 500GB datasets. Memory requirements are constant regardless of dataset size: ~4MB browser memory vs dataset size. This fundamentally changes capacity planning - client memory is not a constraint.
+
+## 2026-01-24 - Server-side sampling with fixed seed enables reproducibility
+**Source:** PRD-LC-008 US-009
+
+- **What:** The /datasets/{id}/sample?n=10000&seed=42 endpoint returns the same 10K policies every time the same seed is used. This enables debugging and comparison: "preview was 1.9% off from full run" is meaningful when the sample is deterministic.
+- **Why it matters:** Random sampling is essential for large datasets but must be reproducible for debugging. Store the seed used for each preview so results can be recreated
+
