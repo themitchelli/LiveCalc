@@ -166,7 +166,11 @@ export async function runCommand(
         logger.milestone('Run complete');
 
         // Create results state and send to panel
-        const resultsState = createResultsState(result, config, configDir, data.policyCount);
+        const resultsState = createResultsState(result, config, configDir, data.policyCount, {
+          assumptionMeta: data.assumptionMeta,
+          // Multipliers would come from config if supported
+          multipliers: undefined,
+        });
 
         // Add warnings if any (convert CsvValidationError to string messages)
         if (data.warnings.length > 0) {

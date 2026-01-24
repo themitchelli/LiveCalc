@@ -22,6 +22,15 @@ import { getDataCache } from './cache';
 import { getDataValidator, createValidationResult } from './data-validator';
 
 /**
+ * Assumption metadata for display
+ */
+export interface AssumptionMetadata {
+  filePath: string;
+  contentHash: string;
+  modTime?: string;
+}
+
+/**
  * Loaded data ready for the engine
  */
 export interface LoadedData {
@@ -45,6 +54,12 @@ export interface LoadResult extends LoadedData {
   valid: boolean;
   /** Cache statistics */
   cacheStats: { hits: number; misses: number };
+  /** Assumption file metadata for display */
+  assumptionMeta: {
+    mortality: AssumptionMetadata;
+    lapse: AssumptionMetadata;
+    expenses: AssumptionMetadata;
+  };
 }
 
 /**
@@ -273,6 +288,23 @@ export async function loadData(
     warnings: allWarnings,
     valid,
     cacheStats: { hits: cacheHits, misses: cacheMisses },
+    assumptionMeta: {
+      mortality: {
+        filePath: mortalityResult.filePath,
+        contentHash: mortalityResult.contentHash,
+        modTime: mortalityResult.modTime,
+      },
+      lapse: {
+        filePath: lapseResult.filePath,
+        contentHash: lapseResult.contentHash,
+        modTime: lapseResult.modTime,
+      },
+      expenses: {
+        filePath: expensesResult.filePath,
+        contentHash: expensesResult.contentHash,
+        modTime: expensesResult.modTime,
+      },
+    },
   };
 }
 
@@ -441,3 +473,4 @@ claim_expense,100`;
 export { CsvLoadError, CsvValidationError } from './csv-loader';
 export type { PolicyLoadResult } from './policy-loader';
 export type { MortalityLoadResult, LapseLoadResult, ExpensesLoadResult } from './assumption-loader';
+export { calculateContentHash, getFileModTime } from './assumption-loader';

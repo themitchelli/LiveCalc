@@ -804,3 +804,44 @@ For blocked stories, use:
   - livecalc-vscode/media/results/styles.css (added metadata-subsection styles)
 - Tests: Extension compiles, type-checks, and packages successfully (273.27KB)
 
+## 2026-01-24 11:00 - US-005: Assumption Summary Display (PRD-LC-004) - COMPLETE
+
+- Implemented comprehensive assumption summary display in Results Panel
+- Added content hash calculation (MD5, first 12 chars) for reproducibility tracking
+- Added file modification time tracking for detecting changes since run started
+- Enhanced AssumptionInfo interface with:
+  - absolutePath: resolved file path for local files
+  - version: AM reference version (future)
+  - hash: content hash for audit trail
+  - modTime: file modification time at load
+- Updated assumption-loader.ts to calculate and return hash/modTime for all assumption types
+- Updated data-loader.ts to expose assumption metadata (AssumptionMetadata interface)
+- Updated createResultsState to accept and pass through assumption metadata
+- Enhanced webview assumptions list display:
+  - Two-column layout with name/badges on left, source/hash on right
+  - Clickable local file links that open in VS Code editor
+  - Version badge for AM references (placeholder for future PRD-LC-006)
+  - Multiplier badge with stress testing indicator
+  - Content hash badge (first 6 chars with full hash in tooltip)
+  - Modified indicator for files changed since run started
+  - AM references styled differently with italics (not yet linked)
+- Added click handler in results-panel.ts for 'openFile' message
+- All acceptance criteria verified:
+  - List of all assumptions used in run ✓
+  - For each assumption: name, source (local file or AM reference), version if applicable ✓
+  - For AM assumptions: link to view in Assumptions Manager (placeholder, future) ✓
+  - Assumption multipliers shown if applied (e.g., 'Mortality: 1.1x') ✓
+  - Collapsible section (default: collapsed) ✓
+  - Click on local file opens it in editor ✓
+  - Visual indicator if assumption file modified since run started ✓
+  - Hash/checksum of assumption data for reproducibility ✓
+- Files changed:
+  - livecalc-vscode/src/data/assumption-loader.ts (added hash/modTime calculation)
+  - livecalc-vscode/src/data/data-loader.ts (added AssumptionMetadata interface, expose meta)
+  - livecalc-vscode/src/ui/results-state.ts (enhanced AssumptionInfo, updated createResultsState)
+  - livecalc-vscode/src/ui/results-panel.ts (added openFile message handler)
+  - livecalc-vscode/src/commands/run.ts (pass assumptionMeta to createResultsState)
+  - livecalc-vscode/media/results/main.js (enhanced updateAssumptions display)
+  - livecalc-vscode/media/results/styles.css (added assumption display styles)
+- Tests: Extension compiles, type-checks, and packages successfully
+

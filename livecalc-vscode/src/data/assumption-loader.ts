@@ -6,6 +6,7 @@
  */
 
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import {
   loadCsvFile,
   validateCsv,
@@ -16,6 +17,25 @@ import {
 } from './csv-loader';
 import { logger } from '../logging/logger';
 import type { ExpenseAssumptions } from '../types';
+
+/**
+ * Calculate MD5 hash of content for reproducibility tracking
+ */
+export function calculateContentHash(content: string): string {
+  return crypto.createHash('md5').update(content).digest('hex').slice(0, 12);
+}
+
+/**
+ * Get file modification time as ISO string
+ */
+export function getFileModTime(filePath: string): string | undefined {
+  try {
+    const stats = fs.statSync(filePath);
+    return stats.mtime.toISOString();
+  } catch {
+    return undefined;
+  }
+}
 
 // ============================================================================
 // Mortality Table Loading
@@ -44,6 +64,10 @@ export interface MortalityLoadResult {
   warnings: CsvValidationError[];
   /** File path */
   filePath: string;
+  /** Content hash for reproducibility */
+  contentHash: string;
+  /** File modification time at load */
+  modTime?: string;
 }
 
 /**
@@ -125,6 +149,10 @@ export async function loadMortality(filePath: string): Promise<MortalityLoadResu
     });
   }
 
+  // Calculate content hash and get file modification time
+  const contentHash = calculateContentHash(csv.rawContent);
+  const modTime = getFileModTime(filePath);
+
   logger.info(
     `Loaded mortality table: ${csv.rowCount} age rows, range ${ageRange.min}-${ageRange.max}`
   );
@@ -136,6 +164,8 @@ export async function loadMortality(filePath: string): Promise<MortalityLoadResu
     errors,
     warnings,
     filePath,
+    contentHash,
+    modTime,
   };
 }
 
@@ -250,6 +280,10 @@ export interface LapseLoadResult {
   warnings: CsvValidationError[];
   /** File path */
   filePath: string;
+  /** Content hash for reproducibility */
+  contentHash: string;
+  /** File modification time at load */
+  modTime?: string;
 }
 
 /**
@@ -315,6 +349,10 @@ export async function loadLapse(filePath: string): Promise<LapseLoadResult> {
     });
   }
 
+  // Calculate content hash and get file modification time
+  const contentHash = calculateContentHash(csv.rawContent);
+  const modTime = getFileModTime(filePath);
+
   logger.info(`Loaded lapse table: ${csv.rowCount} year rows, range ${yearRange.min}-${yearRange.max}`);
 
   return {
@@ -324,6 +362,8 @@ export async function loadLapse(filePath: string): Promise<LapseLoadResult> {
     errors,
     warnings,
     filePath,
+    contentHash,
+    modTime,
   };
 }
 
@@ -420,6 +460,10 @@ export interface ExpensesLoadResult {
   warnings: CsvValidationError[];
   /** File path */
   filePath: string;
+  /** Content hash for reproducibility */
+  contentHash: string;
+  /** File modification time at load */
+  modTime?: string;
 }
 
 /**
@@ -502,6 +546,10 @@ function loadExpensesFromJson(
   // Convert to CSV format for engine
   const csvContent = expensesToCsv(expenses);
 
+  // Calculate content hash and get file modification time
+  const contentHash = calculateContentHash(content);
+  const modTime = getFileModTime(filePath);
+
   logger.info(
     `Loaded expenses: acquisition=${expenses.perPolicyAcquisition}, ` +
       `maintenance=${expenses.perPolicyMaintenance}, ` +
@@ -515,6 +563,8 @@ function loadExpensesFromJson(
     errors,
     warnings,
     filePath,
+    contentHash,
+    modTime,
   };
 }
 
@@ -562,6 +612,10 @@ function loadExpensesFromCsv(content: string, filePath: string): ExpensesLoadRes
   // Validate expense values
   validateExpenseValues(expenses, errors, warnings);
 
+  // Calculate content hash and get file modification time
+  const contentHash = calculateContentHash(content);
+  const modTime = getFileModTime(filePath);
+
   logger.info(
     `Loaded expenses from CSV: acquisition=${expenses.perPolicyAcquisition}, ` +
       `maintenance=${expenses.perPolicyMaintenance}`
@@ -573,6 +627,8 @@ function loadExpensesFromCsv(content: string, filePath: string): ExpensesLoadRes
     errors,
     warnings,
     filePath,
+    contentHash,
+    modTime,
   };
 }
 

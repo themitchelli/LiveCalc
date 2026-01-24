@@ -441,27 +441,52 @@ function updateAssumptions(assumptions) {
 
   elements.assumptionsList.innerHTML = assumptions
     .map((a) => {
-      const multiplierHtml = a.multiplier && a.multiplier !== 1 ? `<span class="assumption-multiplier">${a.multiplier}x</span>` : '';
-      const modifiedHtml = a.modified ? '<span class="assumption-modified">(modified)</span>' : '';
-      const sourceHtml = a.isLocal
-        ? `<span class="assumption-source" data-path="${escapeHtml(a.source)}">${escapeHtml(getFileName(a.source))}</span>`
-        : `<span>${escapeHtml(a.source)}</span>`;
+      // Build multiplier badge
+      const multiplierHtml =
+        a.multiplier && a.multiplier !== 1
+          ? `<span class="assumption-multiplier" title="Stress testing multiplier">${a.multiplier}x</span>`
+          : '';
+
+      // Build modified indicator
+      const modifiedHtml = a.modified
+        ? '<span class="assumption-modified" title="File modified since run started">(modified)</span>'
+        : '';
+
+      // Build version badge for AM references
+      const versionHtml = a.version ? `<span class="assumption-version">v${escapeHtml(a.version)}</span>` : '';
+
+      // Build hash badge
+      const hashHtml = a.hash ? `<span class="assumption-hash" title="Content hash: ${a.hash}">#${a.hash.slice(0, 6)}</span>` : '';
+
+      // Build source link - use absolutePath for click handler if available
+      let sourceHtml;
+      if (a.isLocal) {
+        const clickPath = a.absolutePath || a.source;
+        sourceHtml = `<span class="assumption-source clickable" data-path="${escapeHtml(clickPath)}" title="Click to open: ${escapeHtml(clickPath)}">${escapeHtml(getFileName(a.source))}</span>`;
+      } else {
+        // AM reference - placeholder link for future integration
+        sourceHtml = `<span class="assumption-am-ref" title="Assumptions Manager reference (not yet linked)">${escapeHtml(a.source)}</span>`;
+      }
 
       return `
-        <li>
-          <span class="assumption-name">${escapeHtml(a.name)}</span>
-          <span>
-            ${sourceHtml}
+        <li class="assumption-item">
+          <div class="assumption-left">
+            <span class="assumption-name">${escapeHtml(a.name)}</span>
+            ${versionHtml}
             ${multiplierHtml}
             ${modifiedHtml}
-          </span>
+          </div>
+          <div class="assumption-right">
+            ${sourceHtml}
+            ${hashHtml}
+          </div>
         </li>
       `;
     })
     .join('');
 
   // Add click handlers for local file links
-  elements.assumptionsList.querySelectorAll('.assumption-source').forEach((el) => {
+  elements.assumptionsList.querySelectorAll('.assumption-source.clickable').forEach((el) => {
     el.addEventListener('click', () => {
       const filePath = el.dataset.path;
       if (filePath) {

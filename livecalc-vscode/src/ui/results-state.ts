@@ -1,4 +1,14 @@
 import { LiveCalcConfig, ValuationResult } from '../types';
+import type { AssumptionMetadata } from '../data/data-loader';
+
+/**
+ * Assumption metadata for creating results state
+ */
+export interface AssumptionMetaInput {
+  mortality: AssumptionMetadata;
+  lapse: AssumptionMetadata;
+  expenses: AssumptionMetadata;
+}
 
 /**
  * Generate a simple UUID v4
@@ -62,9 +72,17 @@ export interface AssumptionInfo {
   name: string;
   type: 'mortality' | 'lapse' | 'expenses';
   source: string;
+  /** Resolved absolute file path for local files */
+  absolutePath?: string;
   isLocal: boolean;
+  /** AM reference version (future) */
+  version?: string;
   multiplier?: number;
+  /** Content hash for reproducibility */
   hash?: string;
+  /** File modification time at load */
+  modTime?: string;
+  /** Whether file was modified since run started */
   modified?: boolean;
 }
 
@@ -116,13 +134,28 @@ export interface ComparisonState {
 }
 
 /**
+ * Options for creating results state
+ */
+export interface CreateResultsStateOptions {
+  /** Assumption file metadata */
+  assumptionMeta?: AssumptionMetaInput;
+  /** Multipliers applied during run */
+  multipliers?: {
+    mortality?: number;
+    lapse?: number;
+    expenses?: number;
+  };
+}
+
+/**
  * Create ResultsState from valuation result and config
  */
 export function createResultsState(
   result: ValuationResult,
   config: LiveCalcConfig,
   configDir: string,
-  policyCount: number
+  policyCount: number,
+  options?: CreateResultsStateOptions
 ): ResultsState {
   const distribution = result.distribution || [];
 
@@ -163,24 +196,42 @@ export function createResultsState(
     executionMode: 'local',
   };
 
+  const assumptionMeta = options?.assumptionMeta;
+  const multipliers = options?.multipliers;
+
   const assumptions: AssumptionInfo[] = [
     {
       name: 'Mortality',
       type: 'mortality',
       source: config.assumptions.mortality,
+      absolutePath: assumptionMeta?.mortality.filePath,
       isLocal: isLocalPath(config.assumptions.mortality),
+      version: extractAmVersion(config.assumptions.mortality),
+      multiplier: multipliers?.mortality,
+      hash: assumptionMeta?.mortality.contentHash,
+      modTime: assumptionMeta?.mortality.modTime,
     },
     {
       name: 'Lapse',
       type: 'lapse',
       source: config.assumptions.lapse,
+      absolutePath: assumptionMeta?.lapse.filePath,
       isLocal: isLocalPath(config.assumptions.lapse),
+      version: extractAmVersion(config.assumptions.lapse),
+      multiplier: multipliers?.lapse,
+      hash: assumptionMeta?.lapse.contentHash,
+      modTime: assumptionMeta?.lapse.modTime,
     },
     {
       name: 'Expenses',
       type: 'expenses',
       source: config.assumptions.expenses,
+      absolutePath: assumptionMeta?.expenses.filePath,
       isLocal: isLocalPath(config.assumptions.expenses),
+      version: extractAmVersion(config.assumptions.expenses),
+      multiplier: multipliers?.expenses,
+      hash: assumptionMeta?.expenses.contentHash,
+      modTime: assumptionMeta?.expenses.modTime,
     },
   ];
 
@@ -198,6 +249,19 @@ export function createResultsState(
  */
 function isLocalPath(path: string): boolean {
   return path.startsWith('local://') || (!path.startsWith('assumptions://') && !path.includes('://'));
+}
+
+/**
+ * Extract version from assumptions:// reference
+ * Format: assumptions://name:version
+ * Returns undefined for local paths
+ */
+function extractAmVersion(path: string): string | undefined {
+  if (!path.startsWith('assumptions://')) {
+    return undefined;
+  }
+  const parts = path.slice('assumptions://'.length).split(':');
+  return parts.length > 1 ? parts[1] : undefined;
 }
 
 /**

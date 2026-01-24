@@ -185,6 +185,13 @@ export class ResultsPanel implements vscode.Disposable {
           case 'retry':
             vscode.commands.executeCommand('livecalc.run');
             break;
+          case 'openFile':
+            // Open a file in the editor
+            if (message.path) {
+              const fileUri = vscode.Uri.file(message.path);
+              vscode.window.showTextDocument(fileUri, { preview: true });
+            }
+            break;
           default:
             // Forward to external handler
             if (this.onMessageHandler) {

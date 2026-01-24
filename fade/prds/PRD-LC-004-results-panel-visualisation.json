@@ -157,7 +157,7 @@
         "fileLinks": "Use vscode.open command via postMessage",
         "amLinks": "Placeholder until PRD-LC-006 integration"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
