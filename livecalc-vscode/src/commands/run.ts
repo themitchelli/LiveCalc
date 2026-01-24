@@ -12,7 +12,7 @@ import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
 import { loadData, DataLoadError } from '../data/data-loader';
-import { PipelineView, PipelineDataInspector, BreakpointManager } from '../pipeline';
+import { PipelineView, PipelineDataInspector, BreakpointManager, TimingProfiler } from '../pipeline';
 import { hasPipeline } from '../pipeline/pipeline-validator';
 
 /**
@@ -360,7 +360,8 @@ export function registerRunCommand(
   runHistoryManager: RunHistoryManager,
   pipelineView: PipelineView,
   pipelineDataInspector: PipelineDataInspector,
-  breakpointManager: BreakpointManager
+  breakpointManager: BreakpointManager,
+  timingProfiler: TimingProfiler
 ): vscode.Disposable {
   // Set up message handler for comparison and export actions from webview
   resultsPanel.onMessage(async (message: ExtensionMessage) => {
@@ -471,6 +472,51 @@ export function registerRunCommand(
               }
             } else {
               vscode.window.showWarningMessage(`Bus resource ${message.resourceName} not found`);
+            }
+          }
+        }
+        break;
+
+      case 'exportTiming':
+        // Export timing data to JSON
+        {
+          const runId = 'runId' in message && message.runId ? message.runId : undefined;
+          const json = timingProfiler.exportToJson(runId);
+          if (json) {
+            const fileName = `pipeline-timing_${new Date().toISOString().slice(0, 10)}.json`;
+            const defaultUri = vscode.Uri.file(fileName);
+
+            const uri = await vscode.window.showSaveDialog({
+              defaultUri,
+              filters: {
+                'JSON files': ['json'],
+                'All files': ['*'],
+              },
+            });
+
+            if (uri) {
+              await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
+              logger.info(`Timing data exported to ${uri.fsPath}`);
+              vscode.window.showInformationMessage(`LiveCalc: Timing data exported to ${uri.fsPath}`);
+            }
+          } else {
+            vscode.window.showWarningMessage('No timing data available for export');
+          }
+        }
+        break;
+
+      case 'selectTimingComparison':
+        // Compare with baseline run
+        if ('baselineRunId' in message) {
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const currentRunId = panelState.results.metadata.runId;
+            const comparison = timingProfiler.compareRuns(currentRunId, message.baselineRunId);
+            if (comparison) {
+              resultsPanel.setTimingComparison(comparison);
+              logger.info(`Timing comparison: ${currentRunId} vs ${message.baselineRunId}`);
+            } else {
+              vscode.window.showWarningMessage('Cannot compare runs: timing data not found');
             }
           }
         }

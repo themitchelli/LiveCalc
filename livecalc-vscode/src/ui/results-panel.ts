@@ -6,6 +6,7 @@ import { RunHistoryEntry } from '../auto-run/run-history';
 import { LiveCalcError, LiveCalcWarning, getErrorTitle } from './error-types';
 import { logger } from '../logging/logger';
 import { PipelineDataState } from '../pipeline/data-inspector';
+import { PipelineTimingSummary, TimingComparison } from '../pipeline/timing-profiler';
 
 /**
  * Display settings for the webview
@@ -59,7 +60,9 @@ export type WebviewMessage =
   | { type: 'setTriggerInfo'; trigger: TriggerInfo | null }
   | { type: 'setHistory'; entries: RunHistoryEntry[] }
   | { type: 'setHistoryResults'; results: ResultsState | null; runId: string }
-  | { type: 'setPipelineData'; pipelineData: PipelineDataState | null };
+  | { type: 'setPipelineData'; pipelineData: PipelineDataState | null }
+  | { type: 'setPipelineTiming'; timing: PipelineTimingSummary | null }
+  | { type: 'setTimingComparison'; comparison: TimingComparison | null };
 
 /**
  * Message types from webview to extension
@@ -83,7 +86,9 @@ export type ExtensionMessage =
   | { type: 'selectBusResource'; resourceName: string }
   | { type: 'exportBusResource'; resourceName: string }
   | { type: 'compareBusResources'; resourceA: string; resourceB: string }
-  | { type: 'inspectOffset'; resourceName: string; offset: number };
+  | { type: 'inspectOffset'; resourceName: string; offset: number }
+  | { type: 'exportTiming'; runId?: string }
+  | { type: 'selectTimingComparison'; baselineRunId: string };
 
 /**
  * Results Panel provider for displaying valuation results in a webview
@@ -250,6 +255,20 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public setPipelineData(pipelineData: PipelineDataState | null): void {
     this.postMessage({ type: 'setPipelineData', pipelineData });
+  }
+
+  /**
+   * Set pipeline timing data for performance profiling
+   */
+  public setPipelineTiming(timing: PipelineTimingSummary | null): void {
+    this.postMessage({ type: 'setPipelineTiming', timing });
+  }
+
+  /**
+   * Set timing comparison between two runs
+   */
+  public setTimingComparison(comparison: TimingComparison | null): void {
+    this.postMessage({ type: 'setTimingComparison', comparison });
   }
 
   /**
@@ -786,6 +805,147 @@ export class ResultsPanel implements vscode.Disposable {
               </div>
             </details>
           </div>
+        </div>
+      </section>
+
+      <!-- Pipeline Timing Tab (shown when pipeline is used) -->
+      <section id="pipeline-timing-section" class="pipeline-timing-section hidden">
+        <div class="pipeline-timing-header">
+          <h3>Pipeline Timing & Performance</h3>
+          <div class="pipeline-timing-controls">
+            <button id="export-timing-btn" class="btn btn-small" title="Export timing data as JSON">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export JSON
+            </button>
+            <select id="timing-comparison-select" class="timing-comparison-select" title="Compare with previous run">
+              <option value="">Compare with...</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Timing Summary -->
+        <div id="timing-summary" class="timing-summary">
+          <div class="timing-stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Time</div>
+              <div class="stat-value" id="timing-total">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Init Time</div>
+              <div class="stat-value" id="timing-init">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Execute Time</div>
+              <div class="stat-value" id="timing-execute">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Handoff Time</div>
+              <div class="stat-value" id="timing-handoff">-</div>
+            </div>
+            <div class="stat-card highlight">
+              <div class="stat-label">Slowest Node</div>
+              <div class="stat-value" id="timing-slowest-node">-</div>
+              <div class="stat-sublabel" id="timing-slowest-time">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Critical Path</div>
+              <div class="stat-value" id="timing-critical-path">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waterfall Chart -->
+        <div class="waterfall-section">
+          <h4>Execution Timeline (Waterfall)</h4>
+          <div id="waterfall-parallel-notice" class="waterfall-notice hidden">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Nodes executed in parallel. Wall-clock time &lt; sum of node times.
+          </div>
+          <div class="waterfall-legend">
+            <span class="legend-item"><span class="legend-color" style="background: #6c757d;"></span>Wait</span>
+            <span class="legend-item"><span class="legend-color" style="background: #ffc107;"></span>Init</span>
+            <span class="legend-item"><span class="legend-color" style="background: #0d6efd;"></span>Execute</span>
+            <span class="legend-item"><span class="legend-color" style="background: #198754;"></span>Handoff</span>
+          </div>
+          <div class="waterfall-chart-container">
+            <svg id="waterfall-chart" class="waterfall-chart"></svg>
+          </div>
+        </div>
+
+        <!-- Per-Node Timing Table -->
+        <details id="node-timing-table-section" open>
+          <summary>
+            <span class="section-title">Per-Node Timing</span>
+            <span class="expand-icon"></span>
+          </summary>
+          <div class="section-content">
+            <table class="node-timing-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Engine</th>
+                  <th>Wait</th>
+                  <th>Init</th>
+                  <th>Execute</th>
+                  <th>Handoff</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="node-timing-table-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <!-- Timing Comparison (when baseline selected) -->
+        <div id="timing-comparison-view" class="timing-comparison-view hidden">
+          <h4>Comparison: <span id="timing-comparison-summary">-</span></h4>
+          <div class="timing-comparison-stats">
+            <div class="stat-card">
+              <div class="stat-label">Total Time Delta</div>
+              <div class="stat-value" id="timing-comp-total-delta">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Slower Nodes</div>
+              <div class="stat-value" id="timing-comp-slower-count">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Faster Nodes</div>
+              <div class="stat-value" id="timing-comp-faster-count">-</div>
+            </div>
+          </div>
+          <details id="timing-comparison-details-section">
+            <summary>
+              <span class="section-title">Per-Node Deltas</span>
+              <span class="expand-icon"></span>
+            </summary>
+            <div class="section-content">
+              <table class="timing-comparison-table">
+                <thead>
+                  <tr>
+                    <th>Node</th>
+                    <th>Baseline</th>
+                    <th>Current</th>
+                    <th>Delta (ms)</th>
+                    <th>Delta (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="timing-comparison-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </details>
         </div>
       </section>
 

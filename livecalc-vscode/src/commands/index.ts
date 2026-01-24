@@ -7,7 +7,7 @@ import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
 import { RunHistoryManager } from '../auto-run/run-history';
 import { AutoRunController } from '../auto-run';
-import { PipelineView, PipelineDataInspector, BreakpointManager } from '../pipeline';
+import { PipelineView, PipelineDataInspector, BreakpointManager, TimingProfiler } from '../pipeline';
 import { AuthManager, AMStatusBar, AMCache, AssumptionTreeDataProvider, AssumptionTreeItem, AssumptionsManagerClient } from '../assumptions-manager';
 import { executeAMLogin } from './am-login';
 import { executeAMLogout, executeAMClearCache } from './am-logout';
@@ -27,13 +27,14 @@ export function registerCommands(
   pipelineView: PipelineView,
   pipelineDataInspector: PipelineDataInspector,
   breakpointManager: BreakpointManager,
+  timingProfiler: TimingProfiler,
   authManager?: AuthManager,
   amStatusBar?: AMStatusBar,
   amCache?: AMCache,
   assumptionTreeProvider?: AssumptionTreeDataProvider
 ): void {
   // Register run command
-  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, breakpointManager));
+  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, pipelineView, pipelineDataInspector, breakpointManager, timingProfiler));
 
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));

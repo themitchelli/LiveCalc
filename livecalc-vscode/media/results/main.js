@@ -342,6 +342,14 @@ function handleMessage(message) {
     case 'setPipelineData':
       setPipelineData(message.pipelineData);
       break;
+
+    case 'setPipelineTiming':
+      setPipelineTiming(message.timing);
+      break;
+
+    case 'setTimingComparison':
+      setTimingComparison(message.comparison);
+      break;
   }
 }
 
@@ -2312,6 +2320,330 @@ function inspectOffset(offset) {
     valueContainer.classList.remove('hidden');
   }
 }
+
+// ============================================================================
+// Pipeline Timing Visualization
+// ============================================================================
+
+let currentPipelineTiming = null;
+let currentTimingComparison = null;
+
+/**
+ * Set pipeline timing data
+ */
+function setPipelineTiming(timing) {
+  currentPipelineTiming = timing;
+
+  const timingSection = document.getElementById('pipeline-timing-section');
+  if (!timingSection) return;
+
+  if (!timing) {
+    timingSection.classList.add('hidden');
+    return;
+  }
+
+  // Show timing section
+  timingSection.classList.remove('hidden');
+
+  // Update summary stats
+  updateTimingSummary(timing);
+
+  // Render waterfall chart
+  renderWaterfallChart(timing);
+
+  // Update per-node timing table
+  updateNodeTimingTable(timing);
+
+  // Populate comparison dropdown with history (placeholder - would need history from extension)
+  const comparisonSelect = document.getElementById('timing-comparison-select');
+  if (comparisonSelect) {
+    // For now, just clear options except the default
+    comparisonSelect.innerHTML = '<option value="">Compare with...</option>';
+  }
+}
+
+/**
+ * Update timing summary statistics
+ */
+function updateTimingSummary(timing) {
+  document.getElementById('timing-total').textContent = `${timing.totalTimeMs.toFixed(0)}ms`;
+  document.getElementById('timing-init').textContent = `${timing.totalInitTimeMs.toFixed(0)}ms`;
+  document.getElementById('timing-execute').textContent = `${timing.totalExecuteTimeMs.toFixed(0)}ms`;
+  document.getElementById('timing-handoff').textContent = `${timing.totalHandoffTimeMs.toFixed(0)}ms`;
+
+  // Slowest node
+  const slowestNode = timing.nodeTimings.find(n => n.nodeId === timing.slowestNodeId);
+  if (slowestNode) {
+    document.getElementById('timing-slowest-node').textContent = slowestNode.nodeName || slowestNode.nodeId;
+    document.getElementById('timing-slowest-time').textContent = `${timing.slowestNodeTimeMs.toFixed(0)}ms`;
+  }
+
+  document.getElementById('timing-critical-path').textContent = `${timing.criticalPathMs.toFixed(0)}ms`;
+
+  // Show parallel execution notice if applicable
+  const parallelNotice = document.getElementById('waterfall-parallel-notice');
+  if (parallelNotice) {
+    if (timing.hasParallelExecution) {
+      parallelNotice.classList.remove('hidden');
+    } else {
+      parallelNotice.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * Render waterfall chart showing execution timeline
+ */
+function renderWaterfallChart(timing) {
+  const svg = document.getElementById('waterfall-chart');
+  if (!svg) return;
+
+  // Clear existing content
+  svg.innerHTML = '';
+
+  const nodeTimings = timing.nodeTimings;
+  if (!nodeTimings || nodeTimings.length === 0) return;
+
+  // Calculate chart dimensions
+  const margin = { top: 10, right: 20, bottom: 30, left: 120 };
+  const width = 800;
+  const barHeight = 30;
+  const spacing = 10;
+  const height = nodeTimings.length * (barHeight + spacing) + margin.top + margin.bottom;
+
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+  // Calculate time scale
+  const maxTime = timing.totalTimeMs;
+  const timeScale = (width - margin.left - margin.right) / maxTime;
+
+  // Stage colors
+  const stageColors = {
+    wait: '#6c757d',
+    init: '#ffc107',
+    execute: '#0d6efd',
+    handoff: '#198754'
+  };
+
+  // Draw bars for each node
+  nodeTimings.forEach((node, index) => {
+    const y = margin.top + index * (barHeight + spacing);
+    let x = margin.left;
+
+    // Node label
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', margin.left - 10);
+    label.setAttribute('y', y + barHeight / 2);
+    label.setAttribute('text-anchor', 'end');
+    label.setAttribute('dominant-baseline', 'middle');
+    label.setAttribute('fill', 'var(--vscode-editor-foreground)');
+    label.setAttribute('font-size', '12');
+    label.textContent = node.nodeName || node.nodeId;
+    svg.appendChild(label);
+
+    // Calculate relative start time from pipeline start
+    const relativeStartMs = node.startTime - timing.timestamp;
+    x = margin.left + (relativeStartMs * timeScale);
+
+    // Draw stage bars
+    const stages = [
+      { name: 'wait', duration: node.waitTimeMs },
+      { name: 'init', duration: node.initTimeMs },
+      { name: 'execute', duration: node.executeTimeMs },
+      { name: 'handoff', duration: node.handoffTimeMs }
+    ];
+
+    stages.forEach(stage => {
+      if (stage.duration > 0) {
+        const stageWidth = stage.duration * timeScale;
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', stageWidth);
+        rect.setAttribute('height', barHeight);
+        rect.setAttribute('fill', stageColors[stage.name]);
+        rect.setAttribute('opacity', '0.8');
+
+        // Tooltip
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${node.nodeName || node.nodeId} - ${stage.name}: ${stage.duration.toFixed(1)}ms`;
+        rect.appendChild(title);
+
+        svg.appendChild(rect);
+
+        // Time label for execute stage (main bar)
+        if (stage.name === 'execute' && stageWidth > 40) {
+          const timeLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          timeLabel.setAttribute('x', x + stageWidth / 2);
+          timeLabel.setAttribute('y', y + barHeight / 2);
+          timeLabel.setAttribute('text-anchor', 'middle');
+          timeLabel.setAttribute('dominant-baseline', 'middle');
+          timeLabel.setAttribute('fill', 'white');
+          timeLabel.setAttribute('font-size', '11');
+          timeLabel.setAttribute('font-weight', 'bold');
+          timeLabel.textContent = `${stage.duration.toFixed(0)}ms`;
+          svg.appendChild(timeLabel);
+        }
+
+        x += stageWidth;
+      }
+    });
+  });
+
+  // Time axis at bottom
+  const axisY = height - margin.bottom + 5;
+  const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  axisLine.setAttribute('x1', margin.left);
+  axisLine.setAttribute('y1', axisY);
+  axisLine.setAttribute('x2', width - margin.right);
+  axisLine.setAttribute('y2', axisY);
+  axisLine.setAttribute('stroke', 'var(--vscode-panel-border)');
+  axisLine.setAttribute('stroke-width', '1');
+  svg.appendChild(axisLine);
+
+  // Time ticks
+  const tickCount = 5;
+  for (let i = 0; i <= tickCount; i++) {
+    const time = (maxTime / tickCount) * i;
+    const tickX = margin.left + (time * timeScale);
+
+    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    tick.setAttribute('x1', tickX);
+    tick.setAttribute('y1', axisY);
+    tick.setAttribute('x2', tickX);
+    tick.setAttribute('y2', axisY + 5);
+    tick.setAttribute('stroke', 'var(--vscode-panel-border)');
+    tick.setAttribute('stroke-width', '1');
+    svg.appendChild(tick);
+
+    const tickLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tickLabel.setAttribute('x', tickX);
+    tickLabel.setAttribute('y', axisY + 18);
+    tickLabel.setAttribute('text-anchor', 'middle');
+    tickLabel.setAttribute('fill', 'var(--vscode-editor-foreground)');
+    tickLabel.setAttribute('font-size', '10');
+    tickLabel.textContent = `${time.toFixed(0)}ms`;
+    svg.appendChild(tickLabel);
+  }
+}
+
+/**
+ * Update per-node timing table
+ */
+function updateNodeTimingTable(timing) {
+  const tbody = document.getElementById('node-timing-table-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  timing.nodeTimings.forEach(node => {
+    const row = tbody.insertRow();
+
+    // Highlight slowest node
+    if (node.nodeId === timing.slowestNodeId) {
+      row.classList.add('slowest-node');
+    }
+
+    row.insertCell().textContent = node.nodeName || node.nodeId;
+    row.insertCell().textContent = node.engineType;
+    row.insertCell().textContent = `${node.waitTimeMs.toFixed(1)}ms`;
+    row.insertCell().textContent = `${node.initTimeMs.toFixed(1)}ms`;
+    row.insertCell().textContent = `${node.executeTimeMs.toFixed(1)}ms`;
+    row.insertCell().textContent = `${node.handoffTimeMs.toFixed(1)}ms`;
+    row.insertCell().textContent = `${node.totalTimeMs.toFixed(1)}ms`;
+  });
+}
+
+/**
+ * Set timing comparison data
+ */
+function setTimingComparison(comparison) {
+  currentTimingComparison = comparison;
+
+  const comparisonView = document.getElementById('timing-comparison-view');
+  if (!comparisonView) return;
+
+  if (!comparison) {
+    comparisonView.classList.add('hidden');
+    return;
+  }
+
+  // Show comparison view
+  comparisonView.classList.remove('hidden');
+
+  // Update summary
+  const summaryText = `Current vs ${comparison.baselineRunId}`;
+  document.getElementById('timing-comparison-summary').textContent = summaryText;
+
+  // Update comparison stats
+  const deltaMs = comparison.totalTimeDeltaMs;
+  const deltaPercent = comparison.totalTimeDeltaPercent;
+  const deltaClass = deltaMs > 0 ? 'negative' : 'positive';
+  const deltaSign = deltaMs > 0 ? '+' : '';
+
+  const totalDeltaEl = document.getElementById('timing-comp-total-delta');
+  totalDeltaEl.textContent = `${deltaSign}${deltaMs.toFixed(0)}ms (${deltaSign}${deltaPercent.toFixed(1)}%)`;
+  totalDeltaEl.className = `stat-value ${deltaClass}`;
+
+  document.getElementById('timing-comp-slower-count').textContent = comparison.slowerNodes.length;
+  document.getElementById('timing-comp-faster-count').textContent = comparison.fasterNodes.length;
+
+  // Update comparison table
+  updateTimingComparisonTable(comparison);
+}
+
+/**
+ * Update timing comparison table
+ */
+function updateTimingComparisonTable(comparison) {
+  const tbody = document.getElementById('timing-comparison-table-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  comparison.nodeDeltas.forEach(delta => {
+    const row = tbody.insertRow();
+
+    row.insertCell().textContent = delta.nodeName || delta.nodeId;
+    row.insertCell().textContent = `${delta.baselineMs.toFixed(1)}ms`;
+    row.insertCell().textContent = `${delta.currentMs.toFixed(1)}ms`;
+
+    const deltaMs = delta.deltaMs;
+    const deltaPercent = delta.deltaPercent;
+    const deltaClass = deltaMs > 5 ? 'negative' : (deltaMs < -5 ? 'positive' : '');
+    const deltaSign = deltaMs > 0 ? '+' : '';
+
+    const deltaMsCell = row.insertCell();
+    deltaMsCell.textContent = `${deltaSign}${deltaMs.toFixed(1)}ms`;
+    deltaMsCell.className = deltaClass;
+
+    const deltaPercentCell = row.insertCell();
+    deltaPercentCell.textContent = `${deltaSign}${deltaPercent.toFixed(1)}%`;
+    deltaPercentCell.className = deltaClass;
+  });
+}
+
+// Add event listener for export timing button
+document.getElementById('export-timing-btn')?.addEventListener('click', () => {
+  if (currentPipelineTiming) {
+    vscode.postMessage({ type: 'exportTiming', runId: currentPipelineTiming.runId });
+  }
+});
+
+// Add event listener for timing comparison select
+document.getElementById('timing-comparison-select')?.addEventListener('change', (e) => {
+  const baselineRunId = e.target.value;
+  if (baselineRunId && currentPipelineTiming) {
+    vscode.postMessage({ type: 'selectTimingComparison', baselineRunId });
+  }
+});
+
+// ============================================================================
+// Message Handler Updates
+// ============================================================================
 
 // Initialize on DOM ready
 if (document.readyState === 'loading') {

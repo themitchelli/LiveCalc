@@ -1465,3 +1465,262 @@ body {
     align-items: flex-start;
   }
 }
+
+/* ============================================================================
+   Pipeline Timing Styles
+   ============================================================================ */
+
+.pipeline-timing-section {
+  padding: 24px;
+  background: var(--vscode-editor-background);
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.pipeline-timing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.pipeline-timing-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.pipeline-timing-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.timing-comparison-select {
+  padding: 6px 10px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.timing-comparison-select:hover {
+  background: var(--vscode-input-background);
+  border-color: var(--vscode-focusBorder);
+}
+
+.timing-summary {
+  margin-bottom: 24px;
+}
+
+.timing-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.timing-stats-grid .stat-card.highlight {
+  background: var(--vscode-button-secondaryBackground);
+  border: 1px solid var(--vscode-button-border);
+}
+
+.stat-sublabel {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 4px;
+}
+
+/* Waterfall Chart */
+
+.waterfall-section {
+  margin-bottom: 24px;
+}
+
+.waterfall-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.waterfall-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-inputValidation-infoBackground);
+  border: 1px solid var(--vscode-inputValidation-infoBorder);
+  border-radius: 4px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.waterfall-notice svg {
+  flex-shrink: 0;
+}
+
+.waterfall-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.waterfall-chart-container {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.waterfall-chart {
+  display: block;
+  max-width: 100%;
+}
+
+/* Node Timing Table */
+
+.node-timing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--vscode-editor-background);
+}
+
+.node-timing-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.node-timing-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  font-family: var(--vscode-editor-font-family);
+}
+
+.node-timing-table tbody tr:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.node-timing-table tbody tr.slowest-node {
+  background: var(--vscode-inputValidation-warningBackground);
+  font-weight: 600;
+}
+
+.node-timing-table tbody tr.slowest-node:hover {
+  background: var(--vscode-inputValidation-warningBackground);
+  filter: brightness(1.1);
+}
+
+/* Timing Comparison */
+
+.timing-comparison-view {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.timing-comparison-view h4 {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.timing-comparison-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.timing-comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--vscode-editor-background);
+}
+
+.timing-comparison-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.timing-comparison-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  font-family: var(--vscode-editor-font-family);
+}
+
+.timing-comparison-table tbody tr:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.timing-comparison-table .positive {
+  color: var(--vscode-testing-iconPassed);
+}
+
+.timing-comparison-table .negative {
+  color: var(--vscode-errorForeground);
+}
+
+/* Responsive adjustments for timing section */
+
+@media (max-width: 799px) {
+  .timing-stats-grid,
+  .timing-comparison-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 499px) {
+  .timing-stats-grid,
+  .timing-comparison-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .pipeline-timing-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pipeline-timing-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .timing-comparison-select,
+  #export-timing-btn {
+    width: 100%;
+  }
+
+  .waterfall-legend {
+    flex-wrap: wrap;
+  }
+}

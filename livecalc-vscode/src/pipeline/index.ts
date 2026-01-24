@@ -46,3 +46,11 @@ export {
   PausedState,
   BreakpointAction,
 } from './breakpoint-manager';
+
+export {
+  TimingProfiler,
+  NodeTimingDetail,
+  PipelineTimingSummary,
+  TimingComparison,
+  WaterfallData,
+} from './timing-profiler';

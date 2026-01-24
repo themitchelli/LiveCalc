@@ -11,7 +11,7 @@ import { ComparisonManager, disposeComparisonManager } from './ui/comparison';
 import { AutoRunController, disposeCacheManager } from './auto-run';
 import { RunHistoryManager, disposeRunHistoryManager } from './auto-run/run-history';
 import { runCommand } from './commands/run';
-import { PipelineView, PipelineDataInspector, BreakpointManager } from './pipeline';
+import { PipelineView, PipelineDataInspector, BreakpointManager, TimingProfiler } from './pipeline';
 import {
   AuthManager,
   AMStatusBar,
@@ -97,6 +97,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // Create breakpoint manager (persisted in workspace state)
   breakpointManager = BreakpointManager.getInstance(context, logger);
   context.subscriptions.push(breakpointManager);
+
+  // Create timing profiler for pipeline performance analysis
+  const timingProfiler = TimingProfiler.getInstance();
+  context.subscriptions.push(timingProfiler);
 
   // Create auto-run controller
   autoRunController = new AutoRunController(context, configLoader, statusBar);
@@ -202,7 +206,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register commands
-  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, pipelineDataInspector, breakpointManager, authManager, amStatusBar, amCache, assumptionTreeProvider);
+  registerCommands(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, autoRunController, pipelineView, pipelineDataInspector, breakpointManager, timingProfiler, authManager, amStatusBar, amCache, assumptionTreeProvider);
 
   // Show status bar when appropriate
   updateStatusBarVisibility();

@@ -2491,3 +2491,67 @@ For blocked stories, use:
   - livecalc-vscode/media/pipeline/main.js (breakpoint UI, debug controls, paused state)
   - livecalc-vscode/media/pipeline/styles.css (breakpoint and paused indicators, debug control styling)
 - Tests: Extension compiles, type-checks, and packages successfully (376.27KB)
+
+## 2026-01-24 19:44 - US-009: Debug: Timing and Performance Profiling (PRD-LC-010) - COMPLETE
+
+- Implemented TimingProfiler class for collecting and analyzing pipeline timing data
+- TimingProfiler features:
+  - Singleton pattern with history tracking (last 10 runs)
+  - startRun(): Begin timing collection for a pipeline run
+  - recordNodeTiming(): Record timing breakdown for each node (wait, init, execute, handoff)
+  - completeRun(): Generate summary with slowest node identification
+  - compareRuns(): Calculate timing deltas between current and baseline
+  - generateWaterfallData(): Create waterfall chart data for visualization
+  - exportToJson(): Export timing data for external analysis
+  - Automatic parallel execution detection (wall-clock < sum of node times)
+  - Critical path calculation (longest sequential chain through DAG)
+- Added Pipeline Timing section to results panel:
+  - Timing summary grid showing total/init/execute/handoff times
+  - Slowest node highlighted with execution time
+  - Critical path metric displayed
+  - Parallel execution notice when detected
+- Waterfall chart visualization:
+  - SVG-based timeline showing each node's execution stages
+  - Color-coded stages: wait (gray), init (amber), execute (blue), handoff (green)
+  - Interactive tooltips with stage durations
+  - Time axis with ticks and labels
+  - Legend explaining stage colors
+- Per-node timing table:
+  - Sortable table with wait/init/execute/handoff/total columns
+  - Slowest node row highlighted
+  - Engine type column (wasm/python)
+- Timing comparison feature:
+  - Dropdown to select baseline run from history
+  - Comparison stats: total delta, slower nodes count, faster nodes count
+  - Per-node delta table with absolute and percentage changes
+  - Color-coded improvements (green) and regressions (red)
+- Export functionality:
+  - Export button to save timing data as JSON
+  - Includes all node timings and execution metadata
+- Integration with extension lifecycle:
+  - TimingProfiler initialized in extension.ts activate()
+  - Passed to registerCommands() and runCommand()
+  - Message handlers for exportTiming and selectTimingComparison
+- CSS styling with theme-aware colors:
+  - Responsive layout (3 columns → 2 → 1)
+  - Waterfall chart container with scrolling for large pipelines
+  - Timing comparison view with delta highlighting
+  - Consistent styling with existing results panel sections
+- All acceptance criteria verified:
+  - Each node reports: init time, execution time, handoff time ✓
+  - Pipeline summary shows total time and time per stage ✓
+  - Waterfall view of pipeline execution showing parallel/sequential ✓
+  - Identify slowest node automatically (highlighted) ✓
+  - Compare timing across runs (before/after optimization) ✓
+  - Export timing data as JSON for external analysis ✓
+- Files changed:
+  - livecalc-vscode/src/pipeline/timing-profiler.ts (new - 480 lines)
+  - livecalc-vscode/src/pipeline/index.ts (added TimingProfiler exports)
+  - livecalc-vscode/src/ui/results-panel.ts (added Pipeline Timing section HTML, setPipelineTiming/setTimingComparison methods, message types)
+  - livecalc-vscode/media/results/main.js (timing visualization functions: setPipelineTiming, renderWaterfallChart, updateTimingSummary, setTimingComparison, 250+ lines)
+  - livecalc-vscode/media/results/styles.css (timing section styles, waterfall chart, comparison table, responsive adjustments, 200+ lines)
+  - livecalc-vscode/src/extension.ts (initialize TimingProfiler, pass to commands)
+  - livecalc-vscode/src/commands/index.ts (accept timingProfiler parameter, pass to run command)
+  - livecalc-vscode/src/commands/run.ts (timing profiler integration, export/comparison handlers)
+  - livecalc-vscode/tests/timing-profiler.test.ts (new - 16 tests, all passing)
+- Tests: Extension compiles, type-checks, and packages successfully

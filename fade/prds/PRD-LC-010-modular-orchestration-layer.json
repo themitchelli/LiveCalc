@@ -254,7 +254,7 @@
         "timing": "performance.now() for high-resolution timing",
         "visualization": "Waterfall chart in results panel"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [
