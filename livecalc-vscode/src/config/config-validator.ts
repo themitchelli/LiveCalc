@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { LiveCalcConfig } from '../types';
 import { logger } from '../logging/logger';
+import { validatePipeline, hasPipeline, PipelineErrorCode, PipelineWarningCode } from '../pipeline';
 
 /**
  * Validation error with location information
@@ -104,12 +105,65 @@ export class ConfigValidator implements vscode.Disposable {
       this.validateOutput(config.output, errors);
     }
 
+    // Optional: pipeline
+    if (hasPipeline(config)) {
+      this.validatePipelineConfig(config.pipeline!, errors);
+    }
+
     // Find line numbers for errors if configText provided
     if (configText) {
       this.addLineNumbers(errors, configText);
     }
 
     return errors;
+  }
+
+  /**
+   * Validate pipeline configuration
+   */
+  private validatePipelineConfig(
+    pipeline: NonNullable<LiveCalcConfig['pipeline']>,
+    errors: ValidationError[]
+  ): void {
+    const result = validatePipeline(pipeline);
+
+    // Convert pipeline validation errors to ValidationError format
+    for (const error of result.errors) {
+      let path = 'pipeline';
+      if (error.nodeId) {
+        // Find node index
+        const nodeIndex = pipeline.nodes.findIndex(n => n.id === error.nodeId);
+        if (nodeIndex >= 0) {
+          path = `pipeline.nodes[${nodeIndex}]`;
+        }
+      }
+      if (error.path) {
+        path = error.path;
+      }
+
+      errors.push({
+        message: error.message,
+        path,
+        severity: vscode.DiagnosticSeverity.Error,
+      });
+    }
+
+    // Convert pipeline warnings to ValidationError format
+    for (const warning of result.warnings) {
+      let path = 'pipeline';
+      if (warning.nodeId) {
+        const nodeIndex = pipeline.nodes.findIndex(n => n.id === warning.nodeId);
+        if (nodeIndex >= 0) {
+          path = `pipeline.nodes[${nodeIndex}]`;
+        }
+      }
+
+      errors.push({
+        message: warning.message,
+        path,
+        severity: vscode.DiagnosticSeverity.Warning,
+      });
+    }
   }
 
   /**

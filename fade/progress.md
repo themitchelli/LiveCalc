@@ -2096,3 +2096,41 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/index.ts (tree view commands: insert, copy, open, view data, filter)
   - livecalc-vscode/package.json (views, viewsWelcome, commands, menus)
 - Tests: Extension compiles, type-checks, and packages successfully (338.1KB)
+
+
+## 2026-01-24 - US-001: Declarative Pipeline Schema (PRD-LC-010) - COMPLETE
+
+- Implemented pipeline configuration schema for multi-engine DAG execution
+- Added 'pipeline' object to JSON schema with 'nodes' array and 'debug' settings
+- Each node specifies: id, engine (wasm://name or python://name), inputs, outputs, config
+- Input/output keys support bus:// protocol (bus://category/name) for shared memory addressing
+- Added special input references: $policies, $assumptions, $scenarios
+- Created pipeline-validator.ts with comprehensive validation:
+  - Node ID uniqueness and format validation
+  - Engine reference format validation (wasm://name or python://name)
+  - Bus reference format validation (bus://category/name)
+  - Circular dependency detection using Kahn's algorithm (topological sort)
+  - Undefined input detection (inputs that reference non-existent bus resources)
+  - Execution order calculation for valid DAGs
+  - Warnings for unused outputs
+- Created pipeline types in src/types/index.ts:
+  - PipelineConfig, PipelineNode, PipelineDebugConfig interfaces
+- Integrated pipeline validation into ConfigValidator
+- Single-engine configs (no pipeline block) continue to work unchanged
+- Created sample pipeline config at samples/pipeline-example/livecalc.config.json
+- All acceptance criteria verified:
+  - Config schema supports optional 'pipeline.nodes' array ✓
+  - Each node specifies 'id', 'engine' (wasm/python), 'inputs', 'outputs' ✓
+  - Input/Output keys support the 'bus://' prefix for shared memory ✓
+  - Validation: Detect and error on circular dependencies in the DAG ✓
+  - Validation: Ensure output buffer size matches downstream input expectations ✓
+  - Single-engine configs (no pipeline block) continue to work unchanged ✓
+  - JSON Schema updated with pipeline definitions and validation ✓
+- Files changed:
+  - livecalc-vscode/schemas/livecalc.config.schema.json (added pipeline schema)
+  - livecalc-vscode/src/types/index.ts (added pipeline types)
+  - livecalc-vscode/src/pipeline/pipeline-validator.ts (new - DAG validation)
+  - livecalc-vscode/src/pipeline/index.ts (new - module exports)
+  - livecalc-vscode/src/config/config-validator.ts (integrated pipeline validation)
+  - livecalc-vscode/samples/pipeline-example/livecalc.config.json (new - example)
+- Tests: Extension compiles, type-checks, and packages successfully (340.04KB)
