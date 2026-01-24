@@ -1461,3 +1461,60 @@ For blocked stories, use:
   - livecalc-engine/benchmarks/package.json (added report scripts)
 - Report validates spike goals: MERGE recommended
 
+
+## 2026-01-24 21:00 - US-006: Run History (PRD-LC-005) - COMPLETE
+
+- Implemented comprehensive run history feature for tracking and comparing recent runs
+- Created RunHistoryManager class (src/auto-run/run-history.ts):
+  - In-memory storage of last N runs (configurable via livecalc.historySize setting)
+  - RunHistoryEntry type with runId, timestamp, trigger type, execution time, mean NPV
+  - RunHistoryItem includes full ResultsState for viewing historical runs
+  - Methods: addRun(), getEntries(), getResults(), getMostRecent(), clear()
+  - Export to CSV: exportToCsv() and exportDetailedToCsv() with full statistics
+  - Event emitter for history changes (onDidChange)
+- Added collapsible Run History section to results panel:
+  - Table display with: time (relative), trigger type (manual/auto), duration, mean NPV
+  - View button to display full results for any historical run
+  - Compare button to set any historical run as comparison baseline
+  - Export to CSV button with save dialog
+  - Clear history button
+  - History count badge in section header
+- Updated webview JavaScript (main.js):
+  - updateHistory() renders history table with relative timestamps
+  - showHistoryResults() displays historical run results
+  - formatTimeAgo() for human-readable timestamps (just now, 5m ago, 2h ago)
+  - Click handlers for view, compare, export, clear actions
+- Added commands to package.json:
+  - livecalc.exportHistory: Export Run History to CSV
+  - livecalc.clearHistory: Clear Run History
+- Added setting to package.json:
+  - livecalc.historySize (default: 10, min: 1, max: 50)
+- Integrated history into run command:
+  - Records each successful run with trigger type
+  - Updates history panel after each run
+  - Supports viewing and comparing historical runs
+- Added CSS styles for history section:
+  - Table styling with hover/active states
+  - Trigger type badges (manual/auto)
+  - Compact action buttons (btn-tiny)
+  - Responsive table layout
+- All acceptance criteria verified:
+  - Last N runs stored in memory (configurable via livecalc.historySize) ✓
+  - History shows: timestamp, trigger (manual/auto), execution time, mean NPV ✓
+  - History visible in collapsible section of results panel ✓
+  - Click on history item shows full results for that run ✓
+  - Compare current with any historical run ✓
+  - History cleared on extension reload (in-memory only) ✓
+  - Setting: livecalc.historySize (default: 10, max: 50) ✓
+  - Export history to CSV option ✓
+- Files changed:
+  - livecalc-vscode/src/auto-run/run-history.ts (new - RunHistoryManager class)
+  - livecalc-vscode/src/auto-run/index.ts (export run-history)
+  - livecalc-vscode/src/ui/results-panel.ts (history section HTML, message types, methods)
+  - livecalc-vscode/src/commands/run.ts (history integration, message handlers)
+  - livecalc-vscode/src/commands/index.ts (history commands registration)
+  - livecalc-vscode/src/extension.ts (RunHistoryManager initialization)
+  - livecalc-vscode/media/results/main.js (history display functions)
+  - livecalc-vscode/media/results/styles.css (history section styles)
+  - livecalc-vscode/package.json (commands and settings)
+- Tests: Extension compiles, type-checks, and packages successfully (311.71KB)

@@ -918,6 +918,139 @@ details[open] .expand-icon::after {
   opacity: 0.7;
 }
 
+/* Run History Section */
+.history-count {
+  background-color: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+.history-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0 8px;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--vscode-descriptionForeground, #808080);
+}
+
+.history-empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+  color: var(--vscode-descriptionForeground, #808080);
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+  vertical-align: middle;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.history-row {
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.history-row:hover {
+  background-color: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.history-row.active {
+  background-color: var(--vscode-list-activeSelectionBackground, #094771);
+}
+
+.history-row.active td {
+  color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
+.history-time {
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-descriptionForeground, #808080);
+  white-space: nowrap;
+}
+
+.history-trigger {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 3px;
+}
+
+.history-trigger.manual {
+  background-color: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+}
+
+.history-trigger.auto {
+  background-color: var(--vscode-charts-blue, #3794ff);
+  color: #fff;
+}
+
+.history-npv {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-weight: 500;
+  text-align: right;
+}
+
+.history-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.btn-tiny {
+  padding: 4px 6px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--vscode-panel-border, #3c3c3c);
+  border-radius: 3px;
+  color: var(--vscode-foreground, #cccccc);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-tiny:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+.btn-tiny svg {
+  margin-right: 0;
+}
+
 /* Footer */
 .results-footer {
   display: flex;

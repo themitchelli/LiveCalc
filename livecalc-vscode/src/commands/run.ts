@@ -7,6 +7,7 @@ import { ConfigLoader } from '../config/config-loader';
 import { ResultsPanel, ExtensionMessage, TriggerInfo } from '../ui/results-panel';
 import { createResultsState } from '../ui/results-state';
 import { ComparisonManager } from '../ui/comparison';
+import { RunHistoryManager } from '../auto-run/run-history';
 import { ResultsExporter, ExportFormat } from '../ui/export';
 import { classifyError, LiveCalcWarning, COMMON_WARNINGS } from '../ui/error-types';
 import { getEngineManager, EngineError } from '../engine/livecalc-engine';
@@ -46,6 +47,7 @@ export async function runCommand(
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
+  runHistoryManager: RunHistoryManager,
   options: RunOptions = {}
 ): Promise<void> {
   logger.separator();
@@ -266,6 +268,14 @@ export async function runCommand(
 
         // Record this result for future comparison (always, even if display disabled)
         await comparisonManager.recordResult(resultsState);
+
+        // Add to run history
+        const trigger = options.isAutoRun ? 'auto' : 'manual';
+        const triggerFile = options.triggerInfo?.files?.[0] ?? null;
+        runHistoryManager.addRun(resultsState, trigger, triggerFile);
+
+        // Update history display in panel
+        resultsPanel.setHistory(runHistoryManager.getEntries());
       } catch (error) {
         const elapsed = Date.now() - startTime;
 
@@ -306,7 +316,8 @@ export function registerRunCommand(
   statusBar: StatusBar,
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
-  comparisonManager: ComparisonManager
+  comparisonManager: ComparisonManager,
+  runHistoryManager: RunHistoryManager
 ): vscode.Disposable {
   // Set up message handler for comparison and export actions from webview
   resultsPanel.onMessage(async (message: ExtensionMessage) => {
@@ -354,11 +365,47 @@ export function registerRunCommand(
           vscode.window.showWarningMessage('No results to export. Run a valuation first.');
         }
         break;
+      case 'viewHistoryRun':
+        // View a specific historical run
+        if ('runId' in message) {
+          const historyResults = runHistoryManager.getResults(message.runId);
+          if (historyResults) {
+            resultsPanel.setHistoryResults(historyResults, message.runId);
+            logger.debug(`Viewing historical run ${message.runId}`);
+          } else {
+            logger.warn(`Historical run ${message.runId} not found`);
+          }
+        }
+        break;
+      case 'compareWithHistory':
+        // Compare current with a historical run
+        if ('runId' in message) {
+          const historicalResults = runHistoryManager.getResults(message.runId);
+          const currentPanelState = resultsPanel.getState();
+          if (historicalResults && currentPanelState.type === 'results') {
+            // Pin the historical run as comparison baseline
+            comparisonManager.pinBaseline(historicalResults).then(() => {
+              const comparison = comparisonManager.calculateComparison(currentPanelState.results);
+              const info = comparisonManager.getComparisonInfo();
+              resultsPanel.setComparison(comparison, info);
+              logger.info(`Comparing current with historical run ${message.runId}`);
+            });
+          }
+        }
+        break;
+      case 'exportHistory':
+        // Export history to CSV
+        vscode.commands.executeCommand('livecalc.exportHistory');
+        break;
+      case 'clearHistory':
+        // Clear run history
+        vscode.commands.executeCommand('livecalc.clearHistory');
+        break;
     }
   });
 
   // Manual run from command palette is not an auto-run
   return vscode.commands.registerCommand('livecalc.run', () =>
-    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, { isAutoRun: false })
+    runCommand(statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager, { isAutoRun: false })
   );
 }

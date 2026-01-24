@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ResultsState, PanelState, ComparisonState, StatisticDelta } from './results-state';
 import { ComparisonInfo } from './comparison';
+import { RunHistoryEntry } from '../auto-run/run-history';
 import { LiveCalcError, LiveCalcWarning, getErrorTitle } from './error-types';
 import { logger } from '../logging/logger';
 
@@ -54,7 +55,9 @@ export type WebviewMessage =
   | { type: 'setSettings'; settings: DisplaySettings }
   | { type: 'setComparison'; comparison: ComparisonState | null; info: ComparisonInfo | null }
   | { type: 'setComparisonBaseline'; distribution: number[] | null }
-  | { type: 'setTriggerInfo'; trigger: TriggerInfo | null };
+  | { type: 'setTriggerInfo'; trigger: TriggerInfo | null }
+  | { type: 'setHistory'; entries: RunHistoryEntry[] }
+  | { type: 'setHistoryResults'; results: ResultsState | null; runId: string };
 
 /**
  * Message types from webview to extension
@@ -69,7 +72,11 @@ export type ExtensionMessage =
   | { type: 'toggleChartType' }
   | { type: 'toggleChartOverlay' }
   | { type: 'dismissTrigger' }
-  | { type: 'ready' };
+  | { type: 'ready' }
+  | { type: 'viewHistoryRun'; runId: string }
+  | { type: 'compareWithHistory'; runId: string }
+  | { type: 'exportHistory' }
+  | { type: 'clearHistory' };
 
 /**
  * Results Panel provider for displaying valuation results in a webview
@@ -222,6 +229,21 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public setTriggerInfo(trigger: TriggerInfo | null): void {
     this.postMessage({ type: 'setTriggerInfo', trigger });
+  }
+
+  /**
+   * Set run history entries for display
+   */
+  public setHistory(entries: RunHistoryEntry[]): void {
+    this.postMessage({ type: 'setHistory', entries });
+  }
+
+  /**
+   * Set full results for a historical run
+   * Used when user clicks to view a specific historical run
+   */
+  public setHistoryResults(results: ResultsState | null, runId: string): void {
+    this.postMessage({ type: 'setHistoryResults', results, runId });
   }
 
   /**
@@ -650,6 +672,46 @@ export class ResultsPanel implements vscode.Disposable {
             <ul class="assumptions-list" id="assumptions-list">
               <!-- Populated dynamically -->
             </ul>
+          </div>
+        </details>
+
+        <details id="history-section">
+          <summary>
+            <span class="section-title">Run History</span>
+            <span class="history-count" id="history-count"></span>
+            <span class="expand-icon"></span>
+          </summary>
+          <div class="section-content">
+            <div class="history-toolbar">
+              <button id="export-history-btn" class="btn btn-small" title="Export history to CSV">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export CSV
+              </button>
+              <button id="clear-history-btn" class="btn btn-small btn-secondary" title="Clear history">
+                Clear
+              </button>
+            </div>
+            <div id="history-empty" class="history-empty hidden">
+              <p>No run history yet.</p>
+            </div>
+            <table id="history-table" class="history-table hidden">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Trigger</th>
+                  <th>Duration</th>
+                  <th>Mean NPV</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="history-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
           </div>
         </details>
       </section>

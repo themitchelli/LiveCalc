@@ -5,6 +5,7 @@ import { StatusBar } from '../ui/status-bar';
 import { ConfigLoader } from '../config/config-loader';
 import { ResultsPanel } from '../ui/results-panel';
 import { ComparisonManager } from '../ui/comparison';
+import { RunHistoryManager } from '../auto-run/run-history';
 import { AutoRunController } from '../auto-run';
 import { logger } from '../logging/logger';
 
@@ -17,10 +18,11 @@ export function registerCommands(
   configLoader: ConfigLoader,
   resultsPanel: ResultsPanel,
   comparisonManager: ComparisonManager,
+  runHistoryManager: RunHistoryManager,
   autoRunController: AutoRunController
 ): void {
   // Register run command
-  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager));
+  context.subscriptions.push(registerRunCommand(context, statusBar, configLoader, resultsPanel, comparisonManager, runHistoryManager));
 
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));
@@ -106,6 +108,43 @@ export function registerCommands(
       resultsPanel.setComparisonBaseline(null);
       logger.info('Comparison cleared');
       vscode.window.showInformationMessage('LiveCalc: Comparison baseline cleared');
+    })
+  );
+
+  // Register export history command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.exportHistory', async () => {
+      if (runHistoryManager.isEmpty) {
+        vscode.window.showWarningMessage('LiveCalc: No run history to export');
+        return;
+      }
+
+      const csv = runHistoryManager.exportDetailedToCsv();
+      const defaultUri = vscode.Uri.file(`livecalc-history-${new Date().toISOString().slice(0, 10)}.csv`);
+
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: {
+          'CSV files': ['csv'],
+          'All files': ['*'],
+        },
+      });
+
+      if (uri) {
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(csv, 'utf-8'));
+        logger.info(`History exported to ${uri.fsPath}`);
+        vscode.window.showInformationMessage(`LiveCalc: History exported to ${uri.fsPath}`);
+      }
+    })
+  );
+
+  // Register clear history command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('livecalc.clearHistory', () => {
+      runHistoryManager.clear();
+      resultsPanel.setHistory([]);
+      logger.info('Run history cleared');
+      vscode.window.showInformationMessage('LiveCalc: Run history cleared');
     })
   );
 

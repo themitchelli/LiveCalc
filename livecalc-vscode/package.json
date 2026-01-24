@@ -77,6 +77,16 @@
         "command": "livecalc.clearComparison",
         "title": "Clear Results Comparison",
         "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.exportHistory",
+        "title": "Export Run History to CSV",
+        "category": "LiveCalc"
+      },
+      {
+        "command": "livecalc.clearHistory",
+        "title": "Clear Run History",
+        "category": "LiveCalc"
       }
     ],
     "keybindings": [
@@ -174,6 +184,13 @@
           "type": "boolean",
           "default": true,
           "description": "Show comparison with previous run results"
+        },
+        "livecalc.historySize": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Number of runs to keep in history"
         }
       }
     },

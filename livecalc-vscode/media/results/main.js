@@ -20,6 +20,8 @@ let chartType = 'histogram'; // 'histogram' or 'density'
 let histogramBinData = { bins: [], binWidth: 0 }; // Store bin data for tooltips
 let currentTriggerInfo = null; // Trigger info for auto-run indicator
 let triggerAutoHideTimer = null; // Timer for auto-hiding trigger banner
+let historyEntries = []; // Run history entries for display
+let viewingHistoryRunId = null; // Run ID of currently viewed historical run (null = current)
 
 // Display settings (configurable from extension)
 let displaySettings = {
@@ -73,6 +75,13 @@ function init() {
   elements.triggerBanner = document.getElementById('trigger-banner');
   elements.triggerFiles = document.getElementById('trigger-files');
   elements.dismissTriggerBtn = document.getElementById('dismiss-trigger-btn');
+  elements.historySection = document.getElementById('history-section');
+  elements.historyCount = document.getElementById('history-count');
+  elements.historyEmpty = document.getElementById('history-empty');
+  elements.historyTable = document.getElementById('history-table');
+  elements.historyBody = document.getElementById('history-body');
+  elements.exportHistoryBtn = document.getElementById('export-history-btn');
+  elements.clearHistoryBtn = document.getElementById('clear-history-btn');
 
   // Setup event listeners
   setupEventListeners();
@@ -173,6 +182,16 @@ function setupEventListeners() {
     vscode.postMessage({ type: 'dismissTrigger' });
   });
 
+  // Export history button
+  elements.exportHistoryBtn?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'exportHistory' });
+  });
+
+  // Clear history button
+  elements.clearHistoryBtn?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'clearHistory' });
+  });
+
   // Handle messages from extension
   window.addEventListener('message', (event) => {
     const message = event.data;
@@ -254,6 +273,12 @@ function handleMessage(message) {
       } else {
         hideTriggerBanner();
       }
+      break;
+    case 'setHistory':
+      updateHistory(message.entries);
+      break;
+    case 'setHistoryResults':
+      showHistoryResults(message.results, message.runId);
       break;
   }
 }
@@ -1512,6 +1537,168 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+/**
+ * Update run history display
+ * @param {Array} entries - Array of RunHistoryEntry objects
+ */
+function updateHistory(entries) {
+  historyEntries = entries || [];
+
+  if (!elements.historyCount || !elements.historyTable || !elements.historyBody || !elements.historyEmpty) {
+    return;
+  }
+
+  // Update count badge
+  if (historyEntries.length > 0) {
+    elements.historyCount.textContent = `(${historyEntries.length})`;
+    elements.historyCount.classList.remove('hidden');
+  } else {
+    elements.historyCount.textContent = '';
+    elements.historyCount.classList.add('hidden');
+  }
+
+  // Show empty state or table
+  if (historyEntries.length === 0) {
+    elements.historyEmpty.classList.remove('hidden');
+    elements.historyTable.classList.add('hidden');
+    return;
+  }
+
+  elements.historyEmpty.classList.add('hidden');
+  elements.historyTable.classList.remove('hidden');
+
+  // Build table rows
+  const rows = historyEntries.map((entry, index) => {
+    const isViewing = viewingHistoryRunId === entry.runId;
+    const isCurrent = index === 0 && viewingHistoryRunId === null;
+    const rowClass = isViewing || isCurrent ? 'history-row active' : 'history-row';
+
+    // Format trigger info
+    let triggerHtml;
+    if (entry.trigger === 'auto') {
+      const fileName = entry.triggerFile ? getFileName(entry.triggerFile) : 'file';
+      triggerHtml = `<span class="history-trigger auto" title="Auto-run triggered by ${escapeHtml(fileName)}">Auto</span>`;
+    } else {
+      triggerHtml = '<span class="history-trigger manual">Manual</span>';
+    }
+
+    // Format time (relative for recent, absolute for older)
+    const timeAgo = formatTimeAgo(new Date(entry.timestamp));
+
+    return `
+      <tr class="${rowClass}" data-run-id="${escapeHtml(entry.runId)}">
+        <td class="history-time" title="${escapeHtml(formatTimestamp(entry.timestamp))}">${timeAgo}</td>
+        <td>${triggerHtml}</td>
+        <td>${formatDuration(entry.executionTimeMs)}</td>
+        <td class="history-npv">${formatCurrency(entry.meanNpv)}</td>
+        <td class="history-actions">
+          <button class="btn btn-tiny history-view-btn" data-run-id="${escapeHtml(entry.runId)}" title="View results">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+          <button class="btn btn-tiny history-compare-btn" data-run-id="${escapeHtml(entry.runId)}" title="Compare with current">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  elements.historyBody.innerHTML = rows.join('');
+
+  // Add click handlers for view buttons
+  elements.historyBody.querySelectorAll('.history-view-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const runId = btn.dataset.runId;
+      vscode.postMessage({ type: 'viewHistoryRun', runId });
+    });
+  });
+
+  // Add click handlers for compare buttons
+  elements.historyBody.querySelectorAll('.history-compare-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const runId = btn.dataset.runId;
+      vscode.postMessage({ type: 'compareWithHistory', runId });
+    });
+  });
+
+  // Add click handlers for entire rows (same as view button)
+  elements.historyBody.querySelectorAll('.history-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const runId = row.dataset.runId;
+      vscode.postMessage({ type: 'viewHistoryRun', runId });
+    });
+  });
+}
+
+/**
+ * Show results from a historical run
+ * @param {Object} results - ResultsState for the historical run
+ * @param {string} runId - Run ID being viewed
+ */
+function showHistoryResults(results, runId) {
+  if (!results) {
+    // Clear viewing state, show current results
+    viewingHistoryRunId = null;
+    if (currentState.type === 'results') {
+      showResults(currentState.results);
+    }
+    return;
+  }
+
+  viewingHistoryRunId = runId;
+
+  // Update the display to show historical results
+  // This reuses the showResults function but marks it as historical
+  hideAllStates();
+  elements.resultsState?.classList.remove('hidden');
+
+  updateStatistics(results.statistics);
+  updateRunInfo(results.metadata, results.executionTimeMs);
+  updateChart(results.distribution, results.statistics);
+  updateMetadata(results.metadata);
+  updateAssumptions(results.assumptions);
+  updateFooter(results);
+
+  // Hide comparison for historical view (or compare with current)
+  hideComparison();
+
+  // Update history table to highlight viewed row
+  updateHistory(historyEntries);
+}
+
+/**
+ * Format a time as relative (e.g., "2 minutes ago")
+ * @param {Date} date - The date to format
+ * @returns {string} Relative time string
+ */
+function formatTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+
+  if (diffSec < 60) {
+    return 'Just now';
+  } else if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  } else if (diffHour < 24) {
+    return `${diffHour}h ago`;
+  } else {
+    // Show date for older entries
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
 }
 
 /**
