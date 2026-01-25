@@ -3270,3 +3270,23 @@ For blocked stories, use:
   - livecalc-vscode/src/commands/run.ts (added 120+ lines of debug message handlers)
   - livecalc-vscode/src/cloud/index.ts (exported daas-client)
 - Tests: Python syntax validation passed for all API files, TypeScript DaaS client compiles correctly
+
+## 2026-01-25 03:04 - US-POLY-01: Pyodide CalcEngine Adapter - COMPLETE
+
+- Implemented PyodideEngine class that implements CalcEngine interface
+- Created comprehensive Python script interface (initialize, load_policies, load_assumptions, run_chunk)
+- Integrated Pyodide engine type into EngineWorkerContext createEngine method
+- Created python-worker-host.js for Web Worker-based Pyodide runtime execution
+- Lazy-loaded Pyodide from CDN (v0.25+) with NumPy pre-loading
+- Implemented timeout protection (default 30s) for Python execution
+- Added Python traceback extraction for clear error reporting
+- Created comprehensive test suite with 20 unit tests (all passing)
+- Files created:
+  - livecalc-engine/js/src/engines/pyodide-engine.ts (500+ lines)
+  - livecalc-engine/js/src/workers/python-worker-host.js (150+ lines)
+  - livecalc-engine/js/tests/pyodide-engine.test.ts (400+ lines, 20 tests)
+  - livecalc-engine/js/tests/python-worker-host.test.js (100+ lines)
+- Files modified:
+  - livecalc-engine/js/src/engine-worker.ts (added 'pyodide' engine type support)
+  - livecalc-engine/js/src/index.ts (exported PyodideEngine and related types)
+- Tests: 20/20 passing, TypeScript compiles without errors

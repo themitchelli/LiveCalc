@@ -1,0 +1,165 @@
+{
+  "id": "PRD-LC-013",
+  "title": "Cloud Platform Management (PaaS Features)",
+  "type": "feature",
+  "priority": "high",
+  "status": "proposed",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Enterprise orchestration features for the LiveCalc Grid, including automated scaling, transient environment lifecycle (DR=BAU), statistical anomaly detection, and remote step-through debugging.",
+  "problem": [
+    "Static cloud environments create idle waste and expensive standby costs.",
+    "Manual validation of million-run batches is prone to missing statistical outliers.",
+    "Remote cloud runs are 'black boxes' that are impossible to debug without re-running locally.",
+    "Disaster Recovery is traditionally an 'event' rather than a standard operational state."
+  ],
+  "solution": [
+    "Implement KEDA-driven event scaling to grow/shrink the grid based on bus:// queue depth.",
+    "Automate the 'DR = BAU' cycle by reaping transient namespaces after 24h of inactivity.",
+    "Build an integrated 3-sigma anomaly engine to flag suspicious projections in real-time.",
+    "Expose the Debugging-as-a-Service (DaaS) API for remote memory introspection and pausing."
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-012",
+      "title": "Local-to-Cloud Execution Bridge",
+      "status": "in-progress",
+      "notes": "Requires US-BRIDGE-03 Job API and US-BRIDGE-04 Pipeline Reconstruction to be functional."
+    }
+  ],
+  "technicalNotes": {
+    "scaling": "KEDA (Kubernetes Event-Driven Autoscaling) targeting Redis queue length.",
+    "statsEngine": "NumPy/Pandas running as a sidecar to the Universal API.",
+    "debugProtocol": "Extended Binary WebSocket (from PRD-012) supporting 'Pause' signals and memory offset requests via Atomics.wait.",
+    "lifecycle": "Kubernetes Python Client for namespace reaping and diagnostic log scraping.",
+    "authModel": {
+      "strategy": "JWT validation against Assumptions Manager + K8s RBAC",
+      "roles": [
+        "PlatformAdmin: Manage namespaces/KEDA",
+        "Actuary: Submit jobs/Remote debug within scoped namespace"
+      ]
+    },
+    "storageLayout": {
+      "provider": "Azure Blob",
+      "path": "diagnostics/{bucket_id}/{timestamp}/",
+      "retention": "30 Days (standard) / 7 Years (regulatory locked)"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-PLAT-01",
+      "title": "DR = BAU: Transient Namespace Reaping",
+      "story": "As a platform lead, I want environments to evaporate automatically so I never pay for idle resources and ensure DR readiness.",
+      "acceptanceCriteria": [
+        "API automatically creates a scoped K8s Namespace for every new Bucket.",
+        "Cleanup worker reaps namespaces after 24h of inactivity or a 'Finalized' status.",
+        "Diagnostic Extraction: Before reaping, verify: (1) All pod logs are present in Azure Blob, (2) Memory Sentinel violations are extracted and indexed.",
+        "Lifecycle cleanup: Verify namespace is removed from 'kubectl get ns' and no orphaned PVCs remain.",
+        "MTTC (Mean Time to Re-compute) Verification: A deleted namespace run can be resumed from the Hashed Model Bundle in < 2 mins with identical result hashes."
+      ],
+      "tech_stack": [
+        "Kubernetes Client",
+        "Python",
+        "Azure SDK"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-PLAT-02",
+      "title": "Scale-to-Zero Actuarial Grid",
+      "story": "As a CFO, I want the grid to consume zero resources when no models are running.",
+      "acceptanceCriteria": [
+        "KEDA ScaledObject configured to watch the job queue.",
+        "Pods scale from 0 to N (based on scenario count) and back to 0 within 60 seconds of completion.",
+        "Support for 'Warm-Pool' optimization via API to keep N nodes ready during high-intensity reporting windows."
+      ],
+      "tech_stack": [
+        "KEDA",
+        "Helm",
+        "Azure Spot Instances"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-PLAT-03",
+      "title": "Statistical Anomaly Engine (3-Sigma)",
+      "story": "As a validator, I want the system to flag outlier projections automatically so I can focus my audit efforts.",
+      "acceptanceCriteria": [
+        "Post-run logic calculates Mean and Standard Deviation for key NPV outputs in a bucket.",
+        "Individual runs exceeding 3 Sigma from the mean are flagged as 'Anomaly'.",
+        "API returns a 'Diagnostic Bundle': Snapshots of inputs, intermediate bus data, and the specific EngineID that calculated it."
+      ],
+      "tech_stack": [
+        "NumPy",
+        "Pandas",
+        "FastAPI"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-PLAT-04",
+      "title": "Debugging-as-a-Service (DaaS)",
+      "story": "As a modeler, I want to 'Pause' a remote cloud run from my local IDE and inspect the raw memory buffer.",
+      "acceptanceCriteria": [
+        "API supports /v1/runs/{id}/debug/pause and /v1/runs/{id}/debug/step commands.",
+        "Remote Signal: WebSocket 'Pause' signal triggers Atomics.wait in the remote cloud worker.",
+        "Binary Inspection: The API pipes raw 16-byte aligned memory segments from the remote SAB to the VS Code Results Panel.",
+        "Visualizer allows browsing the 'bus://' URIs of the remote run with the same fidelity as local inspection."
+      ],
+      "tech_stack": [
+        "Binary WebSockets",
+        "Atomics",
+        "Node.js Workers"
+      ],
+      "passes": true
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/api/routers/platform.py",
+    "livecalc-cloud/api/services/namespace_lifecycle.py",
+    "livecalc-cloud/api/services/anomaly_detection.py",
+    "livecalc-cloud/api/services/daas_proxy.py",
+    "livecalc-cloud/k8s/keda-scaledobject.yaml",
+    "livecalc-cloud/k8s/jobs/cleanup-worker.yaml",
+    "tests/integration/test_mttc_resumption.py"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-cloud/api/main.py",
+      "changes": "Mount platform management routers and configure background cleanup tasks."
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add DaaS control buttons (Pause/Step) and remote bus explorer."
+    }
+  ],
+  "estimatedSessions": "5 FADE sessions",
+  "risks": [
+    {
+      "risk": "KEDA scaling latency may not meet 60-second target for cold starts",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Implement 'Warm-Pool' API endpoint to pre-provision nodes for high-priority reporting cycles."
+    },
+    {
+      "risk": "WebSocket proxy overhead for large memory snapshots",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Implement paging for memory inspection requests to avoid saturating the WebSocket."
+    },
+    {
+      "risk": "Namespace reaping mid-debug",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Extend idle timeout automatically if an active DaaS session is detected."
+    }
+  ],
+  "definitionOfDone": [
+    "Grid successfully scales from 0 to 100 pods and back to 0 based on load.",
+    "Audit verification: Verified all pod logs and sentinel violations are archived in Azure Blob after reaping.",
+    "Anomaly engine flags 3-sigma outliers in a test batch of 1,000 runs with correct Culprit ID metadata.",
+    "Remote Step-Through: A user can pause a cloud worker and inspect memory state in the VS Code Results Panel with 0 serialization overhead.",
+    "MTTC Verification: Deleting a namespace during a run and triggering a re-run from the manifest produces bit-identical results."
+  ]
+}

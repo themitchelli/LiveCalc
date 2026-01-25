@@ -1,0 +1,149 @@
+{
+  "id": "PRD-LC-012",
+  "title": "Cloud Runtime & Execution Bridge",
+  "type": "feature",
+  "priority": "high",
+  "status": "planned",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Establish the foundational bridge between the local VS Code workbench and the AKS cloud grid. Enables packaging local model assets and executing them on a remote containerized WASM/Python runtime with results streamed back to the IDE.",
+  "problem": [
+    "No functional bridge between local experimentation and cloud scale",
+    "Cloud runtime parity with local WASM/SIMD is not yet proven",
+    "Model assets are fragmented (WASM, Python scripts, config) and need a standard packaging format for upload",
+    "The 'Run in Cloud' command in VS Code is currently a non-functional placeholder"
+  ],
+  "solution": [
+    "Create a Dockerized cloud worker that mirrors the local Emscripten/Pyodide environment",
+    "Implement a packaging utility to bundle model code, configurations, and assumption references",
+    "Build the core Job API to handle upload, remote initialization, and execution",
+    "Stream binary results from the cloud worker directly to the existing local Results Panel"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "in-progress",
+      "notes": "Requires the bus:// protocol and pipeline DAG structure to be finalized."
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-BRIDGE-01",
+      "title": "Cloud Worker Container (Parity Runtime)",
+      "story": "As a platform engineer, I want a containerized runtime that mirrors my local machine so I can guarantee byte-identical results.",
+      "acceptanceCriteria": [
+        "Dockerfile builds a Debian-based image with Emscripten and Pyodide runtimes.",
+        "Runtime supports WASM SIMD128 and 16-byte memory alignment.",
+        "Proof: A local 10K policy run yields the same result hash as the cloud container run.",
+        "Resource limits are enforceable (CPU/RAM) via K8s manifest."
+      ],
+      "tech_stack": ["Docker", "Emscripten", "Pyodide"],
+      "passes": true
+    },
+    {
+      "id": "US-BRIDGE-02",
+      "title": "Model Asset Packaging",
+      "story": "As an actuary, I want the system to automatically bundle all my model files for upload so I don't have to manage dependencies manually.",
+      "acceptanceCriteria": [
+        "Utility creates a .zip or .tar bundle containing: livecalc.config.json, all .wasm binaries, .py scripts, and assumption metadata.",
+        "Bundle includes a SHA-256 manifest of all assets for integrity checking.",
+        "Validation: Reject upload if mandatory assets defined in config are missing."
+      ],
+      "tech_stack": ["TypeScript", "JSZip"],
+      "passes": true
+    },
+    {
+      "id": "US-BRIDGE-03",
+      "title": "Local-to-Cloud Bridge API",
+      "story": "As a developer, I want a standard API to hand off my local model to the cloud grid.",
+      "acceptanceCriteria": [
+        "FastAPI endpoint: POST /v1/jobs/submit (Multipart upload).",
+        "Endpoint triggers the 'Initialization' of a cloud worker instance.",
+        "Returns a unique JobID and a WebSocket URL for progress/results streaming.",
+        "Authentication: Scopes the job to the user's JWT from Assumptions Manager."
+      ],
+      "tech_stack": ["FastAPI", "Python", "Redis (Job State)"],
+      "passes": true
+    },
+    {
+      "id": "US-BRIDGE-04",
+      "title": "Cloud Pipeline Reconstruction",
+      "story": "As a system, I need to rebuild the SharedArrayBuffer pipeline in the cloud exactly as it was configured locally.",
+      "acceptanceCriteria": [
+        "Cloud worker parses the uploaded livecalc.config.json.",
+        "Allocates a matching SharedArrayBuffer Data Bus in the container memory.",
+        "Initializes the pipeline nodes (C++/Python) according to the PRD-LC-010 Bus Protocol."
+      ],
+      "tech_stack": ["Node.js (Worker Host)", "SharedArrayBuffer"],
+      "passes": true
+    },
+    {
+      "id": "US-BRIDGE-05",
+      "title": "Cloud Result Streaming",
+      "story": "As an actuary, I want to see cloud results appear in my local Results Panel as if they were running locally.",
+      "acceptanceCriteria": [
+        "Job API streams binary result chunks over WebSocket using raw Uint8Arrays.",
+        "Local Results Panel consumes cloud stream and updates the visualization in real-time.",
+        "Handoff verification: 'Total NPV' matches between local and cloud runs."
+      ],
+      "tech_stack": ["WebSockets", "ResultsPanel API"],
+      "passes": true
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/Dockerfile.worker",
+    "livecalc-cloud/worker/package.json",
+    "livecalc-cloud/worker/src/main.ts",
+    "livecalc-cloud/worker/src/pipeline-loader.ts",
+    "livecalc-cloud/api/Dockerfile",
+    "livecalc-cloud/api/requirements.txt",
+    "livecalc-cloud/api/main.py",
+    "livecalc-cloud/api/routers/jobs.py",
+    "livecalc-cloud/api/models/job.py",
+    "livecalc-cloud/api/services/packaging.py",
+    "livecalc-vscode/src/cloud/model-packager.ts",
+    "livecalc-vscode/src/cloud/cloud-client.ts",
+    "livecalc-vscode/src/cloud/result-streamer.ts",
+    "livecalc-vscode/src/commands/run-cloud.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-vscode/src/commands/index.ts",
+      "changes": "Replace placeholder 'livecalc.runCloud' command with actual implementation"
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add support for consuming cloud WebSocket result stream"
+    }
+  ],
+  "definitionOfDone": [
+    "Clicking 'Run in Cloud' in VS Code successfully executes the 1B/36s pipeline on a remote node.",
+    "Results from cloud are visually identical to local runs in the Results Panel.",
+    "All model assets are correctly packaged, hashed, and verified on the worker.",
+    "The cloud worker runtime supports SIMD math without performance degradation compared to local.",
+    "API documentation updated to reflect the new Bridge endpoints."
+  ],
+  "estimatedSessions": "3-4 FADE sessions",
+  "risks": [
+    {
+      "risk": "SIMD performance differs between local and cloud",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Benchmark early with identical WASM binary on both environments"
+    },
+    {
+      "risk": "SharedArrayBuffer unavailable in Node.js container",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Node.js 16+ supports SAB, verify during container build"
+    },
+    {
+      "risk": "WebSocket streaming introduces latency for large result sets",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Stream summary stats first, full results on-demand"
+    }
+  ]
+}

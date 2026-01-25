@@ -102,6 +102,14 @@ export {
 } from './mock-engine.js';
 export type { MockEngineConfig } from './mock-engine.js';
 
+// Pyodide engine for Python scripts
+export {
+  PyodideEngine,
+  PyodideEngineError,
+  createPyodideEngine,
+} from './engines/pyodide-engine.js';
+export type { PyodideEngineConfig } from './engines/pyodide-engine.js';
+
 // Engine worker context
 export {
   EngineWorkerContext,

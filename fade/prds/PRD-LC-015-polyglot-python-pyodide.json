@@ -49,7 +49,7 @@
         "TypeScript",
         "Web Workers"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-POLY-02",

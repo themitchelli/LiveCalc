@@ -295,6 +295,20 @@ export class EngineWorkerContext {
         return new adapterModule.LiveCalcEngineAdapter({ createModule });
       }
 
+      case 'pyodide': {
+        // Use Pyodide engine for Python scripts
+        const pyodideModule = await import('./engines/pyodide-engine.js');
+
+        // enginePath should contain the Python script code
+        // In a real scenario, this would be loaded from a file or passed in config
+        const config = {
+          scriptCode: enginePath, // For now, pass script directly
+          packages: [], // Additional packages loaded on demand
+        };
+
+        return new pyodideModule.PyodideEngine(config);
+      }
+
       case 'mock': {
         // Use mock engine for testing
         const mockModule = await import('./mock-engine.js');
