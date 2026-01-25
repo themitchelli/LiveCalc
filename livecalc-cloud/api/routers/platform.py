@@ -79,6 +79,22 @@ class MTTCVerificationResponse(BaseModel):
     message: str
 
 
+class WarmPoolConfigRequest(BaseModel):
+    """Request to configure warm pool."""
+    enabled: bool = Field(..., description="Enable or disable warm pool")
+    size: int = Field(default=0, ge=0, le=100, description="Number of pods to keep warm (0-100)")
+    timeout_minutes: int = Field(default=30, ge=5, le=1440, description="Warm pool timeout in minutes (5-1440)")
+
+
+class WarmPoolConfigResponse(BaseModel):
+    """Response for warm pool configuration."""
+    enabled: bool
+    size: int
+    timeout_minutes: int
+    current_replicas: int
+    message: str
+
+
 # Dependency injection
 async def get_lifecycle_manager() -> NamespaceLifecycleManager:
     """Get namespace lifecycle manager instance."""
@@ -334,4 +350,183 @@ async def verify_mttc(
             match=False,
             duration_seconds=duration,
             message=f"MTTC verification error: {str(e)}",
+        )
+
+
+@router.post("/warm-pool/configure", response_model=WarmPoolConfigResponse)
+async def configure_warm_pool(
+    config: WarmPoolConfigRequest,
+    user: UserInfo = Depends(verify_token),
+):
+    """
+    Configure the warm pool to keep N worker pods ready.
+
+    The warm pool optimization keeps a fixed number of worker pods pre-warmed
+    to reduce cold start latency during high-intensity reporting windows.
+
+    When enabled, KEDA minReplicaCount is set to the warm pool size.
+    When disabled, KEDA scales to zero when idle.
+
+    Args:
+        config: Warm pool configuration (enabled, size, timeout)
+
+    Returns:
+        Current warm pool configuration and deployment status
+    """
+    from kubernetes import client, config as k8s_config
+    import os
+
+    try:
+        # Load Kubernetes config
+        try:
+            k8s_config.load_incluster_config()
+        except:
+            k8s_config.load_kube_config()
+
+        apps_v1 = client.AppsV1Api()
+        core_v1 = client.CoreV1Api()
+
+        namespace = os.getenv("LIVECALC_NAMESPACE", "livecalc-system")
+
+        # Update ConfigMap with warm pool settings
+        config_map_name = "worker-env-config"
+        try:
+            config_map = core_v1.read_namespaced_config_map(config_map_name, namespace)
+            config_map.data["WARM_POOL_ENABLED"] = str(config.enabled).lower()
+            config_map.data["WARM_POOL_SIZE"] = str(config.size)
+            config_map.data["WARM_POOL_TIMEOUT_MINUTES"] = str(config.timeout_minutes)
+            core_v1.patch_namespaced_config_map(config_map_name, namespace, config_map)
+            logger.info(f"Updated ConfigMap {config_map_name} with warm pool config")
+        except client.exceptions.ApiException as e:
+            logger.error(f"Failed to update ConfigMap: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update ConfigMap: {str(e)}",
+            )
+
+        # Update KEDA ScaledObject minReplicaCount if warm pool enabled
+        # Note: This requires KEDA API access via CustomObjectsApi
+        custom_objects = client.CustomObjectsApi()
+        scaled_object_name = "livecalc-worker-scaler"
+
+        try:
+            scaled_object = custom_objects.get_namespaced_custom_object(
+                group="keda.sh",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="scaledobjects",
+                name=scaled_object_name,
+            )
+
+            # Update minReplicaCount based on warm pool config
+            if config.enabled:
+                scaled_object["spec"]["minReplicaCount"] = config.size
+            else:
+                scaled_object["spec"]["minReplicaCount"] = 0
+
+            custom_objects.patch_namespaced_custom_object(
+                group="keda.sh",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="scaledobjects",
+                name=scaled_object_name,
+                body=scaled_object,
+            )
+            logger.info(f"Updated ScaledObject {scaled_object_name} minReplicaCount to {config.size if config.enabled else 0}")
+
+        except client.exceptions.ApiException as e:
+            logger.error(f"Failed to update ScaledObject: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update KEDA ScaledObject: {str(e)}",
+            )
+
+        # Get current deployment replicas
+        deployment_name = "livecalc-worker"
+        try:
+            deployment = apps_v1.read_namespaced_deployment(deployment_name, namespace)
+            current_replicas = deployment.status.replicas or 0
+        except client.exceptions.ApiException as e:
+            logger.warning(f"Failed to read deployment status: {e}")
+            current_replicas = 0
+
+        return WarmPoolConfigResponse(
+            enabled=config.enabled,
+            size=config.size,
+            timeout_minutes=config.timeout_minutes,
+            current_replicas=current_replicas,
+            message=f"Warm pool {'enabled' if config.enabled else 'disabled'}: {config.size} pods will be kept ready" if config.enabled else "Warm pool disabled: scaling to zero when idle",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to configure warm pool: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to configure warm pool: {str(e)}",
+        )
+
+
+@router.get("/warm-pool/status", response_model=WarmPoolConfigResponse)
+async def get_warm_pool_status(
+    user: UserInfo = Depends(verify_token),
+):
+    """
+    Get current warm pool configuration and status.
+
+    Returns:
+        Current warm pool settings and deployment replica count
+    """
+    from kubernetes import client, config as k8s_config
+    import os
+
+    try:
+        # Load Kubernetes config
+        try:
+            k8s_config.load_incluster_config()
+        except:
+            k8s_config.load_kube_config()
+
+        apps_v1 = client.AppsV1Api()
+        core_v1 = client.CoreV1Api()
+
+        namespace = os.getenv("LIVECALC_NAMESPACE", "livecalc-system")
+
+        # Read current config from ConfigMap
+        config_map_name = "worker-env-config"
+        try:
+            config_map = core_v1.read_namespaced_config_map(config_map_name, namespace)
+            enabled = config_map.data.get("WARM_POOL_ENABLED", "false").lower() == "true"
+            size = int(config_map.data.get("WARM_POOL_SIZE", "0"))
+            timeout_minutes = int(config_map.data.get("WARM_POOL_TIMEOUT_MINUTES", "30"))
+        except client.exceptions.ApiException as e:
+            logger.error(f"Failed to read ConfigMap: {e}")
+            # Return defaults
+            enabled = False
+            size = 0
+            timeout_minutes = 30
+
+        # Get current deployment replicas
+        deployment_name = "livecalc-worker"
+        try:
+            deployment = apps_v1.read_namespaced_deployment(deployment_name, namespace)
+            current_replicas = deployment.status.replicas or 0
+        except client.exceptions.ApiException as e:
+            logger.warning(f"Failed to read deployment status: {e}")
+            current_replicas = 0
+
+        return WarmPoolConfigResponse(
+            enabled=enabled,
+            size=size,
+            timeout_minutes=timeout_minutes,
+            current_replicas=current_replicas,
+            message=f"Warm pool is {'enabled' if enabled else 'disabled'} with {size} pods configured, {current_replicas} pods currently running",
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get warm pool status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get warm pool status: {str(e)}",
         )

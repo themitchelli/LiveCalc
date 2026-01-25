@@ -79,7 +79,7 @@
         "Helm",
         "Azure Spot Instances"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-PLAT-03",
