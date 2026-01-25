@@ -1,0 +1,194 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: livecalc-api-config
+  namespace: livecalc
+data:
+  ASSUMPTIONS_MANAGER_URL: "http://assumptions-manager-service:9000"
+  STORAGE_ROOT: "/data/packages"
+  REDIS_URL: "redis://redis-service:6379"
+  WEBSOCKET_BASE_URL: "ws://api-service:8000"
+  CORS_ORIGINS: '["vscode://"]'
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: api-storage-pvc
+  namespace: livecalc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: azure-file
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livecalc-api
+  namespace: livecalc
+  labels:
+    app: livecalc-api
+    component: cloud-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: livecalc-api
+  template:
+    metadata:
+      labels:
+        app: livecalc-api
+        component: cloud-api
+    spec:
+      containers:
+        - name: api
+          image: livecalc/cloud-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: livecalc-api-config
+          volumeMounts:
+            - name: storage
+              mountPath: /data/packages
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: api-storage-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: livecalc-api-service
+  namespace: livecalc
+  labels:
+    app: livecalc-api
+spec:
+  type: ClusterIP
+  selector:
+    app: livecalc-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: livecalc-api-hpa
+  namespace: livecalc
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: livecalc-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# Redis for job queue
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: livecalc
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: livecalc
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

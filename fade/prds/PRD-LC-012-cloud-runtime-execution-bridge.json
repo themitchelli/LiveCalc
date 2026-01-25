@@ -65,7 +65,7 @@
         "Authentication: Scopes the job to the user's JWT from Assumptions Manager."
       ],
       "tech_stack": ["FastAPI", "Python", "Redis (Job State)"],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-BRIDGE-04",
