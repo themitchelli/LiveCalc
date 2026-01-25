@@ -370,6 +370,11 @@
             "Fail with error if API unavailable"
           ],
           "description": "Behavior when Assumptions Manager is unavailable"
+        },
+        "livecalc.cloud.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "LiveCalc Cloud API URL (e.g., https://api.livecalc.cloud)"
         }
       }
     },

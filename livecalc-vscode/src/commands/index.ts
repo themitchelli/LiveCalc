@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { registerRunCommand } from './run';
+import { registerRunCloudCommand } from './run-cloud';
 import { registerInitializeCommand } from './initialize';
 import { StatusBar } from '../ui/status-bar';
 import { ConfigLoader } from '../config/config-loader';
@@ -39,15 +40,8 @@ export function registerCommands(
   // Register initialize command
   context.subscriptions.push(registerInitializeCommand(context));
 
-  // Register run cloud command (placeholder)
-  context.subscriptions.push(
-    vscode.commands.registerCommand('livecalc.runCloud', () => {
-      logger.info('Run in Cloud command invoked (not yet implemented)');
-      vscode.window.showInformationMessage(
-        'LiveCalc: Cloud execution will be available in a future release'
-      );
-    })
-  );
+  // Register run cloud command
+  context.subscriptions.push(registerRunCloudCommand(context, statusBar, configLoader, resultsPanel));
 
   // Register open results command
   context.subscriptions.push(

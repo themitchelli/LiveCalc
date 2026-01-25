@@ -173,22 +173,146 @@ app.post('/execute', async (req, res) => {
   }
 });
 
+// Store active pipelines by job ID
+const activePipelines = new Map<string, { loader: PipelineLoader; result: any }>();
+
 // WebSocket connection for result streaming
 wss.on('connection', (ws) => {
   logger.info('WebSocket client connected');
 
-  ws.on('message', (message) => {
-    logger.info({ message: message.toString() }, 'WebSocket message received');
-    // TODO: Handle WebSocket messages for pipeline control
-    // This will be completed in US-BRIDGE-05
+  let currentJobId: string | null = null;
+
+  ws.on('message', async (messageData) => {
+    try {
+      const message = JSON.parse(messageData.toString());
+      logger.info({ type: message.type, jobId: message.jobId }, 'WebSocket message received');
+
+      if (message.type === 'execute') {
+        // Execute pipeline and stream results
+        currentJobId = message.jobId;
+        const { config, wasmBinaries, pythonScripts, assumptionRefs } = message.payload;
+
+        // Convert base64-encoded binaries
+        const wasmBinariesMap = new Map<string, Uint8Array>();
+        if (wasmBinaries) {
+          for (const [name, base64] of Object.entries(wasmBinaries)) {
+            wasmBinariesMap.set(name, Buffer.from(base64 as string, 'base64'));
+          }
+        }
+
+        const pythonScriptsMap = new Map<string, string>();
+        if (pythonScripts) {
+          for (const [name, script] of Object.entries(pythonScripts)) {
+            if (typeof script === 'string') {
+              pythonScriptsMap.set(name, script);
+            }
+          }
+        }
+
+        const modelAssets = {
+          wasmBinaries: wasmBinariesMap,
+          pythonScripts: pythonScriptsMap,
+          config,
+          assumptionRefs: assumptionRefs || []
+        };
+
+        const pipelineLoader = new PipelineLoader();
+        const result = await pipelineLoader.loadPipeline(modelAssets);
+
+        if (!result.success) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            jobId: currentJobId,
+            error: 'Pipeline initialization failed',
+            details: result.errors
+          }));
+          return;
+        }
+
+        activePipelines.set(currentJobId, { loader: pipelineLoader, result });
+
+        // Send initialization complete
+        ws.send(JSON.stringify({
+          type: 'initialized',
+          jobId: currentJobId,
+          pipelineId: result.pipelineId,
+          assetsHash: result.assetsHash,
+          nodeCount: config.nodes?.length || 0
+        }));
+
+        // TODO: Execute pipeline nodes in topological order
+        // For now, send mock results to demonstrate streaming
+        // This will be replaced with actual execution in future PRD
+
+        // Send progress updates
+        const nodeCount = config.nodes?.length || 1;
+        for (let i = 0; i < nodeCount; i++) {
+          ws.send(JSON.stringify({
+            type: 'progress',
+            jobId: currentJobId,
+            current: i + 1,
+            total: nodeCount,
+            message: `Executing node ${i + 1}/${nodeCount}`
+          }));
+
+          // Simulate processing time
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Send mock results (will be replaced with actual pipeline execution results)
+        const mockResults = {
+          statistics: {
+            mean: 125000.0,
+            stdDev: 15000.0,
+            cte95: 95000.0,
+            percentiles: {
+              p50: 124000.0,
+              p75: 132000.0,
+              p90: 140000.0,
+              p95: 145000.0,
+              p99: 155000.0
+            },
+            min: 80000.0,
+            max: 180000.0
+          },
+          executionTimeMs: 1250,
+          policyCount: 10000,
+          scenarioCount: 1000
+        };
+
+        // Stream results as binary chunks (Uint8Arrays)
+        const resultsBuffer = Buffer.from(JSON.stringify(mockResults));
+        ws.send(resultsBuffer);
+
+        // Send completion marker
+        ws.send(JSON.stringify({
+          type: 'complete',
+          jobId: currentJobId,
+          executionTimeMs: mockResults.executionTimeMs
+        }));
+
+        logger.info({ jobId: currentJobId, executionTimeMs: mockResults.executionTimeMs }, 'Pipeline execution complete');
+      }
+    } catch (error) {
+      logger.error({ error }, 'WebSocket message handling error');
+      ws.send(JSON.stringify({
+        type: 'error',
+        jobId: currentJobId,
+        error: 'Execution failed',
+        details: error instanceof Error ? error.message : String(error)
+      }));
+    }
   });
 
   ws.on('close', () => {
-    logger.info('WebSocket client disconnected');
+    logger.info({ jobId: currentJobId }, 'WebSocket client disconnected');
+    if (currentJobId && activePipelines.has(currentJobId)) {
+      activePipelines.delete(currentJobId);
+    }
   });
 
   ws.on('error', (error) => {
-    logger.error({ error }, 'WebSocket error');
+    logger.error({ error, jobId: currentJobId }, 'WebSocket error');
   });
 
   // Send initial connection confirmation

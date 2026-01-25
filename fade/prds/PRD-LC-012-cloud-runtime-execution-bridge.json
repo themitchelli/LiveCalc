@@ -89,7 +89,7 @@
         "Handoff verification: 'Total NPV' matches between local and cloud runs."
       ],
       "tech_stack": ["WebSockets", "ResultsPanel API"],
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

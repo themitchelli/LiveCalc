@@ -6,3 +6,5 @@
 
 export * from './model-packager';
 export * from './package-validator';
+export * from './cloud-client';
+export * from './result-streamer';
