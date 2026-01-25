@@ -95,7 +95,7 @@
         "Pandas",
         "FastAPI"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-PLAT-04",

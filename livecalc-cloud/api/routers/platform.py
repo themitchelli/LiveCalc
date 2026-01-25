@@ -530,3 +530,161 @@ async def get_warm_pool_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get warm pool status: {str(e)}",
         )
+
+
+# ============================================================================
+# Anomaly Detection Endpoints
+# ============================================================================
+
+from ..services.anomaly_detection import (
+    AnomalyDetectionEngine,
+    AnomalyFlag,
+    DiagnosticBundle,
+    BucketStatistics,
+    AnomalyType,
+)
+
+
+class BucketAnalysisRequest(BaseModel):
+    """Request for bucket anomaly analysis."""
+    bucket_id: str = Field(..., description="Bucket identifier")
+    run_results: List[dict] = Field(..., description="List of run results with NPV values")
+    include_diagnostics: bool = Field(True, description="Whether to generate diagnostic bundles")
+    sigma_threshold: float = Field(3.0, ge=2.0, le=5.0, description="Sigma threshold for anomaly detection")
+
+
+class BucketAnalysisResponse(BaseModel):
+    """Response from bucket anomaly analysis."""
+    bucket_statistics: BucketStatistics
+    anomalies: List[AnomalyFlag]
+    diagnostic_bundles: List[DiagnosticBundle]
+
+
+class AnomalyQueryRequest(BaseModel):
+    """Request to query anomalies by bucket or type."""
+    bucket_id: Optional[str] = Field(None, description="Filter by bucket ID")
+    anomaly_type: Optional[AnomalyType] = Field(None, description="Filter by anomaly type")
+    min_deviation: Optional[float] = Field(None, description="Minimum deviation (in std devs)")
+    limit: int = Field(100, ge=1, le=1000, description="Maximum results to return")
+
+
+class AnomalyQueryResponse(BaseModel):
+    """Response from anomaly query."""
+    anomalies: List[AnomalyFlag]
+    total_count: int
+    filtered_count: int
+
+
+# Create singleton engine instance
+anomaly_engine = AnomalyDetectionEngine(
+    sigma_threshold=3.0,
+    enable_5_sigma=True,
+    enable_zero_detection=True,
+    min_bucket_size=30
+)
+
+
+@router.post("/anomalies/analyze", response_model=BucketAnalysisResponse)
+async def analyze_bucket_for_anomalies(
+    request: BucketAnalysisRequest,
+    user: UserInfo = Depends(verify_token),
+):
+    """
+    Analyze a bucket of projection runs for statistical anomalies.
+
+    Uses 3-sigma rule to identify outliers in NPV distributions.
+    Returns flagged anomalies with diagnostic bundles for investigation.
+
+    Args:
+        request: Bucket analysis request with run results
+
+    Returns:
+        Bucket statistics, anomaly flags, and diagnostic bundles
+
+    Raises:
+        HTTPException: If bucket has insufficient data or analysis fails
+    """
+    try:
+        logger.info(
+            f"User {user.user_id} analyzing bucket {request.bucket_id} "
+            f"with {len(request.run_results)} runs"
+        )
+
+        # Validate run results format
+        for i, run in enumerate(request.run_results):
+            if "runId" not in run:
+                raise ValueError(f"Run {i} missing required field 'runId'")
+            if "npv" not in run:
+                raise ValueError(f"Run {i} missing required field 'npv'")
+
+        # Create custom engine if sigma threshold differs from default
+        if request.sigma_threshold != 3.0:
+            engine = AnomalyDetectionEngine(
+                sigma_threshold=request.sigma_threshold,
+                enable_5_sigma=True,
+                enable_zero_detection=True,
+                min_bucket_size=30
+            )
+        else:
+            engine = anomaly_engine
+
+        # Run anomaly detection
+        result = engine.analyze_bucket(
+            bucket_id=request.bucket_id,
+            run_results=request.run_results,
+            include_diagnostics=request.include_diagnostics
+        )
+
+        logger.info(
+            f"Bucket {request.bucket_id} analysis complete: "
+            f"{len(result.anomalies)} anomalies detected from {len(request.run_results)} runs"
+        )
+
+        return BucketAnalysisResponse(
+            bucket_statistics=result.bucket_statistics,
+            anomalies=result.anomalies,
+            diagnostic_bundles=result.diagnostic_bundles
+        )
+
+    except ValueError as e:
+        logger.error(f"Invalid bucket analysis request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Bucket anomaly analysis failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Anomaly analysis failed: {str(e)}"
+        )
+
+
+@router.get("/anomalies/diagnostic/{run_id}", response_model=DiagnosticBundle)
+async def get_diagnostic_bundle(
+    run_id: str,
+    user: UserInfo = Depends(verify_token),
+):
+    """
+    Get diagnostic bundle for a specific anomalous run.
+
+    This is a placeholder endpoint. In production, diagnostic bundles
+    would be stored in a database or blob storage for retrieval.
+
+    Args:
+        run_id: Run identifier
+
+    Returns:
+        Diagnostic bundle with anomaly details and snapshots
+
+    Raises:
+        HTTPException: If diagnostic bundle not found
+    """
+    # TODO: Implement diagnostic bundle storage and retrieval
+    # For now, return 404
+    logger.warning(f"Diagnostic bundle retrieval not yet implemented for run {run_id}")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Diagnostic bundle storage not yet implemented. "
+               "Use POST /v1/platform/anomalies/analyze with include_diagnostics=true instead."
+    )

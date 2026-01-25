@@ -155,3 +155,22 @@ Only add learnings that are:
 - **What:** Worker pods can self-annotate with diagnostic metadata (e.g., memory sentinel violations) using the Kubernetes API. These annotations persist with the pod and can be extracted before the namespace is reaped: `kubectl.core_v1.patch_namespaced_pod(name=pod_name, namespace=namespace, body={"metadata": {"annotations": {"key": "value"}}})`
 - **Why it matters:** This enables workers to report issues (memory corruption, integrity failures) that the platform can detect and archive before cleanup. The annotation survives pod crashes and can be extracted even if the pod is terminated.
 
+
+## 2026-01-25 - NumPy sample standard deviation requires ddof=1
+**Source:** PRD-LC-013 US-PLAT-03
+
+- **What:** When calculating sample standard deviation for statistical inference, NumPy's np.std() requires ddof=1 (degrees of freedom) to use Bessel's correction (n-1 denominator): `np.std(values, ddof=1)`. Default ddof=0 calculates population std dev (n denominator).
+- **Why it matters:** For anomaly detection on samples (not full populations), using population std dev (ddof=0) underestimates variability and produces overly-sensitive 3-sigma thresholds. Bessel's correction provides unbiased population estimate from sample data.
+
+## 2026-01-25 - 3-sigma rule applies to normal distributions
+**Source:** PRD-LC-013 US-PLAT-03
+
+- **What:** The 3-sigma rule (99.7% of values within ±3σ) assumes data follows a normal distribution. For actuarial NPV results, this is often valid due to Central Limit Theorem (averaging over many policies/scenarios), but non-normal distributions may have different tail probabilities.
+- **Why it matters:** When analyzing buckets, check if distribution is approximately normal (mean ≈ median, symmetric histogram). For skewed distributions, consider using percentile-based outlier detection (IQR method) or transforming data before applying 3-sigma rule.
+
+## 2026-01-25 - Percentile interpolation for rank estimation
+**Source:** PRD-LC-013 US-PLAT-03
+
+- **What:** When estimating percentile rank of a value between known percentiles (P25, P50, P75, etc.), linear interpolation provides reasonable approximation: rank = lower_percentile + (upper_percentile - lower_percentile) × (value - lower_value) / (upper_value - lower_value)
+- **Why it matters:** Computing exact percentile rank requires sorting all values (O(n log n)). For diagnostic bundles where we already have summary percentiles, interpolation gives fast approximation without re-processing full dataset.
+
