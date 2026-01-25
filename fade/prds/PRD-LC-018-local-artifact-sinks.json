@@ -1,0 +1,153 @@
+{
+  "id": "PRD-LC-018",
+  "title": "Local Artifact Sinks & Persistence",
+  "type": "feature",
+  "priority": "high",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Solves the volatility of WASM SharedArrayBuffer memory by providing dedicated 'Sink' nodes in the modular pipeline. Enables automated persistence of bus:// resources to the local workspace in high-performance formats like Parquet and CSV.",
+  "problem": [
+    "WASM RAM is volatile; closing VS Code or a worker crash results in immediate data loss.",
+    "Actuaries currently have to manually export results via the UI, which is not repeatable or auditable.",
+    "Downstream analytical tools (PowerBI, Excel, Python scripts) cannot access results unless they are persisted to the physical file system."
+  ],
+  "solution": [
+    "Introduce a new 'sink' node type to the livecalc.config.json DAG schema.",
+    "Implement an automated File Persistence Service that writes bus:// memory segments to disk at the end of a run.",
+    "Support Apache Parquet via parquet-wasm as the primary high-performance storage format.",
+    "Provide a command to load persisted results back into the Results Panel for audit and comparison."
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "complete",
+      "notes": "Requires the bus:// protocol to identify which memory blocks to persist."
+    },
+    {
+      "id": "PRD-LC-015",
+      "title": "Polyglot Logic",
+      "status": "proposed",
+      "optional": true,
+      "notes": "Enables Python transformations to be persisted. Sinks will work with C++ engines initially."
+    }
+  ],
+  "technicalNotes": {
+    "persistenceEngine": "Extension Host (Node.js) via vscode.workspace.fs API.",
+    "parquetLibrary": "parquet-wasm (Rust-based, ~2MB bundle, SNAPPY compression).",
+    "trigger": "Execution Lifecycle Hook (onPipelineComplete).",
+    "naming": "results_{timestamp}_{jobId}.parquet",
+    "sinkConfigExample": {
+      "id": "persist-npv",
+      "type": "sink",
+      "input": "bus://liability_results",
+      "format": "parquet",
+      "path": "./results/npv_{timestamp}.parquet",
+      "schema": {
+        "columns": ["policyId", "scenario", "npv"],
+        "types": ["int32", "int32", "float64"]
+      }
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-SINK-01",
+      "title": "Declarative Sink Nodes with Schema",
+      "story": "As a modeler, I want to define the structure of data saved to disk so that downstream tools can parse it correctly.",
+      "acceptanceCriteria": [
+        "livecalc.config.json supports 'sink' nodes with a mandatory 'schema' field.",
+        "Schema validation fails fast if column counts or types do not align with bus:// resource size.",
+        "Support for multiple sinks per pipeline (e.g., raw cashflows and summary stats)."
+      ],
+      "tech_stack": ["JSON Schema", "TypeScript"],
+      "passes": false
+    },
+    {
+      "id": "US-SINK-02",
+      "title": "Compressed Parquet Persistence",
+      "story": "As an actuary, I want my results saved in a compressed format that supports high-speed querying.",
+      "acceptanceCriteria": [
+        "Sink node converts SAB binary data to Parquet using SNAPPY compression.",
+        "Parquet metadata includes embedded Job ID, Model Hash, and Timestamp.",
+        "Performance: Persisting 1M policies × 10 scenarios (summary stats) takes < 5s."
+      ],
+      "tech_stack": ["parquet-wasm", "SharedArrayBuffer"],
+      "passes": false
+    },
+    {
+      "id": "US-SINK-03",
+      "title": "Success Notification & Explorer Integration",
+      "story": "As a user, I want a clear confirmation that my results have been saved to my workspace.",
+      "acceptanceCriteria": [
+        "Success notification appears on completion showing the file path.",
+        "Notification includes 'Open in Explorer' and 'View in Results Panel' buttons.",
+        "The system creates the 'results/' directory automatically if missing."
+      ],
+      "tech_stack": ["VS Code API"],
+      "passes": false
+    },
+    {
+      "id": "US-SINK-04",
+      "title": "Streaming CSV Export for Large Datasets",
+      "story": "As an actuary, I want to export massive datasets to CSV without crashing my IDE.",
+      "acceptanceCriteria": [
+        "Support type: 'sink' with format: 'csv' using Node.js streaming.",
+        "Capacity: Successfully stream-writes up to 10GB of data from SAB to disk.",
+        "Progress reporting: VS Code status bar shows 'Persisting: X% complete' during write."
+      ],
+      "tech_stack": ["Node.js Streams"],
+      "passes": false
+    },
+    {
+      "id": "US-SINK-05",
+      "title": "Load Persisted Results for Comparison",
+      "story": "As a modeler, I want to load a previously persisted .parquet file to compare against new runs.",
+      "acceptanceCriteria": [
+        "Command 'LiveCalc: Load Results from File' allows picking local .parquet files.",
+        "Parquet reader reconstructs the ResultsPanel state from file metadata.",
+        "Loaded results are marked with a [FROM FILE] badge in the UI.",
+        "Comparison mode allows using the loaded file as the 'Baseline' for delta calculations."
+      ],
+      "tech_stack": ["parquet-wasm", "ResultsPanel API"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/js/src/sinks/file-sink-manager.ts",
+    "livecalc-engine/js/src/sinks/parquet-adapter.ts",
+    "livecalc-engine/js/tests/persistence.test.ts"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-engine/js/src/orchestrator.ts",
+      "changes": "Add onPipelineComplete hook and sink node factory."
+    },
+    {
+      "file": "livecalc-vscode/src/commands/index.ts",
+      "changes": "Add 'livecalc.loadResultsFromFile' command implementation."
+    }
+  ],
+  "estimatedSessions": "3 FADE sessions",
+  "risks": [
+    {
+      "risk": "Large file writes causing UI lag",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Offload disk I/O to a dedicated worker thread or utilize the VS Code filesystem background throughput."
+    },
+    {
+      "risk": "Parquet-WASM bundle size",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Lazy-load the parquet-wasm module only when a Parquet sink is initialized."
+    }
+  ],
+  "definitionOfDone": [
+    "A pipeline run generates a valid, compressed .parquet file containing embedded metadata.",
+    "Persisted results can be loaded back into the IDE and match the original SAB state bit-for-bit.",
+    "The 1B/36s compute benchmark is maintained (persistence time is reported separately).",
+    "Audit trail: Manifest links the Job ID to the physical file on disk."
+  ]
+}
