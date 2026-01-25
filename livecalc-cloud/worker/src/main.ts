@@ -98,23 +98,71 @@ app.get('/capabilities', (req, res) => {
   }
 });
 
-// Pipeline execution endpoint (placeholder for now)
+// Pipeline execution endpoint
 app.post('/execute', async (req, res) => {
   try {
-    const { config, modelAssets } = req.body;
+    const { config, wasmBinaries, pythonScripts, assumptionRefs } = req.body;
 
     if (!config) {
       return res.status(400).json({ error: 'Missing config in request body' });
     }
 
-    logger.info({ config }, 'Received execution request');
+    logger.info({
+      nodeCount: config.nodes?.length || 0,
+      hasDebugConfig: !!config.debug
+    }, 'Received execution request');
 
-    // TODO: Implement actual pipeline loading and execution
-    // This will be completed in US-BRIDGE-04
+    // Convert base64-encoded binaries back to Uint8Array
+    const wasmBinariesMap = new Map<string, Uint8Array>();
+    if (wasmBinaries) {
+      for (const [name, base64] of Object.entries(wasmBinaries)) {
+        wasmBinariesMap.set(name, Buffer.from(base64 as string, 'base64'));
+      }
+    }
+
+    // Reconstruct model assets
+    const pythonScriptsMap = new Map<string, string>();
+    if (pythonScripts) {
+      for (const [name, script] of Object.entries(pythonScripts)) {
+        if (typeof script === 'string') {
+          pythonScriptsMap.set(name, script);
+        }
+      }
+    }
+
+    const modelAssets = {
+      wasmBinaries: wasmBinariesMap,
+      pythonScripts: pythonScriptsMap,
+      config,
+      assumptionRefs: assumptionRefs || []
+    };
+
+    // Load and initialize pipeline
+    const pipelineLoader = new PipelineLoader();
+    const result = await pipelineLoader.loadPipeline(modelAssets);
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: 'Pipeline initialization failed',
+        details: result.errors
+      });
+    }
+
+    logger.info({
+      pipelineId: result.pipelineId,
+      assetsHash: result.assetsHash
+    }, 'Pipeline initialized successfully');
+
     res.json({
-      status: 'accepted',
-      message: 'Execution request received (placeholder)',
-      jobId: `job-${Date.now()}`
+      status: 'initialized',
+      pipelineId: result.pipelineId,
+      assetsHash: result.assetsHash,
+      memoryAllocatedMB: result.pipeline
+        ? (result.pipeline.sharedArrayBuffer.byteLength / 1024 / 1024).toFixed(2)
+        : 0,
+      nodeCount: config.nodes?.length || 0,
+      executionOrder: result.pipeline?.nodeOrder || [],
+      message: 'Pipeline loaded and ready for execution'
     });
   } catch (error) {
     logger.error({ error }, 'Execution request failed');

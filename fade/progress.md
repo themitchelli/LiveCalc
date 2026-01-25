@@ -2928,3 +2928,56 @@ For blocked stories, use:
   - livecalc-cloud/scripts/test-api.sh (Test automation script)
 - Tests: Python syntax validation passed, ready for integration testing
 
+
+## 2026-01-25 01:45 - US-BRIDGE-04: Cloud Pipeline Reconstruction - COMPLETE
+
+- Implemented complete pipeline reconstruction in cloud worker
+- Created comprehensive PipelineLoader class with:
+  - Asset validation (config structure, node definitions, engine binaries)
+  - Bus resource extraction from pipeline config with BusResourceRequirement type
+  - Topological sort (Kahn's algorithm) for execution order calculation
+  - Circular dependency detection
+  - SharedArrayBuffer allocation using MemoryOffsetManager from @livecalc/engine
+  - AtomicSignalManager integration for node coordination
+  - Engine instance initialization (WASM and Python placeholders)
+- Added helper methods:
+  - extractBusResources(): Finds producers and consumers for each bus:// resource
+  - parseSizeSpec(): Parses "10000:float64" or "80KB" size specifications
+  - parseDataType(): Maps type strings to TypedArrayType enum
+  - getElementSize(): Returns byte size for each TypedArray type
+  - calculateExecutionOrder(): Topological sort with cycle detection
+  - initializeEngines(): Prepares WASM/Python engine instances
+- Updated main.ts execute endpoint:
+  - Accepts config, wasmBinaries, pythonScripts, assumptionRefs
+  - Converts base64-encoded binaries to Uint8Array
+  - Calls PipelineLoader.loadPipeline()
+  - Returns pipeline metadata: pipelineId, assetsHash, memoryAllocatedMB, nodeCount, executionOrder
+- Added TypeScript build infrastructure:
+  - tsconfig.json for ES2022 module compilation
+  - Build script compiles TS to dist/ directory
+  - @livecalc/engine dependency for orchestrator modules
+- Created comprehensive test suite (8 tests, all passing):
+  - Validates assets with missing config
+  - Validates assets with missing WASM binary
+  - Validates assets with valid config
+  - Computes consistent assets hash
+  - Loads simple pipeline successfully
+  - Loads multi-node pipeline in correct order
+  - Detects circular dependencies
+  - Verifies runtime parity
+- All acceptance criteria met:
+  - ✓ Cloud worker parses uploaded livecalc.config.json
+  - ✓ Allocates matching SharedArrayBuffer Data Bus in container memory
+  - ✓ Initializes pipeline nodes according to PRD-LC-010 Bus Protocol
+  - ✓ Uses MemoryOffsetManager for 16-byte aligned allocations
+  - ✓ Uses AtomicSignalManager for node state coordination
+  - ✓ Topological execution order calculated
+  - ✓ Circular dependencies detected and rejected
+- Files created:
+  - livecalc-cloud/worker/tsconfig.json (TypeScript configuration)
+  - livecalc-cloud/worker/src/pipeline-loader.test.ts (8 tests)
+- Files modified:
+  - livecalc-cloud/worker/package.json (added @livecalc/engine, TypeScript, build scripts)
+  - livecalc-cloud/worker/src/pipeline-loader.ts (implemented full pipeline loading)
+  - livecalc-cloud/worker/src/main.ts (updated execute endpoint)
+- Tests: 8/8 passing, TypeScript compilation successful

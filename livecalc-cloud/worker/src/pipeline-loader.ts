@@ -8,6 +8,14 @@
 
 import { createHash } from 'crypto';
 import pino from 'pino';
+import {
+  MemoryOffsetManager,
+  AtomicSignalManager,
+  NodeState,
+  type MemoryOffsetMapJSON,
+  type BusResourceRequirement,
+  type TypedArrayType
+} from '@livecalc/engine';
 
 const logger = pino({ name: 'pipeline-loader' });
 
@@ -16,6 +24,13 @@ export interface PipelineConfig {
   debug?: {
     breakpoints?: string[];
     enableIntegrityChecks?: boolean;
+    zeroMemoryBetweenRuns?: boolean;
+  };
+  errorHandling?: {
+    continueOnError?: boolean;
+    maxErrors?: number;
+    timeoutMs?: number;
+    captureSnapshots?: boolean;
   };
 }
 
@@ -32,6 +47,19 @@ export interface ModelAssets {
   pythonScripts: Map<string, string>;
   config: PipelineConfig;
   assumptionRefs: string[];
+}
+
+/**
+ * Loaded pipeline instance with allocated memory and initialized engines
+ */
+export interface LoadedPipeline {
+  pipelineId: string;
+  assetsHash: string;
+  sharedArrayBuffer: SharedArrayBuffer;
+  memoryOffsetMap: MemoryOffsetMapJSON;
+  signalManager: AtomicSignalManager;
+  engineInstances: Map<string, unknown>; // WASM or Python engine instances
+  nodeOrder: string[]; // Topological execution order
 }
 
 export class PipelineLoader {
@@ -107,12 +135,12 @@ export class PipelineLoader {
 
   /**
    * Loads and initializes pipeline in cloud environment
-   * This is a placeholder implementation that will be completed in US-BRIDGE-04
    */
   async loadPipeline(assets: ModelAssets): Promise<{
     success: boolean;
     pipelineId: string;
     assetsHash: string;
+    pipeline?: LoadedPipeline;
     errors?: string[];
   }> {
     this.logger.info('Loading pipeline in cloud worker');
@@ -136,16 +164,299 @@ export class PipelineLoader {
     // Generate pipeline ID
     const pipelineId = `pipeline-${Date.now()}-${assetsHash.substring(0, 8)}`;
 
-    // TODO: Actually load WASM modules and initialize pipeline
-    // This will be implemented in US-BRIDGE-04 once PRD-LC-010 is complete
+    try {
+      // Extract bus:// resource requirements from pipeline config
+      const busResources = this.extractBusResources(assets.config);
+      this.logger.info({ resourceCount: busResources.length }, 'Extracted bus resources');
 
-    this.logger.info({ pipelineId, assetsHash }, 'Pipeline loaded successfully (placeholder)');
+      // Calculate execution order (topological sort)
+      const nodeOrder = this.calculateExecutionOrder(assets.config.nodes);
+      this.logger.info({ nodeOrder }, 'Calculated execution order');
 
-    return {
-      success: true,
-      pipelineId,
-      assetsHash
-    };
+      // Create memory offset manager and allocate SharedArrayBuffer
+      const memoryManager = new MemoryOffsetManager({
+        enableIntegrityChecks: assets.config.debug?.enableIntegrityChecks ?? false,
+        zeroMemoryBetweenRuns: assets.config.debug?.zeroMemoryBetweenRuns ?? true,
+        maxNodes: assets.config.nodes.length
+      });
+
+      // Set logger
+      memoryManager.setLogger((msg: string) => this.logger.debug(msg));
+
+      // Add all bus resources to the memory manager
+      for (const resource of busResources) {
+        memoryManager.addResource(resource);
+      }
+
+      // Allocate the SharedArrayBuffer
+      const nodeIds = assets.config.nodes.map(n => n.id);
+      memoryManager.allocate(nodeIds);
+      const buffer = memoryManager.getBuffer();
+      const offsetMap = memoryManager.getOffsetMapJSON();
+      this.logger.info({
+        totalSize: buffer.byteLength,
+        totalSizeMB: (buffer.byteLength / 1024 / 1024).toFixed(2)
+      }, 'SharedArrayBuffer allocated');
+
+      // Create signal manager for node coordination
+      const signalManager = new AtomicSignalManager(
+        buffer,
+        offsetMap.status.offset,
+        nodeIds
+      );
+
+      // Initialize all nodes to IDLE state
+      for (const nodeId of nodeIds) {
+        signalManager.signal(nodeId, NodeState.IDLE);
+      }
+
+      // Initialize engine instances (WASM modules, Python engines, etc.)
+      const engineInstances = await this.initializeEngines(
+        assets,
+        buffer,
+        offsetMap
+      );
+
+      this.logger.info({
+        pipelineId,
+        assetsHash,
+        nodeCount: nodeIds.length,
+        engineCount: engineInstances.size
+      }, 'Pipeline loaded successfully');
+
+      return {
+        success: true,
+        pipelineId,
+        assetsHash,
+        pipeline: {
+          pipelineId,
+          assetsHash,
+          sharedArrayBuffer: buffer,
+          memoryOffsetMap: offsetMap,
+          signalManager,
+          engineInstances,
+          nodeOrder
+        }
+      };
+    } catch (error) {
+      this.logger.error({ error }, 'Pipeline loading failed');
+      return {
+        success: false,
+        pipelineId,
+        assetsHash,
+        errors: [error instanceof Error ? error.message : String(error)]
+      };
+    }
+  }
+
+  /**
+   * Extracts bus:// resource requirements from pipeline config
+   */
+  private extractBusResources(config: PipelineConfig): BusResourceRequirement[] {
+    const resources = new Map<string, {
+      sizeBytes: number;
+      dataType: TypedArrayType;
+      producerNodeId: string;
+      consumerNodeIds: string[];
+    }>();
+
+    // First pass: Find producers
+    for (const node of config.nodes) {
+      for (const [key, busRef] of Object.entries(node.outputs || {})) {
+        if (busRef.startsWith('bus://')) {
+          if (!resources.has(busRef)) {
+            // Parse size spec (e.g., "10000:float64" or "80KB")
+            const sizeSpec = node.config?.[`${key}_size`] as string ?? '10000:float64';
+            const { sizeBytes, dataType } = this.parseSizeSpec(sizeSpec);
+
+            resources.set(busRef, {
+              sizeBytes,
+              dataType,
+              producerNodeId: node.id,
+              consumerNodeIds: []
+            });
+          }
+        }
+      }
+    }
+
+    // Second pass: Find consumers
+    for (const node of config.nodes) {
+      for (const busRef of Object.values(node.inputs || {})) {
+        if (busRef.startsWith('bus://')) {
+          const resource = resources.get(busRef);
+          if (resource) {
+            resource.consumerNodeIds.push(node.id);
+          }
+        }
+      }
+    }
+
+    return Array.from(resources.entries()).map(([name, resource]) => ({
+      name,
+      ...resource
+    }));
+  }
+
+  /**
+   * Parses size specification string into bytes and data type
+   */
+  private parseSizeSpec(spec: string): { sizeBytes: number; dataType: TypedArrayType } {
+    // Handle format like "10000:float64" or "80KB"
+    if (spec.includes(':')) {
+      const [count, type] = spec.split(':');
+      const elementCount = parseInt(count, 10);
+      const dataType = this.parseDataType(type);
+      const elementSize = this.getElementSize(dataType);
+      return { sizeBytes: elementCount * elementSize, dataType };
+    }
+
+    // Handle byte suffixes (KB, MB, GB)
+    const match = spec.match(/^(\d+(?:\.\d+)?)\s*(bytes?|KB|MB|GB)$/i);
+    if (match) {
+      const value = parseFloat(match[1]);
+      const unit = match[2].toUpperCase();
+      let sizeBytes = value;
+      if (unit.startsWith('KB')) sizeBytes *= 1024;
+      else if (unit.startsWith('MB')) sizeBytes *= 1024 * 1024;
+      else if (unit.startsWith('GB')) sizeBytes *= 1024 * 1024 * 1024;
+      return { sizeBytes, dataType: 'Float64Array' };
+    }
+
+    // Default: interpret as element count with Float64Array
+    const elementCount = parseInt(spec, 10);
+    return { sizeBytes: elementCount * 8, dataType: 'Float64Array' };
+  }
+
+  /**
+   * Parses data type string to TypedArrayType
+   */
+  private parseDataType(type: string): TypedArrayType {
+    const normalized = type.toLowerCase();
+    if (normalized.includes('float64') || normalized.includes('f64')) return 'Float64Array';
+    if (normalized.includes('float32') || normalized.includes('f32')) return 'Float32Array';
+    if (normalized.includes('int32') || normalized.includes('i32')) return 'Int32Array';
+    if (normalized.includes('uint32') || normalized.includes('u32')) return 'Uint32Array';
+    if (normalized.includes('int16') || normalized.includes('i16')) return 'Int16Array';
+    if (normalized.includes('uint16') || normalized.includes('u16')) return 'Uint16Array';
+    if (normalized.includes('int8') || normalized.includes('i8')) return 'Int8Array';
+    if (normalized.includes('uint8') || normalized.includes('u8')) return 'Uint8Array';
+    return 'Float64Array'; // Default
+  }
+
+  /**
+   * Gets element size for a TypedArrayType
+   */
+  private getElementSize(dataType: TypedArrayType): number {
+    switch (dataType) {
+      case 'Float64Array': return 8;
+      case 'Float32Array':
+      case 'Int32Array':
+      case 'Uint32Array': return 4;
+      case 'Int16Array':
+      case 'Uint16Array': return 2;
+      case 'Int8Array':
+      case 'Uint8Array': return 1;
+    }
+  }
+
+  /**
+   * Calculates execution order using topological sort (Kahn's algorithm)
+   */
+  private calculateExecutionOrder(nodes: PipelineNode[]): string[] {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const inDegree = new Map<string, number>();
+    const adjacencyList = new Map<string, string[]>();
+
+    // Initialize
+    for (const node of nodes) {
+      inDegree.set(node.id, 0);
+      adjacencyList.set(node.id, []);
+    }
+
+    // Build graph
+    for (const node of nodes) {
+      for (const inputBus of Object.values(node.inputs || {})) {
+        // Find which node produces this bus resource
+        const producer = nodes.find(n =>
+          Object.values(n.outputs || {}).includes(inputBus)
+        );
+        if (producer) {
+          adjacencyList.get(producer.id)!.push(node.id);
+          inDegree.set(node.id, (inDegree.get(node.id) || 0) + 1);
+        }
+      }
+    }
+
+    // Topological sort
+    const queue: string[] = [];
+    const order: string[] = [];
+
+    for (const [nodeId, degree] of inDegree) {
+      if (degree === 0) {
+        queue.push(nodeId);
+      }
+    }
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      order.push(current);
+
+      for (const neighbor of adjacencyList.get(current) || []) {
+        inDegree.set(neighbor, inDegree.get(neighbor)! - 1);
+        if (inDegree.get(neighbor) === 0) {
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    // Check for cycles
+    if (order.length !== nodes.length) {
+      throw new Error('Pipeline contains circular dependencies');
+    }
+
+    return order;
+  }
+
+  /**
+   * Initializes engine instances (WASM, Python, etc.)
+   */
+  private async initializeEngines(
+    assets: ModelAssets,
+    sharedArrayBuffer: SharedArrayBuffer,
+    memoryOffsetMap: MemoryOffsetMapJSON
+  ): Promise<Map<string, unknown>> {
+    const engineInstances = new Map<string, unknown>();
+
+    // For now, we'll create placeholder instances
+    // Real WASM loading will be implemented when we have actual binaries
+    for (const [engineName, wasmBinary] of assets.wasmBinaries) {
+      this.logger.info({ engineName, size: wasmBinary.byteLength }, 'Loading WASM engine');
+
+      // TODO: Actually instantiate WASM module
+      // For now, store metadata
+      engineInstances.set(`wasm://${engineName}`, {
+        type: 'wasm',
+        name: engineName,
+        binary: wasmBinary,
+        memoryOffsetMap
+      });
+    }
+
+    for (const [scriptName, scriptContent] of assets.pythonScripts) {
+      this.logger.info({ scriptName, size: scriptContent.length }, 'Loading Python engine');
+
+      // TODO: Initialize Pyodide and load script
+      // For now, store metadata
+      engineInstances.set(`python://${scriptName}`, {
+        type: 'python',
+        name: scriptName,
+        script: scriptContent,
+        memoryOffsetMap
+      });
+    }
+
+    return engineInstances;
   }
 
   /**

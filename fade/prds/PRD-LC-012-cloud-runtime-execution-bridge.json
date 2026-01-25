@@ -77,7 +77,7 @@
         "Initializes the pipeline nodes (C++/Python) according to the PRD-LC-010 Bus Protocol."
       ],
       "tech_stack": ["Node.js (Worker Host)", "SharedArrayBuffer"],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-BRIDGE-05",
