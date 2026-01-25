@@ -2611,6 +2611,195 @@ For blocked stories, use:
 - Files changed:
   - FADE.md (updated from generic template to LiveCalc-specific)
 
+## 2026-01-24 19:51 - US-STD-02: Coding Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/coding.md with comprehensive coding conventions
+- Philosophy: Write code for humans first, computers second
+- External style guides referenced:
+  - Google TypeScript Style Guide
+  - C++ Core Guidelines
+  - PEP 8 for Python
+- Naming conventions:
+  - TypeScript: camelCase (functions/vars), PascalCase (classes), UPPER_SNAKE_CASE (constants)
+  - C++: snake_case (functions/vars, matches actuarial convention), PascalCase (classes)
+  - Python: snake_case throughout (PEP 8)
+  - Domain terminology: prefer "policies", "assumptions", "projections" over generic terms
+- Comment philosophy:
+  - Comment on "why", not "what"
+  - Add comments for non-obvious constraints, algorithmic rationale, performance optimizations
+  - Don't comment self-documenting code
+- LiveCalc-specific requirements:
+  - SIMD alignment: All SharedArrayBuffer allocations must be 16-byte aligned
+  - CalcEngine interface: All calculation engines implement initialize/runChunk/dispose
+  - Error handling: Throw exceptions (C++/TS), return error codes in hot paths
+  - File organization: Group by feature (pipeline/, assumptions-manager/) not by type (models/, services/)
+- Type safety: TypeScript strict mode, C++ modern features, Python type hints
+- Performance considerations: Hot path vs cold path optimization strategies
+- Testing considerations: Dependency injection, pure functions
+- Files changed:
+  - standards/coding.md (new - 414 lines)
+
+## 2026-01-24 19:53 - US-STD-03: API & Security Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/api-security.md with security-by-design principles
+- API-First Strategy:
+  - Design OpenAPI/Swagger specification before implementation
+  - All cloud services expose REST APIs
+  - VS Code integration consumes these APIs
+- Security by Design:
+  - Privacy and security are architectural requirements, not afterthoughts
+  - All data flows consider: authentication, authorization, encryption, audit logging
+- Authentication requirements:
+  - JWT Bearer tokens for cloud API (1 hour max lifetime)
+  - Token validation against Assumptions Manager JWKS endpoint
+  - Refresh token rotation
+- Authorization requirements:
+  - Tenant isolation: users can only access their own data
+  - Resource scoping: SAS tokens limited to tenant prefix
+  - Quota enforcement: prevent resource exhaustion
+- Data protection:
+  - TLS 1.3 for all network traffic
+  - Encryption at rest for blob storage
+  - No secrets in code/config (use Azure Key Vault)
+  - Audit logging for all tenant actions
+- Input validation: Validate at system boundaries, trust internal interfaces
+- Error handling: Never expose stack traces or internal paths in API responses
+- Rate limiting: Implement per-tenant rate limits to prevent abuse
+- CORS policy: Explicitly allow VS Code extension origin, deny all others
+- Additional sections: Authentication flows, threat modeling, security testing
+- Files changed:
+  - standards/api-security.md (new - 539 lines)
+
+## 2026-01-24 19:54 - US-STD-04: Infrastructure as Code Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/infrastructure.md with "Everything as Code" philosophy
+- Everything as Code principle:
+  - All changeable components defined as code and deployed through automation
+  - Includes: infrastructure (Terraform), configuration (JSON/YAML), secrets (Key Vault references), monitoring (Prometheus rules), documentation (Markdown)
+- Terraform requirements:
+  - Use Terraform for all Azure infrastructure
+  - State stored in Azure Storage with locking
+  - Separate state files per environment (dev, staging, prod)
+  - Modules for reusable components (AKS cluster, storage account)
+  - Variables for environment-specific values (no hardcoding)
+  - Outputs for resource IDs needed by downstream tools
+- Configuration management:
+  - Environment config in values-{env}.yaml files
+  - Secrets referenced from Key Vault (never inline)
+  - Feature flags in config files (not environment variables)
+  - Schema validation for all config files (JSON Schema)
+- Deployment automation:
+  - GitHub Actions for CI/CD
+  - Helm charts for Kubernetes deployments
+  - Automated testing before deployment (linting, unit tests, integration tests)
+  - Blue/green or rolling updates (zero downtime)
+- Immutable infrastructure: Replace, do not modify. Container images are immutable.
+- Version control: All code, config, and IaC in Git. Tag releases with semantic versioning.
+- Documentation as Code: API specs in OpenAPI YAML, architecture diagrams in Mermaid/PlantUML
+- Additional sections: Environment strategy, disaster recovery, monitoring as code, cost optimization
+- Files changed:
+  - standards/infrastructure.md (new - 726 lines)
+
+## 2026-01-24 19:55 - US-STD-05: Testing & Performance Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/testing.md with comprehensive testing strategy
+- Test pyramid documented:
+  - Many unit tests (70%)
+  - Some integration tests (25%)
+  - Few E2E tests (5%)
+- Unit test requirements:
+  - Co-located with source: same directory as *.test.ts or *_test.py
+  - AAA pattern: Arrange, Act, Assert
+  - Descriptive names: test_scenario_expectedBehavior or 'should do X when Y'
+  - Fast: unit tests complete in <100ms each
+  - Isolated: no shared state, no external dependencies
+- Integration test requirements:
+  - Test component interactions (API → worker, extension → engine)
+  - Use test doubles for slow/flaky external services
+  - Tests in tests/ directory at project root
+- Performance benchmark requirements:
+  - All performance-sensitive PRDs include benchmark targets in Definition of Done
+  - Regression tests protect established benchmarks
+  - Current benchmarks (from SPIKE-LC-007):
+    * 10K × 1K multi-thread: ~370ms (5.4x speedup)
+    * 100K × 1K multi-thread: ~3s (32M proj/sec)
+    * 1M × 1K multi-thread: ~36s (27M proj/sec)
+  - New features must not regress these targets by >10%
+  - Benchmark script: npm run benchmark in livecalc-engine/js
+- Regression test requirements:
+  - All PRDs must maintain passing tests from previous PRDs
+  - Test suite runs on every commit (GitHub Actions)
+  - Failed regression tests block merge to main
+- Coverage requirements:
+  - Target: 80% line coverage for new code
+  - Not a hard requirement: prefer meaningful tests over coverage percentage
+  - Exclude generated code (WASM bindings, Protobuf) from coverage
+- Test organization:
+  - Unit tests: same directory as source
+  - Integration tests: tests/integration/
+  - E2E tests: tests/e2e/
+  - Benchmark tests: tests/benchmarks/
+- Mocking strategy: Mock at boundaries (file system, network). Do not mock internal business logic.
+- Files changed:
+  - standards/testing.md (new - 596 lines)
+
+## 2026-01-24 19:57 - US-STD-06: Git & Documentation Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/git.md with Git conventions
+- Commit message format: Conventional Commits (feat:, fix:, chore:, docs:, test:, refactor:)
+- Commit message examples:
+  - feat: add remote step-through debugging API (PRD-LC-012 US-API-04)
+  - fix: prevent race condition in SAB offset allocation (PRD-LC-010 US-002)
+  - chore: upgrade TypeScript to 5.3.2
+  - docs: update FADE.md with architecture diagram
+- Commit atomicity: One logical change per commit
+- Branch naming:
+  - feature/PRD-LC-XXX-short-description
+  - fix/issue-description
+  - spike/exploration-topic
+  - chore/maintenance-task
+- Branch lifecycle: Create from main → develop/test → push → PR → merge → delete
+- PR requirements:
+  - Title references PRD ID (if applicable)
+  - Description summarizes changes and rationale
+  - All tests pass
+  - Code review from human (if available) or AI validation
+- FADE-specific conventions:
+  - Co-authored commits: 'Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>'
+  - PRD completion commits: 'feat: complete PRD-LC-XXX - Title (reference)'
+  - Never commit to main directly (except initial setup)
+- Files changed:
+  - standards/git.md (new - 622 lines)
+
+## 2026-01-24 19:58 - US-STD-06: Documentation Standards (PRD-LC-014) - COMPLETE
+
+- Created standards/documentation.md with documentation philosophy
+- Documentation philosophy: Documentation is code. It lives in the repo, versioned with the code it describes.
+- README requirements:
+  - Every package has README.md with: purpose, quick start, development setup, testing, deployment
+  - Project root README: high-level overview, monorepo structure, getting started
+- API documentation:
+  - OpenAPI/Swagger specs for all REST APIs
+  - Generated from spec, not manually written
+  - Kept in sync via CI validation
+- Code comments:
+  - When to comment: 'Why' (rationale, constraints, non-obvious decisions)
+  - When not to comment: 'What' (self-documenting code, obvious logic)
+  - Example of good comment: '// 16-byte alignment required for SIMD compatibility'
+  - Example of bad comment: '// Increment counter by one' (obvious)
+- Architecture docs:
+  - High-level in FADE.md
+  - Detailed design in docs/ directory
+  - Diagrams in Mermaid or ASCII art (not binary images)
+- PRD documentation:
+  - Canonical source in fade/prds/
+  - Completed PRDs archived to fade/prd-archive/
+  - Definition of Done includes 'Documentation updated'
+- Changelog: Maintain CHANGELOG.md at project root following Keep a Changelog format
+- Additional sections: API versioning, deprecation strategy, screenshot guidelines
+- Files changed:
+  - standards/documentation.md (new - 740 lines)
+
 ## 2026-01-24 23:00 - US-BRIDGE-01: Cloud Worker Container (Parity Runtime) (PRD-LC-012) - COMPLETE
 
 - Implemented Dockerized cloud worker with Emscripten and Pyodide runtimes
