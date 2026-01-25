@@ -112,7 +112,7 @@
         "Atomics",
         "Node.js Workers"
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

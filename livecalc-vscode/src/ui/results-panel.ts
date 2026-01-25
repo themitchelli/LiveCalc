@@ -17,6 +17,28 @@ export interface DisplaySettings {
 }
 
 /**
+ * Debug state for remote debugging
+ */
+export interface DebugState {
+  isPaused: boolean;
+  pausedAt: Date | null;
+  currentNode: string | null;
+  runId: string | null;
+}
+
+/**
+ * Bus resource metadata for remote inspection
+ */
+export interface BusResourceInfo {
+  uri: string;
+  name: string;
+  offset: number;
+  sizeBytes: number;
+  dataType: string;
+  elementCount: number;
+}
+
+/**
  * Extended error state for webview
  */
 export interface WebviewErrorState {
@@ -62,7 +84,9 @@ export type WebviewMessage =
   | { type: 'setHistoryResults'; results: ResultsState | null; runId: string }
   | { type: 'setPipelineData'; pipelineData: PipelineDataState | null }
   | { type: 'setPipelineTiming'; timing: PipelineTimingSummary | null }
-  | { type: 'setTimingComparison'; comparison: TimingComparison | null };
+  | { type: 'setTimingComparison'; comparison: TimingComparison | null }
+  | { type: 'setDebugState'; debugState: DebugState }
+  | { type: 'setBusResources'; resources: BusResourceInfo[] };
 
 /**
  * Message types from webview to extension
@@ -88,7 +112,12 @@ export type ExtensionMessage =
   | { type: 'compareBusResources'; resourceA: string; resourceB: string }
   | { type: 'inspectOffset'; resourceName: string; offset: number }
   | { type: 'exportTiming'; runId?: string }
-  | { type: 'selectTimingComparison'; baselineRunId: string };
+  | { type: 'selectTimingComparison'; baselineRunId: string }
+  | { type: 'debugPause'; nodeId?: string }
+  | { type: 'debugResume' }
+  | { type: 'debugStep' }
+  | { type: 'debugInspect'; busUri: string; offset: number; length: number }
+  | { type: 'debugBrowseBus'; busUri: string };
 
 /**
  * Results Panel provider for displaying valuation results in a webview
@@ -277,6 +306,20 @@ export class ResultsPanel implements vscode.Disposable {
    */
   public setHistoryResults(results: ResultsState | null, runId: string): void {
     this.postMessage({ type: 'setHistoryResults', results, runId });
+  }
+
+  /**
+   * Set debug state for remote debugging
+   */
+  public setDebugState(debugState: DebugState): void {
+    this.postMessage({ type: 'setDebugState', debugState });
+  }
+
+  /**
+   * Set available bus resources for remote inspection
+   */
+  public setBusResources(resources: BusResourceInfo[]): void {
+    this.postMessage({ type: 'setBusResources', resources });
   }
 
   /**

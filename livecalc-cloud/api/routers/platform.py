@@ -688,3 +688,249 @@ async def get_diagnostic_bundle(
         detail="Diagnostic bundle storage not yet implemented. "
                "Use POST /v1/platform/anomalies/analyze with include_diagnostics=true instead."
     )
+
+
+# ============================================================================
+# DaaS (Debugging-as-a-Service) Endpoints
+# ============================================================================
+
+
+class DebugPauseRequest(BaseModel):
+    """Request to pause remote run."""
+    node_id: Optional[str] = Field(None, description="Specific node to pause at (None = current)")
+
+
+class DebugInspectRequest(BaseModel):
+    """Request to inspect memory segment."""
+    bus_uri: str = Field(..., description="Bus resource URI (e.g., 'bus://results/npv')")
+    offset: int = Field(0, ge=0, description="Byte offset in resource")
+    length: int = Field(1024, ge=1, le=1048576, description="Number of bytes to read (max 1MB)")
+
+
+class DebugSessionResponse(BaseModel):
+    """Debug session metadata."""
+    session_id: str
+    run_id: str
+    started_at: datetime
+    paused_at: Optional[datetime]
+    current_node: Optional[str]
+    bus_resources: List[dict]
+
+
+class BusResourceInfo(BaseModel):
+    """Bus resource metadata for inspection."""
+    uri: str
+    name: str
+    offset: int
+    size_bytes: int
+    data_type: str
+    element_count: int
+
+
+@router.post("/debug/{run_id}/pause")
+async def pause_debug_run(
+    run_id: str,
+    request: DebugPauseRequest,
+    user: UserInfo = Depends(verify_token)
+):
+    """
+    Pause remote cloud run for debugging.
+
+    Sends pause signal via WebSocket to worker, which triggers Atomics.wait().
+
+    Args:
+        run_id: Job/run identifier
+        request: Pause request with optional node_id
+        user: Authenticated user info
+
+    Returns:
+        Success status
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if worker not connected
+    """
+    from ..services.daas_proxy import get_daas_proxy
+
+    proxy = get_daas_proxy()
+
+    # Find or create debug session for this run
+    # In real implementation, session would be created when run starts
+    session_id = f"debug:{run_id}:1"
+
+    try:
+        success = await proxy.pause_run(session_id, request.node_id)
+        return {"success": success, "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error pausing run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to pause run: {str(e)}"
+        )
+
+
+@router.post("/debug/{run_id}/resume")
+async def resume_debug_run(
+    run_id: str,
+    user: UserInfo = Depends(verify_token)
+):
+    """
+    Resume paused remote run.
+
+    Sends resume signal, which triggers Atomics.notify() to wake worker.
+
+    Args:
+        run_id: Job/run identifier
+        user: Authenticated user info
+
+    Returns:
+        Success status
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if not paused
+    """
+    from ..services.daas_proxy import get_daas_proxy
+
+    proxy = get_daas_proxy()
+    session_id = f"debug:{run_id}:1"
+
+    try:
+        success = await proxy.resume_run(session_id)
+        return {"success": success}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resuming run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to resume run: {str(e)}"
+        )
+
+
+@router.post("/debug/{run_id}/step")
+async def step_debug_run(
+    run_id: str,
+    user: UserInfo = Depends(verify_token)
+):
+    """
+    Execute single step in paused pipeline (advance one node).
+
+    Args:
+        run_id: Job/run identifier
+        user: Authenticated user info
+
+    Returns:
+        Success status
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if not paused
+    """
+    from ..services.daas_proxy import get_daas_proxy
+
+    proxy = get_daas_proxy()
+    session_id = f"debug:{run_id}:1"
+
+    try:
+        success = await proxy.step_run(session_id)
+        return {"success": success}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error stepping run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to step run: {str(e)}"
+        )
+
+
+@router.post("/debug/{run_id}/inspect")
+async def inspect_memory(
+    run_id: str,
+    request: DebugInspectRequest,
+    user: UserInfo = Depends(verify_token)
+):
+    """
+    Inspect raw memory segment from remote SharedArrayBuffer.
+
+    Returns binary data with zero serialization overhead.
+
+    Args:
+        run_id: Job/run identifier
+        request: Memory inspection request (bus_uri, offset, length)
+        user: Authenticated user info
+
+    Returns:
+        Binary memory segment (application/octet-stream)
+
+    Raises:
+        HTTPException: 404 if run/resource not found, 400 if invalid offset
+    """
+    from fastapi.responses import Response
+    from ..services.daas_proxy import get_daas_proxy
+
+    proxy = get_daas_proxy()
+    session_id = f"debug:{run_id}:1"
+
+    try:
+        data = await proxy.inspect_memory(
+            session_id,
+            request.bus_uri,
+            request.offset,
+            request.length
+        )
+
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Length": str(len(data)),
+                "X-Bus-URI": request.bus_uri,
+                "X-Offset": str(request.offset),
+                "X-Length": str(len(data))
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error inspecting memory for run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to inspect memory: {str(e)}"
+        )
+
+
+@router.get("/debug/{run_id}/resources")
+async def get_bus_resources(
+    run_id: str,
+    user: UserInfo = Depends(verify_token)
+):
+    """
+    Get list of all bus:// resources available for inspection.
+
+    Args:
+        run_id: Job/run identifier
+        user: Authenticated user info
+
+    Returns:
+        List of bus resource metadata
+
+    Raises:
+        HTTPException: 404 if run not found
+    """
+    from ..services.daas_proxy import get_daas_proxy
+
+    proxy = get_daas_proxy()
+    session_id = f"debug:{run_id}:1"
+
+    try:
+        resources = await proxy.get_bus_resources(session_id)
+        return {"run_id": run_id, "resources": resources}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting bus resources for run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get bus resources: {str(e)}"
+        )

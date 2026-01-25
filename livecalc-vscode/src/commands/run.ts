@@ -521,6 +521,125 @@ export function registerRunCommand(
           }
         }
         break;
+      case 'debugPause':
+        // Pause remote cloud run for debugging
+        if ('nodeId' in message) {
+          const { getDaaSClient } = await import('../cloud/daas-client');
+          const daasClient = getDaaSClient();
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            try {
+              const result = await daasClient.pauseRun(runId, message.nodeId);
+              resultsPanel.setDebugState({
+                isPaused: true,
+                pausedAt: new Date(),
+                currentNode: message.nodeId || null,
+                runId
+              });
+              logger.info(`Remote run ${runId} paused (session: ${result.sessionId})`);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `Failed to pause remote run: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+        }
+        break;
+      case 'debugResume':
+        // Resume paused remote run
+        {
+          const { getDaaSClient } = await import('../cloud/daas-client');
+          const daasClient = getDaaSClient();
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            try {
+              await daasClient.resumeRun(runId);
+              resultsPanel.setDebugState({
+                isPaused: false,
+                pausedAt: null,
+                currentNode: null,
+                runId
+              });
+              logger.info(`Remote run ${runId} resumed`);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `Failed to resume remote run: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+        }
+        break;
+      case 'debugStep':
+        // Execute single step in paused pipeline
+        {
+          const { getDaaSClient } = await import('../cloud/daas-client');
+          const daasClient = getDaaSClient();
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            try {
+              await daasClient.stepRun(runId);
+              logger.info(`Remote run ${runId} stepped`);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `Failed to step remote run: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+        }
+        break;
+      case 'debugInspect':
+        // Inspect raw memory segment from remote SAB
+        if ('busUri' in message && 'offset' in message && 'length' in message) {
+          const { getDaaSClient } = await import('../cloud/daas-client');
+          const daasClient = getDaaSClient();
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            try {
+              const data = await daasClient.inspectMemory(
+                runId,
+                message.busUri,
+                message.offset,
+                message.length
+              );
+              // Convert ArrayBuffer to readable format and display
+              const view = new Float64Array(data);
+              const preview = Array.from(view.slice(0, 10)).map(v => v.toFixed(2)).join(', ');
+              vscode.window.showInformationMessage(
+                `Memory at ${message.busUri}[${message.offset}]: [${preview}${view.length > 10 ? '...' : ''}]`
+              );
+              logger.info(`Inspected ${message.busUri}: ${view.length} elements`);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `Failed to inspect memory: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+        }
+        break;
+      case 'debugBrowseBus':
+        // Browse available bus resources
+        if ('busUri' in message) {
+          const { getDaaSClient } = await import('../cloud/daas-client');
+          const daasClient = getDaaSClient();
+          const panelState = resultsPanel.getState();
+          if (panelState.type === 'results') {
+            const runId = panelState.results.metadata.runId;
+            try {
+              const resources = await daasClient.getBusResources(runId);
+              resultsPanel.setBusResources(resources);
+              logger.info(`Retrieved ${resources.length} bus resources for run ${runId}`);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `Failed to browse bus resources: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+        }
+        break;
       case 'openAMTable':
         // Open table in Assumptions Manager browser
         if ('tableName' in message) {

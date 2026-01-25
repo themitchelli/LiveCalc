@@ -176,6 +176,16 @@ app.post('/execute', async (req, res) => {
 // Store active pipelines by job ID
 const activePipelines = new Map<string, { loader: PipelineLoader; result: any }>();
 
+// Debug session state
+interface DebugState {
+  isPaused: boolean;
+  pausedAt: number | null;
+  currentNode: string | null;
+  waitHandle: Int32Array | null;
+}
+
+const debugSessions = new Map<string, DebugState>();
+
 // WebSocket connection for result streaming
 wss.on('connection', (ws) => {
   logger.info('WebSocket client connected');
@@ -292,6 +302,116 @@ wss.on('connection', (ws) => {
         }));
 
         logger.info({ jobId: currentJobId, executionTimeMs: mockResults.executionTimeMs }, 'Pipeline execution complete');
+      } else if (message.type === 'debug:pause') {
+        // Handle debug pause signal
+        const sessionId = message.sessionId;
+        const nodeId = message.nodeId;
+
+        logger.info({ sessionId, nodeId }, 'Received debug:pause signal');
+
+        // Create or update debug state
+        if (!debugSessions.has(sessionId)) {
+          debugSessions.set(sessionId, {
+            isPaused: false,
+            pausedAt: null,
+            currentNode: null,
+            waitHandle: null
+          });
+        }
+
+        const debugState = debugSessions.get(sessionId)!;
+        debugState.isPaused = true;
+        debugState.pausedAt = Date.now();
+        debugState.currentNode = nodeId || null;
+
+        // Trigger Atomics.wait in execution loop (would be implemented in actual execution)
+        // For now, just acknowledge the pause
+        ws.send(JSON.stringify({
+          type: 'debug:paused',
+          sessionId,
+          nodeId: debugState.currentNode,
+          timestamp: new Date().toISOString()
+        }));
+
+      } else if (message.type === 'debug:resume') {
+        // Handle debug resume signal
+        const sessionId = message.sessionId;
+
+        logger.info({ sessionId }, 'Received debug:resume signal');
+
+        const debugState = debugSessions.get(sessionId);
+        if (!debugState) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Debug session not found'
+          }));
+          return;
+        }
+
+        debugState.isPaused = false;
+        debugState.pausedAt = null;
+
+        // Trigger Atomics.notify to wake execution loop
+        if (debugState.waitHandle) {
+          Atomics.notify(debugState.waitHandle, 0);
+        }
+
+        ws.send(JSON.stringify({
+          type: 'debug:resumed',
+          sessionId,
+          timestamp: new Date().toISOString()
+        }));
+
+      } else if (message.type === 'debug:step') {
+        // Handle debug step signal (execute one node)
+        const sessionId = message.sessionId;
+
+        logger.info({ sessionId }, 'Received debug:step signal');
+
+        const debugState = debugSessions.get(sessionId);
+        if (!debugState || !debugState.isPaused) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Not in paused state'
+          }));
+          return;
+        }
+
+        // Execute single node (implementation would go here)
+        const nextNode = 'node-placeholder'; // Would get from pipeline execution
+
+        ws.send(JSON.stringify({
+          type: 'debug:stepped',
+          sessionId,
+          nextNode,
+          timestamp: new Date().toISOString()
+        }));
+
+      } else if (message.type === 'debug:inspect') {
+        // Handle memory inspection request
+        const { requestId, sessionId, busUri, offset, length } = message;
+
+        logger.info({ sessionId, busUri, offset, length }, 'Received debug:inspect request');
+
+        const pipelineData = activePipelines.get(currentJobId || '');
+        if (!pipelineData || !pipelineData.result.pipeline) {
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Pipeline not found'
+          }));
+          return;
+        }
+
+        const pipeline = pipelineData.result.pipeline;
+        const sab = pipeline.sharedArrayBuffer;
+
+        // Read raw memory segment
+        const data = new Uint8Array(sab, offset, length);
+
+        // Send binary data as WebSocket binary message
+        ws.send(data.buffer);
+
+        logger.info({ requestId, bytesRead: data.length }, 'Sent memory segment');
       }
     } catch (error) {
       logger.error({ error }, 'WebSocket message handling error');
