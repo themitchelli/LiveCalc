@@ -1,0 +1,159 @@
+{
+  "id": "PRD-LC-015",
+  "title": "Polyglot Logic & Python/Pyodide Local Integration",
+  "type": "feature",
+  "priority": "medium",
+  "status": "proposed",
+  "created": "2026-01-24",
+  "project": "LiveCalc",
+  "phase": 4,
+  "description": "Enable Tier 2 research flexibility by integrating the Pyodide (WASM) runtime into the modular pipeline. Allows actuaries to write Python-based calculation engines that interact with C++ engines via the Shared Data Bus with minimal copying overhead.",
+  "problem": [
+    "C++ is mandatory for 1B+ runs but slow for rapid research iteration and statistical prototyping.",
+    "Data scientists and actuaries prefer Python for complex scenario shocks and experience analysis.",
+    "Context switching between local Python scripts and the calculation engine introduces manual CSV/JSON serialization overhead."
+  ],
+  "solution": [
+    "Implement a Pyodide-based worker host that satisfies the ICalcEngine interface.",
+    "Enable Python scripts to map SharedArrayBuffer data into NumPy arrays with minimal overhead.",
+    "Support high-speed handoff (<1ms) between C++ and Python nodes in the pipeline DAG.",
+    "Provide a robust package management and error reporting system for Python logic."
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "complete",
+      "notes": "The bus:// protocol and DAG orchestrator are archived and stable."
+    }
+  ],
+  "technicalNotes": {
+    "runtime": "Pyodide v0.25+ (WASM-based Python)",
+    "interop": "SharedArrayBuffer data is mapped into Pyodide's WASM memory space via NumPy.frombuffer/memoryview. While technically a memory-to-memory transfer, it bypasses string serialization.",
+    "memoryAlignment": "All bus:// allocations maintain 16-byte alignment. The Python wrapper ensures NumPy views respect these alignment constraints to prevent SIMD traps.",
+    "isolation": "Web Worker based execution to prevent blocking the VS Code UI.",
+    "performanceTarget": "Handoff overhead < 1ms; Python transformation of 10K scenarios in < 100ms."
+  },
+  "userStories": [
+    {
+      "id": "US-POLY-01",
+      "title": "Pyodide CalcEngine Adapter",
+      "story": "As a developer, I want a Python-based engine host that looks exactly like a C++ engine to the Orchestrator.",
+      "acceptanceCriteria": [
+        "Implement PyodideEngine class implementing initialize(), runChunk(), and dispose().",
+        "Orchestrator can instantiate a .py node alongside a .wasm node in the same DAG.",
+        "Worker host correctly loads the Pyodide environment in a background thread."
+      ],
+      "tech_stack": [
+        "Pyodide",
+        "TypeScript",
+        "Web Workers"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-POLY-02",
+      "title": "NumPy Memory Mapping",
+      "story": "As an actuary, I want to manipulate the raw Data Bus using standard Python arrays.",
+      "acceptanceCriteria": [
+        "Python script receives the SharedArrayBuffer and an OffsetMap.",
+        "NumPy maps the buffer using memoryview/frombuffer with minimal copy overhead.",
+        "Success metric: A 10K scenario interest rate shock applied in Python is visible to the next C++ node in < 1ms."
+      ],
+      "tech_stack": [
+        "NumPy",
+        "SharedArrayBuffer",
+        "Python"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-POLY-03",
+      "title": "Polyglot Pipeline Validation",
+      "story": "As a modeler, I want the system to ensure my C++ and Python nodes speak the same 'language'.",
+      "acceptanceCriteria": [
+        "Pipeline validator checks that Python output buffer size matches C++ input buffer size.",
+        "Validation logic detects and warns if a Python node attempts to resize the pre-allocated SAB.",
+        "Integration test: Chain C++ ESG -> Python Shocker -> C++ Liability engine."
+      ],
+      "tech_stack": [
+        "TypeScript",
+        "JSON Schema"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-POLY-04",
+      "title": "Error Handling & Diagnostic Logging",
+      "story": "As a researcher, I want to see Python print() statements and detailed error tracebacks in my IDE.",
+      "acceptanceCriteria": [
+        "Python syntax errors fail fast with clear pointers in the VS Code Output channel.",
+        "Runtime errors provide a full traceback including line numbers and EngineID.",
+        "Timeout protection: Configurable worker timeout (default 30s) prevents infinite loops.",
+        "Manual Breakpoints: Calling livecalc.breakpoint() in Python triggers the 'Pause' state in the Results Panel."
+      ],
+      "tech_stack": [
+        "VS Code API",
+        "Pyodide Streams"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-POLY-05",
+      "title": "Python Package Management",
+      "story": "As an actuary, I want to use standard Python libraries like Pandas and SciPy in my scripts.",
+      "acceptanceCriteria": [
+        "Environment pre-loads core libraries: NumPy, Pandas, SciPy.",
+        "Config support: 'pythonPackages' field in livecalc.config.json allows defining additional requirements.",
+        "Dynamic install: Use micropip to install missing packages at engine initialization.",
+        "Caching: Package installations are persisted in the VS Code globalStorageUri."
+      ],
+      "tech_stack": [
+        "micropip",
+        "VS Code Storage API"
+      ],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/js/src/engines/pyodide-engine.ts",
+    "livecalc-engine/js/src/workers/python-worker-host.js",
+    "livecalc-engine/js/tests/pyodide-engine.test.ts",
+    "livecalc-engine/js/tests/python-worker-host.test.js",
+    "examples/polyglot-pipeline/shock_rates.py",
+    "examples/polyglot-pipeline/test_shock_rates.py",
+    "examples/polyglot-pipeline/livecalc.config.json"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-engine/js/src/orchestrator.ts",
+      "changes": "Add factory support for Pyodide engines and runtime detection logic."
+    },
+    {
+      "file": "livecalc-vscode/src/ui/results-panel.ts",
+      "changes": "Add support for pausing on Python-triggered manual breakpoints."
+    }
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Pyodide cold-start latency",
+      "likelihood": "high",
+      "impact": "low",
+      "mitigation": "Lazy-load Pyodide only when a Python node is detected; cache package installs."
+    },
+    {
+      "risk": "Memory alignment traps",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Strict enforcement of 16-byte alignment in the bridge layer between SAB and NumPy."
+    }
+  ],
+  "definitionOfDone": [
+    "Python logic successfully manipulates SharedArrayBuffer data without string serialization.",
+    "Handoff time between C++ and Python nodes is measured at < 1ms.",
+    "Pure C++ pipelines maintain 1B/36s performance targets (0 regression).",
+    "Python performance target: 10K scenarios processed in < 100ms for standard shocks.",
+    "Package management (micropip) successfully installs and caches external dependencies."
+  ]
+}
