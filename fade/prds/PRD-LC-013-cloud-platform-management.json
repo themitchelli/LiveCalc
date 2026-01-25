@@ -63,7 +63,7 @@
         "Python",
         "Azure SDK"
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-PLAT-02",

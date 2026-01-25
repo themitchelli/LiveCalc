@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: livecalc-cleanup-worker
+  namespace: livecalc-platform
+  labels:
+    app: livecalc
+    component: cleanup-worker
+spec:
+  # Run every 5 minutes
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Don't run concurrent cleanup jobs
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: livecalc
+            component: cleanup-worker
+        spec:
+          serviceAccountName: livecalc-cleanup-worker
+          restartPolicy: OnFailure
+          containers:
+          - name: cleanup-worker
+            image: livecalc-api:latest  # Same image as API, runs cleanup script
+            imagePullPolicy: IfNotPresent
+            command:
+            - python
+            - -m
+            - scripts.cleanup_worker
+            env:
+            - name: AZURE_BLOB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: livecalc-secrets
+                  key: blob-connection-string
+            - name: DIAGNOSTIC_CONTAINER_NAME
+              value: "diagnostics"
+            - name: INACTIVITY_THRESHOLD_HOURS
+              value: "24"
+            - name: LOG_LEVEL
+              value: "INFO"
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+
+---
+# ServiceAccount for cleanup worker with permissions to manage namespaces
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: livecalc-cleanup-worker
+  namespace: livecalc-platform
+
+---
+# ClusterRole for namespace management
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: livecalc-namespace-manager
+rules:
+# Namespace permissions
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Pod permissions (for log extraction)
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+# PVC permissions (for cleanup verification)
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "delete"]
+# Event permissions (for auditing)
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for cleanup worker
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: livecalc-cleanup-worker-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: livecalc-namespace-manager
+subjects:
+- kind: ServiceAccount
+  name: livecalc-cleanup-worker
+  namespace: livecalc-platform
+
+---
+# Secret for Azure Blob credentials (placeholder - replace with actual values)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: livecalc-secrets
+  namespace: livecalc-platform
+type: Opaque
+stringData:
+  blob-connection-string: "DefaultEndpointsProtocol=https;AccountName=PLACEHOLDER;AccountKey=PLACEHOLDER;EndpointSuffix=core.windows.net"

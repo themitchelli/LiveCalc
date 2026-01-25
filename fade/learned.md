@@ -136,3 +136,22 @@ Only add learnings that are:
 - **What:** Pipeline integrity checking is disabled by default (livecalc.enableIntegrityChecks: false) because CRC32 computation adds ~1ms per MB of bus data. For large pipelines with multiple multi-MB bus resources, this overhead can add up. Users enable it when debugging memory corruption issues.
 - **Why it matters:** Performance vs debugging tradeoff - production runs prioritize speed, debug runs prioritize correctness. Making it configurable allows users to choose based on their current needs. Document the overhead clearly in the setting description.
 
+
+## 2026-01-25 - DR = BAU: Transient infrastructure lifecycle
+**Source:** PRD-LC-013 US-PLAT-01
+
+- **What:** The "Disaster Recovery = Business As Usual" pattern treats all infrastructure as transient by default. Namespaces automatically evaporate after inactivity, with diagnostics extracted before deletion. This ensures zero idle cost and forces infrastructure to be recreatable from code/manifests.
+- **Why it matters:** Traditional DR is an "event" that often fails because it's rarely tested. DR=BAU means infrastructure is constantly being created/destroyed, so the recovery path is the normal path. This also prevents resource leak and reduces cloud costs to only active workloads.
+
+## 2026-01-25 - Kubernetes namespace finalizers and deletion timing
+**Source:** PRD-LC-013 US-PLAT-01
+
+- **What:** When deleting a Kubernetes namespace, the API returns immediately but the namespace may take 30-60 seconds to fully delete due to finalizers. Resources inside the namespace (pods, PVCs) must be deleted first. Polling `read_namespace()` with a 404 check is the correct way to wait for full deletion.
+- **Why it matters:** Don't assume namespace deletion is instant. If you need to verify cleanup (e.g., checking for orphaned PVCs), wait for the namespace to be fully deleted first. Otherwise you may see stale resources that are actually in the process of being cleaned up.
+
+## 2026-01-25 - Pod annotations for diagnostic metadata
+**Source:** PRD-LC-013 US-PLAT-01
+
+- **What:** Worker pods can self-annotate with diagnostic metadata (e.g., memory sentinel violations) using the Kubernetes API. These annotations persist with the pod and can be extracted before the namespace is reaped: `kubectl.core_v1.patch_namespaced_pod(name=pod_name, namespace=namespace, body={"metadata": {"annotations": {"key": "value"}}})`
+- **Why it matters:** This enables workers to report issues (memory corruption, integrity failures) that the platform can detect and archive before cleanup. The annotation survives pod crashes and can be extracted even if the pod is terminated.
+

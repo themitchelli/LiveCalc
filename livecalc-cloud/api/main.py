@@ -10,7 +10,8 @@ from pydantic_settings import BaseSettings
 from services.auth import AuthService
 from services.storage import StorageService
 from services.job_queue import JobQueue
-from routers import jobs
+from services.namespace_lifecycle import get_namespace_lifecycle_manager
+from routers import jobs, platform
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +39,14 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "vscode://"]
 
+    # Azure Blob
+    azure_blob_connection_string: str = ""
+
+    # Namespace lifecycle
+    diagnostic_container_name: str = "diagnostics"
+    inactivity_threshold_hours: int = 24
+    cleanup_enabled: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -49,19 +58,50 @@ auth_service = AuthService(am_url=config.assumptions_manager_url)
 storage_service = StorageService(storage_root=config.storage_root)
 job_queue = JobQueue(redis_url=config.redis_url)
 
+# Namespace lifecycle manager (initialized in lifespan if enabled)
+namespace_manager = None
+cleanup_task = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
+    global namespace_manager, cleanup_task
+
     # Startup
     logger.info("Starting LiveCalc Cloud API")
     await job_queue.connect()
     logger.info("Connected to job queue")
 
+    # Initialize namespace lifecycle manager if configured
+    if config.cleanup_enabled and config.azure_blob_connection_string:
+        logger.info("Initializing namespace lifecycle manager")
+        namespace_manager = get_namespace_lifecycle_manager(
+            blob_connection_string=config.azure_blob_connection_string,
+            container_name=config.diagnostic_container_name,
+            inactivity_threshold_hours=config.inactivity_threshold_hours,
+        )
+
+        # Start background cleanup worker
+        import asyncio
+        cleanup_task = asyncio.create_task(namespace_manager.run_cleanup_worker())
+        logger.info("Started background cleanup worker")
+    else:
+        logger.info("Namespace cleanup disabled or Azure Blob not configured")
+
     yield
 
     # Shutdown
     logger.info("Shutting down LiveCalc Cloud API")
+
+    # Cancel cleanup task if running
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            logger.info("Cleanup worker task cancelled")
+
     await job_queue.disconnect()
     logger.info("Disconnected from job queue")
 
@@ -102,6 +142,7 @@ app.dependency_overrides[JobQueue] = get_queue
 
 # Include routers
 app.include_router(jobs.router)
+app.include_router(platform.router)
 
 
 @app.get("/health")
