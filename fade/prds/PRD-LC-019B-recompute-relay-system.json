@@ -1,0 +1,109 @@
+{
+  "id": "PRD-LC-019B",
+  "title": "Re-compute Relay System (Just-in-Time Data Spawning)",
+  "type": "feature",
+  "priority": "medium",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 5,
+  "description": "Codifies the 'Compute-as-Bandwidth' paradigm. Enables the Universal API to reconstruct historical runs from the Secure Manifest and stream them directly to a destination sink, bypassing the need for expensive cold-storage rehydration.",
+  "dependencies": [
+    {
+      "id": "PRD-LC-019A",
+      "title": "Analytic Platform Connectors",
+      "status": "proposed",
+      "notes": "Uses the platform-specific streaming adapters."
+    },
+    {
+      "id": "PRD-LC-013",
+      "title": "Cloud Platform Management",
+      "status": "proposed",
+      "notes": "Requires the Manifest Service to retrieve historical model/assumption hashes."
+    }
+  ],
+  "technicalNotes": {
+    "relayFlow": "User requests JobID -> API pulls Manifest -> AKS Worker Re-Hydrates WASM -> Compute -> Direct Stream to Sink.",
+    "statisticalParity": {
+      "tolerance": "0.01% for Mean NPV, StdDev, and tail percentiles (P95/P99).",
+      "rationale": "Floating-point determinism cannot be guaranteed across compiler/runtime versions over multi-year spans."
+    },
+    "versionCompatibility": "Supports a compatibility matrix where current engines can replay older manifests using logic shims or legacy Docker images.",
+    "cachingStrategy": "Uses node-local emptyDir volumes for LRU caching of hashed model bundles to reduce re-hydration latency."
+  },
+  "userStories": [
+    {
+      "id": "US-RELAY-01",
+      "title": "Headless Manifest-to-Stream Command",
+      "story": "As an auditor, I want to re-generate a historical run securely and send it to a new platform without manual intervention.",
+      "acceptanceCriteria": [
+        "API endpoint: POST /v1/relay/{jobId}?targetSink={sinkId}.",
+        "Authorization: Requesting user must have 'read' permissions on the original Job's tenant scope.",
+        "Tenant Isolation: Relay requests are strictly scoped to the user's tenant context.",
+        "Lifecycle: Transient namespace is auto-deleted after completion or a 1-hour hard timeout.",
+        "Audit Log: Record relay event linking original JobID, requesting User, and destination Sink."
+      ],
+      "tech_stack": ["FastAPI", "JWT Scopes", "K8s Client"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-02",
+      "title": "Statistical Parity Verification",
+      "story": "As a regulator, I want proof that re-computed results are actuarially equivalent to the original signed-off values.",
+      "acceptanceCriteria": [
+        "Relay worker calculates summary stats (Mean, StdDev, P99) in real-time.",
+        "Verification Sequence: (1) Attempt exact hash match, (2) Fallback to statistical comparison if runtime/compiler differs.",
+        "Success: Result is within 0.01% tolerance of the original 'Seal of Authenticity' metadata.",
+        "Failure: Fail-fast if statistical divergence indicates a model logic regression."
+      ],
+      "tech_stack": ["NumPy Statistics", "Manifest Service"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-03",
+      "title": "Dependency & Version Validation",
+      "story": "As a system, I want to ensure all historical components are available before starting a relay compute.",
+      "acceptanceCriteria": [
+        "Pre-flight: Verify all manifest dependencies (assumption versions, ESG seeds) are retrievable.",
+        "Engine Check: Validate that the manifest version is supported by the current runtime compatibility matrix.",
+        "Failure Handling: Return clear error if assumptions were deleted: 'Cannot relay: mortality_v2.1.0 unavailable'."
+      ],
+      "tech_stack": ["FastAPI", "Assumptions Manager API"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-04",
+      "title": "Historical Model Bundle Caching",
+      "story": "As a platform lead, I want relay jobs to start instantly by caching historical bundles on the node.",
+      "acceptanceCriteria": [
+        "AKS worker checks node-local emptyDir cache using manifest hash as the key.",
+        "LRU Eviction: Automatically purge oldest bundles when cache size exceeds 10GB.",
+        "Performance: Cache hit achieves < 10s relay cold start vs < 60s for cache miss."
+      ],
+      "tech_stack": ["K8s emptyDir", "LRU Cache"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/api/services/relay_orchestrator.py",
+    "livecalc-cloud/api/services/parity_validator.py",
+    "tests/integration/test_historical_reproducibility.py"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-cloud/api/main.py",
+      "changes": "Mount /v1/relay/ endpoints and background task manager."
+    },
+    {
+      "file": "livecalc-cloud/api/services/manifest_service.py",
+      "changes": "Add historical retrieval and version compatibility logic."
+    }
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "definitionOfDone": [
+    "A 100K policy x 10 scenario historical run is relayed and streamed in < 120s.",
+    "Verification: Relay result passes the 0.01% statistical parity check against original metadata.",
+    "Security: Non-authorized relay requests are rejected with 403 Forbidden.",
+    "Cost analysis: Compute cycles for relay are documented as < 50% of cold storage rehydration cost."
+  ]
+}
