@@ -1,0 +1,83 @@
+{
+  "id": "PRD-LC-019A",
+  "title": "Analytic Platform Connectors (Snowflake/Databricks)",
+  "type": "feature",
+  "priority": "medium",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 4,
+  "description": "Enables minimal-hop streaming from the WASM Shared Data Bus to Snowflake Stages and Databricks Unity Catalog. Reuses the schema definitions from PRD-LC-018 to automate table creation and data loading.",
+  "dependencies": [
+    {
+      "id": "PRD-LC-018",
+      "title": "Local Artifact Sinks",
+      "status": "queued",
+      "notes": "Reuses the schema-mapping and parquet-wasm adapter logic."
+    },
+    {
+      "id": "PRD-LC-012",
+      "title": "Cloud Runtime & Execution Bridge",
+      "status": "in-progress",
+      "notes": "Requires the cloud worker environment to be functional."
+    }
+  ],
+  "technicalNotes": {
+    "authModel": "Azure Key Vault + Managed Identity for secret retrieval; OAuth 2.0 Client Credentials for platform handshakes.",
+    "streamingStrategy": "SAB binary segments -> parquet-wasm -> HTTP Multipart stream to Snowflake Stage / Databricks Volume.",
+    "schemaReuse": "Maps 'bus://' schema fields directly to Snowflake/Databricks DDL (e.g., float64 -> DOUBLE).",
+    "errorHandling": "Exponential backoff for 5xx errors; partial success logging; JobID-linked delivery receipts."
+  },
+  "userStories": [
+    {
+      "id": "US-CONN-01",
+      "title": "Snowflake Direct-to-Stage Sink",
+      "story": "As a data engineer, I want to stream results directly into Snowflake without intermediate blob storage hop.",
+      "acceptanceCriteria": [
+        "Config support: platform: 'snowflake', stage: 'internal_stage_name'.",
+        "Orchestrator reuses schema from PRD-LC-018 to verify column compatibility.",
+        "Automatic generation of 'COPY INTO' command upon stream completion.",
+        "Managed Identity: Cloud worker retrieves Snowflake secrets from Azure Key Vault automatically."
+      ],
+      "tech_stack": ["Snowflake SQL API", "Azure Key Vault"],
+      "passes": false
+    },
+    {
+      "id": "US-CONN-02",
+      "title": "Databricks Unity Catalog Integration",
+      "story": "As a researcher, I want results to land in a Databricks Volume for instant notebook analysis.",
+      "acceptanceCriteria": [
+        "Config support: platform: 'databricks', volume: 'unity_volume_path'.",
+        "Direct PUT to Databricks REST API using Unity Catalog tokens.",
+        "Success metric: 100M records (5GB total) uploaded and queryable in < 90s (intra-region).",
+        "Auto-Discovery: New Parquet artifacts appear in Databricks Catalog immediately."
+      ],
+      "tech_stack": ["Databricks SDK", "parquet-wasm"],
+      "passes": false
+    },
+    {
+      "id": "US-CONN-03",
+      "title": "Cost & Budget Guardrails",
+      "story": "As a CFO, I want a cost estimate before I trigger a multi-terabyte stream to an external partner.",
+      "acceptanceCriteria": [
+        "UI displays: 'Estimated Transfer: ~X GB, Estimated Egress Cost: $Y'.",
+        "System enforces configurable 'Hard Budget' limits per SinkID.",
+        "Egress telemetry is logged to cloud monitoring with tenant/project tags."
+      ],
+      "tech_stack": ["Azure Monitor", "React"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/api/sinks/snowflake_adapter.py",
+    "livecalc-cloud/api/sinks/databricks_adapter.py",
+    "livecalc-cloud/api/services/secret_manager.py"
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "definitionOfDone": [
+    "Verified minimal-hop streaming (no disk write) to Snowflake and Databricks endpoints.",
+    "Credentials retrieved securely via Managed Identity (0 hardcoded secrets).",
+    "Schema validation prevents 'Bad Data' from entering the analytic platform.",
+    "Egress costs are estimated and logged for every run."
+  ]
+}
