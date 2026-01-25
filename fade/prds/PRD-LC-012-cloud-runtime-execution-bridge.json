@@ -52,7 +52,7 @@
         "Validation: Reject upload if mandatory assets defined in config are missing."
       ],
       "tech_stack": ["TypeScript", "JSZip"],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-BRIDGE-03",

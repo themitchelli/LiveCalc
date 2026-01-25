@@ -237,7 +237,12 @@
           "items": {
             "type": "string"
           },
-          "default": ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/build/**"
+          ],
           "description": "Glob patterns to exclude from file watching"
         },
         "livecalc.logLevel": {
@@ -263,7 +268,11 @@
         },
         "livecalc.currency": {
           "type": "string",
-          "enum": ["GBP", "USD", "EUR"],
+          "enum": [
+            "GBP",
+            "USD",
+            "EUR"
+          ],
           "default": "GBP",
           "description": "Currency for displaying monetary values"
         },
@@ -305,7 +314,12 @@
         },
         "livecalc.notifyOnAutoRun": {
           "type": "string",
-          "enum": ["none", "statusBar", "toast", "sound"],
+          "enum": [
+            "none",
+            "statusBar",
+            "toast",
+            "sound"
+          ],
           "default": "statusBar",
           "enumDescriptions": [
             "No notification - results panel updates silently",
@@ -346,7 +360,10 @@
         },
         "livecalc.assumptionsManager.offlineMode": {
           "type": "string",
-          "enum": ["warn", "fail"],
+          "enum": [
+            "warn",
+            "fail"
+          ],
           "default": "warn",
           "enumDescriptions": [
             "Use cached data with warning if API unavailable",
@@ -427,17 +444,19 @@
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^6.13.0",
-    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "2.15.0",
     "esbuild": "^0.19.8",
-    "eslint": "^8.55.0",
+    "eslint": "^8.57.1",
     "typescript": "^5.3.2"
   },
   "dependencies": {
     "@livecalc/engine": "file:../livecalc-engine/js",
-    "fast-csv": "^4.3.6"
+    "@types/jszip": "^3.4.0",
+    "fast-csv": "^4.3.6",
+    "jszip": "^3.10.1"
   },
   "overrides": {
     "undici": "5.28.4"
