@@ -1,0 +1,265 @@
+{
+  "id": "PRD-FADE-SH-001",
+  "title": "Regression Test Self-Healing System",
+  "type": "feature",
+  "priority": "critical",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "FADE",
+  "phase": 1,
+  "description": "Implements autonomous regression test failure detection, classification, and healing to prevent overnight blockages. When regression tests fail, FADE automatically spawns a specialized healing agent to analyze, fix, and verify the tests without human intervention.",
+  "problem": [
+    "Current FADE workflow exits immediately when regression tests fail",
+    "Developers wake up to find FADE blocked overnight with no progress",
+    "Hours wasted on simple test failures that could be auto-fixed",
+    "No severity classification - trivial test bugs treated same as critical failures",
+    "No visibility into test failure patterns or auto-resolution success rates",
+    "Shell script portability issues (BSD vs GNU coreutils) cause frequent failures on macOS"
+  ],
+  "solution": [
+    "Implement Test Failure Classifier to assign severity (LOW/MEDIUM/HIGH/CRITICAL)",
+    "Create specialized 'test-healer' agent that autonomously fixes test failures",
+    "Implement Healing Decision Engine with configurable auto-heal policies",
+    "Generate detailed Healing Reports showing time saved vs traditional workflow",
+    "Produce Session Test Summary aggregating all test metrics and healing events",
+    "Support pause modes: WAIT_APPROVAL (user confirms), AUTO_RETRY (autonomous), DEFER (log only)",
+    "Maintain healing-log.md to track all auto-healing events for auditing"
+  ],
+  "realWorldImpact": {
+    "scenario": "LiveCalc PRD-LC-013 failure (2026-01-25 03:05)",
+    "traditional": {
+      "discovery": "4 hours (developer asleep)",
+      "investigation": "1 hour (reading logs, analyzing)",
+      "fix": "15 minutes (simple sed replacement)",
+      "verification": "5 minutes (re-run tests)",
+      "totalLost": "5.3 hours"
+    },
+    "withSelfHealing": {
+      "detection": "instant",
+      "healing": "53 seconds",
+      "verification": "included",
+      "totalLost": "0 minutes"
+    },
+    "saved": "318 minutes (5.3 hours) per incident"
+  },
+  "dependencies": [],
+  "standardsReferences": [
+    "fade/docs/architecture.md",
+    "fade/docs/agent-framework.md"
+  ],
+  "technicalNotes": {
+    "healerAgent": "Specialized agent with tools: Read, Edit, Write, Bash (test execution only)",
+    "classification": "Pattern-based classifier using error output, test type, and failure scope",
+    "pauseModes": {
+      "WAIT_APPROVAL": "Healing agent proposes fix, waits for 'fade continue' command",
+      "AUTO_RETRY": "Healing agent implements fix, retries up to 3 times (15min timeout)",
+      "DEFER": "Log failure, continue with current work, add to next session backlog"
+    },
+    "notificationChannels": "Console output (always), optional: email, Slack webhook for CRITICAL",
+    "loggingStrategy": "Append-only healing-log.md with timestamp, severity, actions, outcome",
+    "safetyConstraints": [
+      "Healer agents can ONLY modify files in fade/tests/ directory",
+      "Cannot modify production code (src/, lib/, etc.)",
+      "Must preserve test intent and coverage",
+      "Maximum 3 healing attempts before escalation",
+      "15-minute timeout per healing session"
+    ]
+  },
+  "userStories": [
+    {
+      "id": "US-HEAL-01",
+      "title": "Automatic Test Failure Classification",
+      "story": "As a FADE user, I want test failures automatically classified by severity so I know which issues need immediate attention.",
+      "acceptanceCriteria": [
+        "Test runner detects failures and extracts error patterns",
+        "Classifier assigns severity: CRITICAL (security/data loss), HIGH (>50% regression), MEDIUM (isolated/simple), LOW (flaky/cosmetic)",
+        "Severity is logged in failed.log with justification",
+        "Classification takes < 5 seconds",
+        "Shell syntax errors classified as MEDIUM with 'portability_issue' tag"
+      ],
+      "tech_stack": ["Python", "Regex", "fade test runner"],
+      "passes": false
+    },
+    {
+      "id": "US-HEAL-02",
+      "title": "Autonomous Test Healing for MEDIUM Severity",
+      "story": "As a FADE user, I want MEDIUM severity test failures auto-fixed so I don't wake up to blocked sessions.",
+      "acceptanceCriteria": [
+        "When MEDIUM severity detected, FADE spawns 'test-healer' agent automatically",
+        "Healer agent analyzes failing tests using Read tool",
+        "Agent searches learned.md for similar historical failures",
+        "Agent proposes minimal fix with reasoning (logged to healing-log.md)",
+        "Agent implements fix using Edit tool",
+        "Agent re-runs tests using Bash tool",
+        "If tests pass: commit fix with 'chore: auto-heal regression tests' message",
+        "If tests still fail after 3 attempts: escalate to HIGH severity",
+        "Total healing time < 15 minutes",
+        "Session continues automatically after successful heal"
+      ],
+      "tech_stack": ["Claude Agent", "fade agent framework"],
+      "passes": false
+    },
+    {
+      "id": "US-HEAL-03",
+      "title": "User Approval Mode for HIGH Severity",
+      "story": "As a FADE user, I want HIGH severity failures to pause and request approval so I maintain control over complex fixes.",
+      "acceptanceCriteria": [
+        "When HIGH severity detected, FADE spawns healer agent but pauses execution",
+        "Agent analyzes failure and proposes fix",
+        "Fix proposal written to fade/healing-proposal.md with diff preview",
+        "Console displays: 'HIGH severity failure detected. Proposed fix in healing-proposal.md. Run `fade continue` to apply or `fade skip` to defer.'",
+        "User runs `fade continue`: apply fix, re-run tests, resume session",
+        "User runs `fade skip`: log failure, create PRD stub, exit gracefully",
+        "30-minute timeout: if no user response, treat as `fade skip`",
+        "Notification sent if configured (email/Slack)"
+      ],
+      "tech_stack": ["fade CLI", "IPC/file-based signaling"],
+      "passes": false
+    },
+    {
+      "id": "US-HEAL-04",
+      "title": "Healing Event Reporting",
+      "story": "As a FADE user, I want detailed reports of auto-healing events so I understand what was fixed and time saved.",
+      "acceptanceCriteria": [
+        "Each healing event generates a report in healing-log.md",
+        "Report includes: timestamp, PRD, story, severity, root cause, actions taken, outcome, time to heal",
+        "Report calculates 'traditional impact' (estimated human time) vs 'auto-heal time'",
+        "Report shows 'time saved' metric",
+        "Console displays mini-report after successful heal: 'Auto-healed MEDIUM severity failure in 53s. Traditional workflow: ~5.3hrs. Saved: 5.2hrs.'",
+        "healing-log.md is append-only and never auto-deleted"
+      ],
+      "tech_stack": ["Markdown generation", "fade logging"],
+      "passes": false
+    },
+    {
+      "id": "US-HEAL-05",
+      "title": "Session Test Summary Report",
+      "story": "As a FADE user, I want an aggregate test summary at the end of each session so I see total testing impact.",
+      "acceptanceCriteria": [
+        "At session end (ALL_COMPLETE or BLOCKED), generate session-test-summary.md",
+        "Report includes: session date, stories completed, total test runs, new tests added, total test time",
+        "Report includes: regression failures count, auto-healed count, manual interventions, time saved",
+        "Report includes: test coverage growth (starting vs ending test count)",
+        "Report includes: efficiency gain comparison (traditional vs self-healing workflow)",
+        "Summary appended to progress.md as a dedicated section",
+        "Console displays key metrics: 'Session complete. Tests run: 47x (3m 42s). Auto-healed: 1 event (saved 5.3hrs).'"
+      ],
+      "tech_stack": ["Markdown generation", "fade session tracking"],
+      "passes": false
+    },
+    {
+      "id": "US-HEAL-06",
+      "title": "Shell Portability Healer",
+      "story": "As a FADE user on macOS, I want shell portability issues auto-fixed so BSD vs GNU differences don't block me.",
+      "acceptanceCriteria": [
+        "Healer agent has specialized knowledge of BSD vs GNU coreutils differences",
+        "Detects 'head: illegal line count' errors and replaces 'head -n-1' with 'sed $d'",
+        "Detects 'tail: illegal offset' errors and uses portable alternatives",
+        "Adds portability note to learned.md after first occurrence",
+        "Test suite includes shellcheck validation to catch future issues",
+        "Healing success rate for shell portability issues: >95%"
+      ],
+      "tech_stack": ["Pattern matching", "Shell script editing"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "fade/lib/test_failure_classifier.py",
+    "fade/lib/healing_decision_engine.py",
+    "fade/lib/healing_report_generator.py",
+    "fade/agents/test-healer-agent.py",
+    "fade/templates/healing-proposal.md",
+    "fade/tests/test_self_healing.py"
+  ],
+  "filesToModify": [
+    {
+      "file": "fade/run.sh",
+      "changes": "Add healing protocol trigger after regression test failures. Call classifier, decision engine, and spawn healer agent if needed."
+    },
+    {
+      "file": "fade/lib/test_runner.py",
+      "changes": "Capture detailed test output, error patterns, and timing for classifier input."
+    },
+    {
+      "file": "fade/docs/architecture.md",
+      "changes": "Document self-healing architecture, decision tree, and agent responsibilities."
+    }
+  ],
+  "estimatedSessions": "6 FADE sessions",
+  "definitionOfDone": [
+    "Test failure classifier correctly categorizes CRITICAL/HIGH/MEDIUM/LOW severities with >90% accuracy",
+    "MEDIUM severity failures trigger auto-healing within 15 minutes",
+    "HIGH severity failures pause and generate approval proposal",
+    "CRITICAL failures immediately notify and exit gracefully",
+    "Shell portability issues (head -n-1, tail offsets) auto-heal with >95% success rate",
+    "Healing reports accurately calculate time saved vs traditional workflow",
+    "Session test summaries aggregate all metrics correctly",
+    "healing-log.md maintains append-only audit trail",
+    "Healer agents cannot modify production code (safety constraint enforced)",
+    "Zero false-positive auto-heals (no test intent changed incorrectly)",
+    "Integration test: Simulate PRD-LC-013 failure, verify auto-heal in <2 minutes"
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Automatic severity classification",
+      "MEDIUM severity auto-healing with 15min timeout",
+      "HIGH severity pause-and-propose workflow",
+      "Healing event reports with time-saved metrics",
+      "Session test summaries",
+      "Shell portability pattern library"
+    ],
+    "niceToHave": [
+      "Slack/email notifications for CRITICAL failures",
+      "Machine learning-based classifier (vs rule-based)",
+      "Healing pattern library (reusable fixes)",
+      "Dashboard UI for healing metrics",
+      "Integration with CI/CD for cloud healing"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Healer agent makes incorrect fix, breaks tests further",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "3-attempt limit with escalation. Safety constraints prevent production code modification. Append-only healing-log.md for audit trail."
+    },
+    {
+      "risk": "Auto-healing masks real bugs in production code",
+      "likelihood": "low",
+      "impact": "critical",
+      "mitigation": "Classifier detects production code failures as CRITICAL (never auto-heal). Healer only fixes test infrastructure issues."
+    },
+    {
+      "risk": "15-minute timeout insufficient for complex test fixes",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Configurable timeout. Escalate to HIGH severity if timeout exceeded, triggering user approval."
+    }
+  ],
+  "configurationExample": {
+    "fade_config.json": {
+      "self_healing": {
+        "enabled": true,
+        "auto_heal_severities": ["MEDIUM"],
+        "pause_for_approval_severities": ["HIGH"],
+        "never_auto_heal_severities": ["CRITICAL", "LOW"],
+        "healing_timeout_seconds": 900,
+        "max_healing_attempts": 3,
+        "notifications": {
+          "critical": {
+            "enabled": true,
+            "channels": ["console", "slack"]
+          },
+          "high": {
+            "enabled": true,
+            "channels": ["console"]
+          }
+        },
+        "safety_constraints": {
+          "allowed_directories": ["fade/tests/"],
+          "forbidden_patterns": ["src/", "lib/", "livecalc-"]
+        }
+      }
+    }
+  }
+}
