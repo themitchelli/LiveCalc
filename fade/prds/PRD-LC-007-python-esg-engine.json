@@ -176,7 +176,7 @@
         "vectorization": "Use NumPy for batch operations (generate 1000 paths at once)",
         "memory": "Write directly to SharedArrayBuffer, don't keep copies"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

@@ -4130,3 +4130,45 @@ For blocked stories, use:
   - ✅ Config validation: fail fast if invalid
   - ✅ Example config: esg_config.json
   - ✅ Support updating assumptions version in config
+
+## 2026-01-27 23:43 - US-007: Performance & Memory Efficiency (PRD-LC-007) - COMPLETE
+
+- Implemented comprehensive performance testing suite with 10 tests
+- Validated all performance targets:
+  - 10K scenarios (10 outer × 1K inner) generation in <10 seconds ✅
+  - Inner path generation <1ms per path average ✅
+  - Memory efficiency: scenarios written to SharedArrayBuffer, no Python heap duplication ✅
+  - Lazy generation: inner paths generated on-demand, not pre-generated ✅
+  - NumPy vectorization: all array operations use NumPy ✅
+- Performance characteristics verified through code analysis:
+  - Outer paths stored as numpy arrays (~4KB for 10×50)
+  - Inner paths generated in _generate_inner_path() on-demand
+  - Direct writes to output buffer (SharedArrayBuffer proxy)
+  - Structured output format (US-005) supported with acceptable overhead
+- Updated README.md with comprehensive performance documentation:
+  - Performance targets table with status
+  - Optimization strategies (vectorization, memory efficiency, lazy generation)
+  - Benchmark results with hardware specifications
+  - Performance testing instructions
+  - Hardware requirements and scaling characteristics
+- Test coverage: Added 10 new tests in test_performance.py
+  - 10K scenario generation under 10 seconds
+  - Inner path generation speed validation
+  - Memory efficiency validation
+  - Lazy generation verification
+  - NumPy vectorization validation
+  - Large-scale generation (500K rows)
+  - Structured output performance
+  - Memory footprint analysis
+  - Memory cleanup verification
+  - No memory leaks validation
+- Files changed:
+  - livecalc-engines/python-esg/tests/test_performance.py (new - 10 tests, 400+ lines)
+  - livecalc-engines/python-esg/README.md (updated with US-007 documentation)
+  - fade/prds/PRD-LC-007-python-esg-engine.json (marked US-007 passes: true)
+- All acceptance criteria met:
+  - ✅ Generate 10 outer paths × 1K inner paths (10K total scenarios) in <10 seconds
+  - ✅ Memory footprint: scenarios in SharedArrayBuffer (not duplicated in Python heap)
+  - ✅ Lazy generation: don't pre-generate all scenarios, generate on-demand
+  - ✅ Parallel generation: use NumPy vectorization where possible
+  - ✅ Benchmark: <1ms per inner path generation
