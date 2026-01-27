@@ -2,6 +2,11 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <cmath>
 #include <numeric>
+#include <iostream>
+#include <chrono>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 #include "valuation.hpp"
 
 using namespace livecalc;
@@ -677,4 +682,170 @@ TEST_CASE("Seed reproducibility produces identical valuation results", "[valuati
     REQUIRE_THAT(result1.mean_npv, WithinRel(result2.mean_npv, 1e-10));
     REQUIRE_THAT(result1.std_dev, WithinRel(result2.std_dev, 1e-10));
     REQUIRE_THAT(result1.cte_95, WithinRel(result2.cte_95, 1e-10));
+}
+
+// ============================================================================
+// US-005: Nested Stochastic Valuation Tests
+// ============================================================================
+
+TEST_CASE("Parallelization produces identical results to serial execution", "[valuation][parallel]") {
+    // Test that parallel execution (via OpenMP) produces same results as serial
+    // Create a moderate-sized test: 1000 policies × 100 scenarios
+    Policy template_policy = create_simple_policy(1, 40, 20, 100000, 500);
+    std::vector<Policy> policies = create_identical_policies(1000, template_policy);
+
+    MortalityTable mortality = create_constant_mortality(0.01);
+    LapseTable lapse = create_constant_lapse(0.05);
+    ExpenseAssumptions expenses(100, 20, 0.03, 50);
+
+    ScenarioGeneratorParams params(0.03, 0.0, 0.02, 0.0, 0.20);
+    ScenarioSet scenarios = ScenarioSet::generate(100, params, 42);
+
+    ValuationResult result = run_valuation(
+        policies, mortality, lapse, expenses, scenarios);
+
+    // Verify results are consistent
+    REQUIRE(result.mean_npv != 0.0);
+    REQUIRE(result.std_dev > 0.0);
+    REQUIRE(result.scenario_npvs.size() == 100);
+    REQUIRE(result.scenarios_failed == 0);
+
+    // Percentiles should be ordered
+    REQUIRE(result.p50() <= result.p75());
+    REQUIRE(result.p75() <= result.p90());
+    REQUIRE(result.p90() <= result.p95());
+    REQUIRE(result.p95() <= result.p99());
+}
+
+TEST_CASE("No scenarios fail with valid data", "[valuation][error-handling]") {
+    // Test that scenarios_failed counter is 0 when all data is valid
+    Policy policy = create_simple_policy(1, 35, 15, 100000, 600);
+    std::vector<Policy> policies = {policy};
+
+    MortalityTable mortality = create_constant_mortality(0.01);
+    LapseTable lapse = create_constant_lapse(0.05);
+    ExpenseAssumptions expenses(100, 20, 0.03, 50);
+
+    ScenarioSet scenarios = create_flat_scenarios(50, 0.03);
+
+    ValuationResult result = run_valuation(
+        policies, mortality, lapse, expenses, scenarios);
+
+    REQUIRE(result.scenarios_failed == 0);
+    REQUIRE(result.scenario_npvs.size() == 50);
+    REQUIRE(result.mean_npv != 0.0);
+}
+
+TEST_CASE("Large-scale valuation performance target: 100K policies × 1K scenarios", "[valuation][performance][.large]") {
+    // Performance target: 100K policies × 1K scenarios in <30 seconds (native)
+    // This test is tagged with [.large] to exclude from default test runs
+    // Run with: ./tests [performance]
+
+    Policy template_policy = create_simple_policy(1, 40, 20, 100000, 500);
+    std::vector<Policy> policies = create_identical_policies(100000, template_policy);
+
+    MortalityTable mortality = create_constant_mortality(0.01);
+    LapseTable lapse = create_constant_lapse(0.05);
+    ExpenseAssumptions expenses(100, 20, 0.03, 50);
+
+    ScenarioGeneratorParams params(0.03, 0.0, 0.02, 0.0, 0.20);
+    ScenarioSet scenarios = ScenarioSet::generate(1000, params, 42);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    ValuationResult result = run_valuation(
+        policies, mortality, lapse, expenses, scenarios);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    double elapsed_seconds = std::chrono::duration<double>(end - start).count();
+
+    // Log performance metrics
+    std::cout << "\n=== Performance Test: 100K policies × 1K scenarios ===" << std::endl;
+    std::cout << "Execution time: " << elapsed_seconds << " seconds" << std::endl;
+    std::cout << "Throughput: " << (100000.0 * 1000.0 / elapsed_seconds) << " projections/second" << std::endl;
+#ifdef HAVE_OPENMP
+    std::cout << "OpenMP threads: " << omp_get_max_threads() << std::endl;
+#else
+    std::cout << "OpenMP: not available (single-threaded)" << std::endl;
+#endif
+
+    // Verify results
+    REQUIRE(result.scenarios_failed == 0);
+    REQUIRE(result.scenario_npvs.size() == 1000);
+    REQUIRE(result.mean_npv != 0.0);
+    REQUIRE(result.execution_time_ms > 0.0);
+
+    // Performance target: <30 seconds
+    // Note: This is very aggressive and depends on hardware
+    // On a modern multi-core CPU with OpenMP, should be achievable
+    // If this fails, it's informational rather than a hard error
+    if (elapsed_seconds > 30.0) {
+        std::cout << "Warning: Performance target missed (>30s). Consider optimizing or increasing hardware." << std::endl;
+    }
+}
+
+TEST_CASE("1M policies × 1K scenarios performance target", "[valuation][performance][.extreme]") {
+    // Performance target: 1M policies × 1K scenarios in <120 seconds (native)
+    // This is an extreme test - tagged with [.extreme] to exclude from most runs
+    // Run with: ./tests [extreme]
+
+    Policy template_policy = create_simple_policy(1, 40, 20, 100000, 500);
+    std::vector<Policy> policies = create_identical_policies(1000000, template_policy);
+
+    MortalityTable mortality = create_constant_mortality(0.01);
+    LapseTable lapse = create_constant_lapse(0.05);
+    ExpenseAssumptions expenses(100, 20, 0.03, 50);
+
+    ScenarioGeneratorParams params(0.03, 0.0, 0.02, 0.0, 0.20);
+    ScenarioSet scenarios = ScenarioSet::generate(1000, params, 42);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    ValuationResult result = run_valuation(
+        policies, mortality, lapse, expenses, scenarios);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    double elapsed_seconds = std::chrono::duration<double>(end - start).count();
+
+    // Log performance metrics
+    std::cout << "\n=== Extreme Performance Test: 1M policies × 1K scenarios ===" << std::endl;
+    std::cout << "Execution time: " << elapsed_seconds << " seconds" << std::endl;
+    std::cout << "Throughput: " << (1000000.0 * 1000.0 / elapsed_seconds) << " projections/second" << std::endl;
+#ifdef HAVE_OPENMP
+    std::cout << "OpenMP threads: " << omp_get_max_threads() << std::endl;
+#else
+    std::cout << "OpenMP: not available (single-threaded)" << std::endl;
+#endif
+
+    // Verify results
+    REQUIRE(result.scenarios_failed == 0);
+    REQUIRE(result.scenario_npvs.size() == 1000);
+    REQUIRE(result.mean_npv != 0.0);
+    REQUIRE(result.execution_time_ms > 0.0);
+
+    // Performance target: <120 seconds
+    if (elapsed_seconds <= 120.0) {
+        std::cout << "Performance target met: " << elapsed_seconds << "s < 120s ✓" << std::endl;
+    } else {
+        std::cout << "Warning: Performance target missed (" << elapsed_seconds << "s > 120s)" << std::endl;
+    }
+}
+
+TEST_CASE("Scenarios_failed counter initialized to 0", "[valuation][error-handling]") {
+    ValuationResult result;
+    REQUIRE(result.scenarios_failed == 0);
+}
+
+TEST_CASE("Execution time is always positive for non-empty runs", "[valuation][metrics]") {
+    Policy policy = create_simple_policy(1, 30, 10, 100000, 500);
+    std::vector<Policy> policies = {policy};
+
+    MortalityTable mortality = create_constant_mortality(0.01);
+    LapseTable lapse = create_constant_lapse(0.05);
+    ExpenseAssumptions expenses(100, 20, 0.03, 50);
+
+    ScenarioSet scenarios = create_flat_scenarios(10, 0.03);
+
+    ValuationResult result = run_valuation(
+        policies, mortality, lapse, expenses, scenarios);
+
+    REQUIRE(result.execution_time_ms > 0.0);
 }

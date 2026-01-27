@@ -4,6 +4,10 @@
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
+#include <iostream>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 namespace livecalc {
 
@@ -16,7 +20,8 @@ ValuationResult::ValuationResult()
       std_dev(0.0),
       percentiles{0.0, 0.0, 0.0, 0.0, 0.0},
       cte_95(0.0),
-      execution_time_ms(0.0) {}
+      execution_time_ms(0.0),
+      scenarios_failed(0) {}
 
 // ============================================================================
 // ValuationConfig Implementation
@@ -142,46 +147,114 @@ ValuationResult run_valuation(
     proj_config.lapse_multiplier = config.lapse_multiplier;
     proj_config.expense_multiplier = config.expense_multiplier;
 
-    // Allocate space for scenario NPVs
+    // Allocate space for scenario NPVs and failure tracking
     std::vector<double> scenario_npvs;
-    scenario_npvs.reserve(scenarios.size());
+    scenario_npvs.resize(scenarios.size(), 0.0);
+    std::vector<bool> scenario_failed;
+    scenario_failed.resize(scenarios.size(), false);
+
+    int failed_count = 0;
 
     // Outer loop: scenarios
+    // Each scenario is independent, but we keep the outer loop sequential for simplicity
+    // and parallelize the inner loop (policies) which is the dominant computation
     for (size_t s = 0; s < scenarios.size(); ++s) {
         const Scenario& scenario = scenarios.get(s);
 
-        // Inner loop: policies
+        // Inner loop: policies (PARALLELIZED)
         // Sum NPVs across all policies for this scenario
         double scenario_total_npv = 0.0;
-        for (const Policy& policy : policies) {
-            ProjectionResult proj_result = project_policy(
-                policy, mortality, lapse, expenses, scenario, proj_config);
-            scenario_total_npv += proj_result.npv;
-        }
+        bool scenario_has_error = false;
 
-        scenario_npvs.push_back(scenario_total_npv);
+        try {
+#ifdef HAVE_OPENMP
+            // Parallelize policy loop with OpenMP
+            // Use reduction to sum NPVs efficiently across threads
+            #pragma omp parallel for reduction(+:scenario_total_npv) schedule(dynamic, 100)
+            for (size_t p = 0; p < policies.size(); ++p) {
+                try {
+                    const Policy& policy = policies[p];
+                    ProjectionResult proj_result = project_policy(
+                        policy, mortality, lapse, expenses, scenario, proj_config);
+                    scenario_total_npv += proj_result.npv;
+                } catch (const std::exception& e) {
+                    // Log error but continue processing other policies
+                    // We can't safely write to shared state from parallel region,
+                    // so we'll mark the scenario as failed after the parallel region
+                    #pragma omp critical
+                    {
+                        std::cerr << "Warning: Policy projection failed (policy "
+                                  << policies[p].policy_id << ", scenario " << s
+                                  << "): " << e.what() << std::endl;
+                        scenario_has_error = true;
+                    }
+                }
+            }
+#else
+            // Single-threaded fallback when OpenMP not available
+            for (const Policy& policy : policies) {
+                try {
+                    ProjectionResult proj_result = project_policy(
+                        policy, mortality, lapse, expenses, scenario, proj_config);
+                    scenario_total_npv += proj_result.npv;
+                } catch (const std::exception& e) {
+                    std::cerr << "Warning: Policy projection failed (policy "
+                              << policy.policy_id << ", scenario " << s
+                              << "): " << e.what() << std::endl;
+                    scenario_has_error = true;
+                }
+            }
+#endif
+
+            scenario_npvs[s] = scenario_total_npv;
+
+            if (scenario_has_error) {
+                scenario_failed[s] = true;
+                failed_count++;
+            }
+
+        } catch (const std::exception& e) {
+            // Entire scenario failed
+            std::cerr << "Error: Scenario " << s << " failed: " << e.what() << std::endl;
+            scenario_npvs[s] = 0.0;
+            scenario_failed[s] = true;
+            failed_count++;
+        }
     }
 
-    // Calculate statistics
-    // Mean
-    result.mean_npv = calculate_mean(scenario_npvs);
+    result.scenarios_failed = failed_count;
 
-    // Standard deviation
-    result.std_dev = calculate_std_dev(scenario_npvs, result.mean_npv);
+    // Calculate statistics (excluding failed scenarios for accuracy)
+    std::vector<double> valid_scenario_npvs;
+    valid_scenario_npvs.reserve(scenarios.size() - failed_count);
+    for (size_t s = 0; s < scenarios.size(); ++s) {
+        if (!scenario_failed[s]) {
+            valid_scenario_npvs.push_back(scenario_npvs[s]);
+        }
+    }
 
-    // Sort for percentile calculations
-    std::vector<double> sorted_npvs = scenario_npvs;
-    std::sort(sorted_npvs.begin(), sorted_npvs.end());
+    // Only calculate statistics if we have valid scenarios
+    if (!valid_scenario_npvs.empty()) {
+        // Mean
+        result.mean_npv = calculate_mean(valid_scenario_npvs);
 
-    // Percentiles: P50, P75, P90, P95, P99
-    result.percentiles[0] = calculate_percentile(sorted_npvs, 50.0);
-    result.percentiles[1] = calculate_percentile(sorted_npvs, 75.0);
-    result.percentiles[2] = calculate_percentile(sorted_npvs, 90.0);
-    result.percentiles[3] = calculate_percentile(sorted_npvs, 95.0);
-    result.percentiles[4] = calculate_percentile(sorted_npvs, 99.0);
+        // Standard deviation
+        result.std_dev = calculate_std_dev(valid_scenario_npvs, result.mean_npv);
 
-    // CTE at 95% (average of worst 5%)
-    result.cte_95 = calculate_cte(sorted_npvs, 95.0);
+        // Sort for percentile calculations
+        std::vector<double> sorted_npvs = valid_scenario_npvs;
+        std::sort(sorted_npvs.begin(), sorted_npvs.end());
+
+        // Percentiles: P50, P75, P90, P95, P99
+        result.percentiles[0] = calculate_percentile(sorted_npvs, 50.0);
+        result.percentiles[1] = calculate_percentile(sorted_npvs, 75.0);
+        result.percentiles[2] = calculate_percentile(sorted_npvs, 90.0);
+        result.percentiles[3] = calculate_percentile(sorted_npvs, 95.0);
+        result.percentiles[4] = calculate_percentile(sorted_npvs, 99.0);
+
+        // CTE at 95% (average of worst 5%)
+        result.cte_95 = calculate_cte(sorted_npvs, 95.0);
+    }
 
     // Store scenario NPVs if requested
     if (config.store_scenario_npvs) {

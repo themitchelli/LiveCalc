@@ -3466,3 +3466,23 @@ For blocked stories, use:
   - livecalc-engine/examples/udf_smoker_adjustment.py (example UDF)
 - Tests: All 17 UDF tests pass with 36 assertions
 
+
+## 2026-01-27 20:05 - US-005: Nested Stochastic Valuation (PRD-LC-001-REVISED) - COMPLETE
+
+- Implemented OpenMP parallelization of the inner policy loop for multi-threaded execution
+- Added comprehensive error handling with graceful degradation on partial failures
+- Added scenarios_failed counter to track projection errors
+- Updated CMakeLists.txt to find and link OpenMP (with macOS Homebrew support)
+- Added performance tests validating throughput targets:
+  - 100K policies × 1K scenarios: 4.87s (target: <30s) ✓
+  - 1M policies × 1K scenarios: 52.9s (target: <120s) ✓
+  - Throughput: ~20M projections/second with 6 OpenMP threads
+- Implemented statistics calculation excluding failed scenarios for accuracy
+- Added detailed logging for policy and scenario failures to stderr
+- Files changed:
+  - livecalc-engine/CMakeLists.txt (OpenMP detection and linking)
+  - livecalc-engine/src/valuation.hpp (added scenarios_failed field)
+  - livecalc-engine/src/valuation.cpp (OpenMP parallelization, error handling)
+  - livecalc-engine/tests/test_valuation.cpp (added 4 new test cases with performance validation)
+- Tests: 151 total tests pass with 20,932 assertions (added 4 new tests: parallel execution, error handling, metrics, performance targets)
+

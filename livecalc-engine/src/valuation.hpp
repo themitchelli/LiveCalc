@@ -23,6 +23,7 @@ struct ValuationResult {
 
     // Execution metrics
     double execution_time_ms;           // Total execution time in milliseconds
+    int scenarios_failed;               // Number of scenarios that failed projection
 
     // Convenience accessors for percentiles
     double p50() const { return percentiles[0]; }

@@ -64,6 +64,23 @@ endif()
 # Native Build Configuration
 # ============================================================================
 if(NOT WASM_BUILD AND NOT WASI_BUILD)
+    # Find OpenMP for parallelization
+    # On macOS with Homebrew libomp, we need to help CMake find it
+    if(APPLE)
+        set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include")
+        set(OpenMP_C_LIB_NAMES "omp")
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY "/usr/local/opt/libomp/lib/libomp.dylib")
+    endif()
+
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
+    else()
+        message(STATUS "OpenMP not found - valuation will run single-threaded")
+    endif()
+
     # Fetch Catch2 for testing
     include(FetchContent)
     FetchContent_Declare(
@@ -76,6 +93,12 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
     # Main library
     add_library(livecalc_core STATIC ${LIB_SOURCES})
     target_include_directories(livecalc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+    # Link OpenMP if available
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(livecalc_core PUBLIC OpenMP::OpenMP_CXX)
+        target_compile_definitions(livecalc_core PUBLIC HAVE_OPENMP)
+    endif()
 
     # Link Apache Arrow if Parquet enabled
     if(ENABLE_PARQUET)
