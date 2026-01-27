@@ -3534,3 +3534,34 @@ For blocked stories, use:
   - livecalc-engine/src/scenario.cpp (fixed unused parameter warning)
   - livecalc-assumptions-lib/src/auth/jwt_handler.cpp (fixed unused function warning)
 - Tests: All 8 CLI integration tests pass successfully
+
+## 2026-01-27 21:26 - US-007: Python UDF Execution Environment (PRD-LC-001-REVISED) - VERIFIED COMPLETE
+
+- Verified that comprehensive UDF infrastructure was already implemented in US-004
+- All acceptance criteria met:
+  - ✓ Engine uses subprocess-based Python 3.11+ execution (cross-platform: Windows/Unix)
+  - ✓ UDF scripts support all 4 function signatures: adjust_mortality(), adjust_lapse(), on_year_start(), apply_shock()
+  - ✓ UDF functions receive policy (dict), year (int), lives (float), interest_rate (float) → float
+  - ✓ Working example UDF demonstrates conditional logic (udf_smoker_adjustment.py)
+  - ✓ UDFs can import numpy, scipy, pandas (environment-dependent)
+  - ✓ UDF execution is single-threaded per policy (no GIL contention)
+  - ✓ UDF timeout: 1 second per call with graceful failure handling
+  - ✓ UDF errors caught and wrapped in UDFExecutionError with line numbers
+  - ✓ No C++ recompilation required for UDF changes
+  - ✓ Documentation: template (udf_template.py), examples, README integration
+- Implementation details verified:
+  - UDFExecutor: subprocess-based Python execution with JSON parameter passing
+  - UDFContext: lifecycle management, metrics tracking (udfs_called, udf_time_ms)
+  - Projection integration: project_policy_with_udf() calls UDFs during year-by-year projection
+  - Error handling: timeout protection, exit code checking, error message wrapping
+  - Platform-specific: Windows (_popen) and Unix (popen + fcntl) implementations
+- Test coverage verified:
+  - 16 comprehensive tests in test_udf_execution.cpp (440 lines)
+  - Context tests: default, invalid scripts, valid scripts
+  - Executor tests: function detection, return parsing, timeout, error handling
+  - Projection tests: no-UDF baseline, smoker adjustment, multiple UDFs, error graceful handling
+- CLI integration verified:
+  - --udfs flag accepts Python script path
+  - UDF metrics reported in execution output
+  - Examples documented in README.md
+- Status: US-007 was already complete from US-004 implementation, now formally marked as passes: true

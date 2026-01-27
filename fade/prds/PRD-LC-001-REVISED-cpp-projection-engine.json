@@ -194,7 +194,7 @@
         "udfTemplate": "See examples/udf_template.py",
         "performanceTarget": "UDF overhead < 10% of total projection time"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
