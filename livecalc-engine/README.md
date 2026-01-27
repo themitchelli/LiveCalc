@@ -123,12 +123,23 @@ The CLI runs nested stochastic valuation with configurable inputs and outputs JS
 
 ### Required Options
 
+#### Data Input Methods
+
+You can provide assumptions in two ways:
+
+**Method 1: Individual Files**
 | Option | Description |
 |--------|-------------|
-| `--policies <path>` | CSV file containing policy data |
+| `--policies <path>` | CSV or Parquet file with policy data |
 | `--mortality <path>` | CSV file containing mortality table |
 | `--lapse <path>` | CSV file containing lapse table |
 | `--expenses <path>` | CSV file containing expense assumptions |
+
+**Method 2: Assumptions Config (Recommended)**
+| Option | Description |
+|--------|-------------|
+| `--policies <path>` | CSV or Parquet file with policy data |
+| `--assumptions-config <path>` | JSON file with assumption references (see example below) |
 
 ### Scenario Generation Options
 
@@ -191,6 +202,88 @@ The CLI runs nested stochastic valuation with configurable inputs and outputs JS
     --mortality-mult 1.2 \
     --output stressed_results.json
 ```
+
+### Assumptions Config File
+
+The assumptions config file (JSON) provides a centralized way to manage assumptions and scenario parameters:
+
+```json
+{
+  "mortality": {
+    "source": "local://../data/sample_mortality.csv",
+    "multiplier": 1.0,
+    "notes": "Standard mortality table"
+  },
+  "lapse": {
+    "source": "local://../data/sample_lapse.csv",
+    "multiplier": 1.0,
+    "notes": "Level term lapse rates"
+  },
+  "expenses": {
+    "source": "local://../data/sample_expenses.csv",
+    "multiplier": 1.0,
+    "notes": "Local expense assumptions"
+  },
+  "scenarios": {
+    "count": 1000,
+    "seed": 42,
+    "initial_rate": 0.05,
+    "drift": 0.0,
+    "volatility": 0.01,
+    "min_rate": 0.0,
+    "max_rate": 0.15
+  },
+  "udf": {
+    "enabled": false,
+    "script": "examples/udf_smoker_adjustment.py",
+    "timeout_ms": 1000
+  }
+}
+```
+
+Usage with config file:
+
+```bash
+./livecalc-engine \
+    --policies data/sample_policies.csv \
+    --assumptions-config assumptions.json \
+    --output results.json
+```
+
+**Note:** Future versions will support `assumptions://table-name:version` references to the Assumptions Manager service. Currently, only `local://` paths are supported in the CLI.
+
+### Parquet Support
+
+The CLI supports Parquet files for efficient loading of large policy datasets:
+
+```bash
+./livecalc-engine \
+    --policies data/policies.parquet \
+    --assumptions-config assumptions.json \
+    --output results.json
+```
+
+Parquet support is optional and requires building with `-DENABLE_PARQUET=ON` and the Apache Arrow library installed.
+
+### Python UDF Integration
+
+Python User-Defined Functions (UDFs) allow you to customize calculation logic without recompiling C++:
+
+```bash
+./livecalc-engine \
+    --policies data/sample_policies.csv \
+    --assumptions-config assumptions.json \
+    --udfs scripts/smoker_adjustment.py \
+    --output results.json
+```
+
+The UDF script can define functions like `adjust_mortality()` and `adjust_lapse()` that are called during projection to modify rates dynamically. See `examples/udf_smoker_adjustment.py` for a working example.
+
+**UDF Metrics:**
+When UDFs are used, the CLI reports:
+- Total UDF calls made during execution
+- Total time spent in UDF execution
+- UDF overhead as percentage of total execution time
 
 ## Memory Footprint
 

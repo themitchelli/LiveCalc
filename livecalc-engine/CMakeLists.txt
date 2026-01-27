@@ -90,6 +90,14 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
     )
     FetchContent_MakeAvailable(Catch2)
 
+    # Fetch nlohmann/json for JSON parsing
+    FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+    )
+    FetchContent_MakeAvailable(json)
+
     # Main library
     add_library(livecalc_core STATIC ${LIB_SOURCES})
     target_include_directories(livecalc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -110,7 +118,7 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
 
     # Main executable
     add_executable(livecalc-engine src/main.cpp)
-    target_link_libraries(livecalc-engine PRIVATE livecalc_core)
+    target_link_libraries(livecalc-engine PRIVATE livecalc_core nlohmann_json::nlohmann_json)
 
     # Add assumptions library subdirectory (for AssumptionsClient integration)
     # Note: For US-002, we test AssumptionSet with local file loading only.

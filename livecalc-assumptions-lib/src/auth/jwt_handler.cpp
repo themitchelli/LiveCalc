@@ -11,8 +11,8 @@ using json = nlohmann::json;
 namespace livecalc {
 namespace assumptions {
 
-// Base64 decode helper
-static std::string base64_decode(const std::string& encoded) {
+// Base64 decode helper (currently unused, reserved for future JWT parsing)
+[[maybe_unused]] static std::string base64_decode(const std::string& encoded) {
     // Simplified base64 decode for JWT payload
     // Full implementation would use a library
     // For now, we'll parse expiry from the token differently

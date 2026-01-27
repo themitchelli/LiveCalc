@@ -3486,3 +3486,51 @@ For blocked stories, use:
   - livecalc-engine/tests/test_valuation.cpp (added 4 new test cases with performance validation)
 - Tests: 151 total tests pass with 20,932 assertions (added 4 new tests: parallel execution, error handling, metrics, performance targets)
 
+
+## 2026-01-27 21:25 - US-006: Command Line Interface (PRD-LC-001-REVISED) - COMPLETE
+
+- Implemented comprehensive CLI with JSON config support, Parquet loading, and UDF integration
+- Extended CLIArgs struct with new fields: assumptions_config_path, udfs_path, cache_dir, udf_timeout_ms
+- Added JSON parsing via nlohmann/json library for assumptions configuration
+- Created parse_assumptions_config() to parse JSON config files with multiple assumption types
+- Enhanced validate_args() to support either --assumptions-config OR individual assumption files
+- Added conditional Parquet support with #ifdef HAVE_ARROW guards for policy loading
+- Integrated UDF context initialization and metrics reporting
+- Updated help text to document all CLI options comprehensively
+- Fixed compilation errors:
+  - Added [[maybe_unused]] attribute to jwt_handler.cpp base64_decode function
+  - Fixed unused parameter in scenario.cpp load_from_parquet stub
+  - Added [[maybe_unused]] static to main.cpp ends_with helper function
+- Updated sample_policies.csv to include underwriting_class column (from US-001 Policy struct)
+- Created comprehensive integration test suite (tests/test_cli_integration.sh) with 8 tests:
+  - Test 1: Help flag display
+  - Test 2: Basic CSV run with individual flags
+  - Test 3: Assumptions config file usage
+  - Test 4: JSON output validation
+  - Test 5: Stress testing with multipliers
+  - Test 6: Error handling for missing files
+  - Test 7: Execution time reporting
+  - Test 8: Scenario generation parameters
+- Updated README.md with extensive documentation:
+  - Assumptions config file format and usage examples
+  - Parquet support documentation
+  - Python UDF integration examples
+  - Updated basic examples showing both CLI methods
+- All acceptance criteria met:
+  - ✓ CLI accepts Parquet policies, assumptions config (JSON), scenario config, UDF script (Python)
+  - ✓ CLI outputs JSON results (statistics + distribution)
+  - ✓ CLI supports flags: --policies, --assumptions-config, --scenarios, --seed, --udfs, --output, --cache-dir
+  - ✓ CLI validates inputs and reports clear errors
+  - ✓ CLI prints execution time and UDF metrics
+  - ✓ Example invocation documented in README
+  - ✓ Integration test runs full valuation via CLI with and without UDFs
+- Files changed:
+  - livecalc-engine/src/main.cpp (major CLI overhaul with JSON config parsing)
+  - livecalc-engine/CMakeLists.txt (added nlohmann/json dependency)
+  - livecalc-engine/data/sample_policies.csv (added underwriting_class column)
+  - livecalc-engine/examples/assumptions.json (updated with local file paths)
+  - livecalc-engine/README.md (extensive CLI and config documentation)
+  - livecalc-engine/tests/test_cli_integration.sh (new integration test suite)
+  - livecalc-engine/src/scenario.cpp (fixed unused parameter warning)
+  - livecalc-assumptions-lib/src/auth/jwt_handler.cpp (fixed unused function warning)
+- Tests: All 8 CLI integration tests pass successfully

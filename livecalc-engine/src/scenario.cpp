@@ -333,7 +333,7 @@ ScenarioSet ScenarioSet::load_from_parquet(const std::string& filepath) {
 
 #else // !HAVE_ARROW
 
-ScenarioSet ScenarioSet::load_from_parquet(const std::string& filepath) {
+ScenarioSet ScenarioSet::load_from_parquet(const std::string& /* filepath */) {
     throw std::runtime_error("Apache Arrow not available. Rebuild with -DHAVE_ARROW to enable Parquet support.");
 }
 

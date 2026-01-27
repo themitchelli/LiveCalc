@@ -1,18 +1,18 @@
 {
   "mortality": {
-    "source": "assumptions://mortality-standard:v2.1",
+    "source": "local://../data/sample_mortality.csv",
     "multiplier": 1.0,
-    "notes": "Standard mortality table from Assumptions Manager"
+    "notes": "Standard mortality table (local file, relative to examples/)"
   },
   "lapse": {
-    "source": "assumptions://lapse-term-level:v1.0",
+    "source": "local://../data/sample_lapse.csv",
     "multiplier": 1.0,
-    "notes": "Level term lapse rates"
+    "notes": "Level term lapse rates (local file, relative to examples/)"
   },
   "expenses": {
-    "source": "local://data/sample_expenses.csv",
+    "source": "local://../data/sample_expenses.csv",
     "multiplier": 1.0,
-    "notes": "Local expense assumptions file"
+    "notes": "Local expense assumptions file (relative to examples/)"
   },
   "scenarios": {
     "count": 1000,

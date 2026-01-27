@@ -170,7 +170,7 @@
       "technicalNotes": {
         "example": "./livecalc-engine --policies data/policies.parquet --assumptions-config assumptions.json --scenarios 1000 --seed 42 --udfs scripts/adjustments.py --output results.json"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
