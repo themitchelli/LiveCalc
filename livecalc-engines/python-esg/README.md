@@ -498,7 +498,7 @@ Without credentials, the engine uses default parameters (for testing/development
 - [x] **US-003**: Outer Path Generation (Deterministic skeleton)
 - [x] **US-004**: Inner Path Generation (Monte Carlo on-the-fly)
 - [x] **US-005**: Scenario Output Format (Structured array format)
-- [ ] **US-006**: Configuration & Parameter Management
+- [x] **US-006**: Configuration & Parameter Management ✅
 - [ ] **US-007**: Performance & Memory Efficiency
 - [ ] **US-008**: Error Handling & Logging
 

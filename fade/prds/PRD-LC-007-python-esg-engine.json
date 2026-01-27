@@ -159,7 +159,7 @@
           "assumptions_version": "string (e.g., 'v2.1')"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

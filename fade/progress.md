@@ -4078,3 +4078,55 @@ For blocked stories, use:
   - ✅ Interest rates are per-annum (e.g., 0.03 for 3%)
   - ✅ Written to SharedArrayBuffer pre-allocated by orchestrator (structured numpy array)
   - ✅ Format documented with example data (README.md, examples/run_esg.py)
+
+## 2026-01-27 23:50 - US-006: Configuration & Parameter Management (PRD-LC-007) - COMPLETE
+
+- Verified comprehensive ESGConfig implementation already exists
+- Configuration implemented as dataclass with all required fields:
+  - esg_model: str ('vasicek' or 'cir')
+  - outer_paths: int (3-10)
+  - inner_paths_per_outer: int (100-10000)
+  - seed: int (random seed)
+  - projection_years: int (1-100)
+  - assumptions_version: str (default 'latest')
+- Comprehensive validation in ESGConfig.validate() method:
+  - esg_model validates against allowed values ('vasicek', 'cir')
+  - outer_paths validates range 3-10
+  - inner_paths_per_outer validates range 100-10000
+  - projection_years validates range 1-100
+  - Raises ConfigurationError with clear messages for invalid values
+- Example configuration file exists: examples/esg_config.json
+  - Includes all required parameters
+  - Includes inline schema documentation
+  - Demonstrates proper JSON format
+- Configuration integration in PythonESGEngine.initialize():
+  - Accepts config dict with all parameters
+  - Creates ESGConfig instance from dict
+  - Calls validate() for fail-fast validation
+  - Supports assumptions_version parameter for AM integration
+- Comprehensive test coverage (8 tests in TestConfigurationValidation):
+  - test_valid_config: Validates correct config
+  - test_invalid_esg_model: Rejects invalid model names
+  - test_outer_paths_too_few: Validates lower bound (3)
+  - test_outer_paths_too_many: Validates upper bound (10)
+  - test_inner_paths_too_few: Validates lower bound (100)
+  - test_inner_paths_too_many: Validates upper bound (10000)
+  - test_projection_years_too_few: Validates lower bound (1)
+  - test_projection_years_too_many: Validates upper bound (100)
+- Documentation complete in README.md:
+  - Configuration section with parameter table
+  - Range validation documented
+  - Example configuration shown
+  - API reference includes config parameter details
+- Files verified:
+  - livecalc-engines/python-esg/src/esg_engine.py (ESGConfig class with validation)
+  - livecalc-engines/python-esg/examples/esg_config.json (example config with schema)
+  - livecalc-engines/python-esg/tests/test_esg_engine.py (8 comprehensive validation tests)
+  - livecalc-engines/python-esg/README.md (updated roadmap to mark US-006 complete)
+- Tests: Python syntax validation passed
+- All acceptance criteria met:
+  - ✅ Config file format: JSON with schema
+  - ✅ Parameters: esg_model, outer_paths, inner_paths_per_outer, seed, projection_years
+  - ✅ Config validation: fail fast if invalid
+  - ✅ Example config: esg_config.json
+  - ✅ Support updating assumptions version in config
