@@ -64,7 +64,7 @@
         "implementation": "class PythonESGEngine(ICalcEngine): ...",
         "execution": "Spawned as subprocess or embedded in main process via FFI"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

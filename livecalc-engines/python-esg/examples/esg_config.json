@@ -1,0 +1,17 @@
+{
+  "esg_model": "vasicek",
+  "outer_paths": 5,
+  "inner_paths_per_outer": 1000,
+  "seed": 42,
+  "projection_years": 50,
+  "assumptions_version": "v2.1",
+  "_description": "Example ESG configuration for generating economic scenarios",
+  "_schema": {
+    "esg_model": "string (vasicek | cir) - Interest rate model type",
+    "outer_paths": "int (3-10) - Number of outer skeleton paths",
+    "inner_paths_per_outer": "int (100-10000) - Monte Carlo paths per outer path",
+    "seed": "int - Random seed for reproducibility",
+    "projection_years": "int (1-100) - Number of years to project",
+    "assumptions_version": "string - Version of yield curve assumptions from AM (e.g., 'v2.1', 'latest')"
+  }
+}
