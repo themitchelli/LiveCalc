@@ -156,6 +156,20 @@ CMakeFiles/tests.dir/tests/test_valuation.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/tests.dir/tests/test_valuation.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_valuation.cpp -o CMakeFiles/tests.dir/tests/test_valuation.cpp.s
 
+CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o: CMakeFiles/tests.dir/flags.make
+CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp
+CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o: CMakeFiles/tests.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o -MF CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o.d -o CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp
+
+CMakeFiles/tests.dir/tests/test_udf_execution.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/tests.dir/tests/test_udf_execution.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp > CMakeFiles/tests.dir/tests/test_udf_execution.cpp.i
+
+CMakeFiles/tests.dir/tests/test_udf_execution.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/tests.dir/tests/test_udf_execution.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp -o CMakeFiles/tests.dir/tests/test_udf_execution.cpp.s
+
 # Object files for target tests
 tests_OBJECTS = \
 "CMakeFiles/tests.dir/tests/test_policy.cpp.o" \
@@ -163,7 +177,8 @@ tests_OBJECTS = \
 "CMakeFiles/tests.dir/tests/test_assumption_set.cpp.o" \
 "CMakeFiles/tests.dir/tests/test_scenario.cpp.o" \
 "CMakeFiles/tests.dir/tests/test_projection.cpp.o" \
-"CMakeFiles/tests.dir/tests/test_valuation.cpp.o"
+"CMakeFiles/tests.dir/tests/test_valuation.cpp.o" \
+"CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o"
 
 # External object files for target tests
 tests_EXTERNAL_OBJECTS =
@@ -174,6 +189,7 @@ tests: CMakeFiles/tests.dir/tests/test_assumption_set.cpp.o
 tests: CMakeFiles/tests.dir/tests/test_scenario.cpp.o
 tests: CMakeFiles/tests.dir/tests/test_projection.cpp.o
 tests: CMakeFiles/tests.dir/tests/test_valuation.cpp.o
+tests: CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o
 tests: CMakeFiles/tests.dir/build.make
 tests: liblivecalc_core.a
 tests: _deps/catch2-build/src/libCatch2Main.a
@@ -182,7 +198,7 @@ tests: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 tests: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 tests: _deps/catch2-build/src/libCatch2.a
 tests: CMakeFiles/tests.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable tests"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/tests.dir/link.txt --verbose=$(VERBOSE)
 	/usr/local/bin/cmake -D TEST_TARGET=tests -D TEST_EXECUTABLE=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/tests -D TEST_EXECUTOR= -D TEST_WORKING_DIR=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build -D TEST_SPEC= -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES= -D TEST_PREFIX= -D TEST_SUFFIX= -D TEST_LIST=tests_TESTS -D TEST_REPORTER= -D TEST_OUTPUT_DIR= -D TEST_OUTPUT_PREFIX= -D TEST_OUTPUT_SUFFIX= -D TEST_DL_PATHS= -D CTEST_FILE=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/tests-b12d07c_tests.cmake -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/extras/CatchAddTests.cmake
 

@@ -1,0 +1,32 @@
+{
+  "mortality": {
+    "source": "assumptions://mortality-standard:v2.1",
+    "multiplier": 1.0,
+    "notes": "Standard mortality table from Assumptions Manager"
+  },
+  "lapse": {
+    "source": "assumptions://lapse-term-level:v1.0",
+    "multiplier": 1.0,
+    "notes": "Level term lapse rates"
+  },
+  "expenses": {
+    "source": "local://data/sample_expenses.csv",
+    "multiplier": 1.0,
+    "notes": "Local expense assumptions file"
+  },
+  "scenarios": {
+    "count": 1000,
+    "seed": 42,
+    "initial_rate": 0.05,
+    "drift": 0.0,
+    "volatility": 0.01,
+    "min_rate": 0.0,
+    "max_rate": 0.15
+  },
+  "udf": {
+    "enabled": false,
+    "script": "examples/udf_smoker_adjustment.py",
+    "timeout_ms": 1000,
+    "notes": "Set enabled=true to activate Python UDFs"
+  }
+}

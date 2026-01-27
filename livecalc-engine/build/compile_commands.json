@@ -49,6 +49,18 @@
 },
 {
   "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build",
+  "command": "/usr/bin/c++ -DHAVE_ASSUMPTIONS_CLIENT -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-assumptions-lib/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -o CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.cpp",
+  "output": "CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build",
+  "command": "/usr/bin/c++ -DHAVE_ASSUMPTIONS_CLIENT -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-assumptions-lib/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -o CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.cpp",
+  "output": "CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build",
   "command": "/usr/bin/c++ -DHAVE_ASSUMPTIONS_CLIENT -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-assumptions-lib/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -o CMakeFiles/livecalc-engine.dir/src/main.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/main.cpp",
   "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/main.cpp",
   "output": "CMakeFiles/livecalc-engine.dir/src/main.cpp.o"
@@ -88,6 +100,12 @@
   "command": "/usr/bin/c++ -DHAVE_ASSUMPTIONS_CLIENT -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-assumptions-lib/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/src/catch2/.. -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-build/generated-includes -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -o CMakeFiles/tests.dir/tests/test_valuation.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_valuation.cpp",
   "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_valuation.cpp",
   "output": "CMakeFiles/tests.dir/tests/test_valuation.cpp.o"
+},
+{
+  "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build",
+  "command": "/usr/bin/c++ -DHAVE_ASSUMPTIONS_CLIENT -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-assumptions-lib/src -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/src/catch2/.. -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-build/generated-includes -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -o CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp",
+  "file": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/tests/test_udf_execution.cpp",
+  "output": "CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o"
 },
 {
   "directory": "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build",

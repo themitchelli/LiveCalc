@@ -831,6 +831,54 @@ src/scenario.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/scenario.cpp.s
 .PHONY : src/scenario.cpp.s
 
+src/udf/udf_context.o: src/udf/udf_context.cpp.o
+.PHONY : src/udf/udf_context.o
+
+# target to build an object file
+src/udf/udf_context.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o
+.PHONY : src/udf/udf_context.cpp.o
+
+src/udf/udf_context.i: src/udf/udf_context.cpp.i
+.PHONY : src/udf/udf_context.i
+
+# target to preprocess a source file
+src/udf/udf_context.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.i
+.PHONY : src/udf/udf_context.cpp.i
+
+src/udf/udf_context.s: src/udf/udf_context.cpp.s
+.PHONY : src/udf/udf_context.s
+
+# target to generate assembly for a file
+src/udf/udf_context.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.s
+.PHONY : src/udf/udf_context.cpp.s
+
+src/udf/udf_executor.o: src/udf/udf_executor.cpp.o
+.PHONY : src/udf/udf_executor.o
+
+# target to build an object file
+src/udf/udf_executor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o
+.PHONY : src/udf/udf_executor.cpp.o
+
+src/udf/udf_executor.i: src/udf/udf_executor.cpp.i
+.PHONY : src/udf/udf_executor.i
+
+# target to preprocess a source file
+src/udf/udf_executor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.i
+.PHONY : src/udf/udf_executor.cpp.i
+
+src/udf/udf_executor.s: src/udf/udf_executor.cpp.s
+.PHONY : src/udf/udf_executor.s
+
+# target to generate assembly for a file
+src/udf/udf_executor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.s
+.PHONY : src/udf/udf_executor.cpp.s
+
 src/valuation.o: src/valuation.cpp.o
 .PHONY : src/valuation.o
 
@@ -1023,6 +1071,30 @@ tests/test_scenario.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_scenario.cpp.s
 .PHONY : tests/test_scenario.cpp.s
 
+tests/test_udf_execution.o: tests/test_udf_execution.cpp.o
+.PHONY : tests/test_udf_execution.o
+
+# target to build an object file
+tests/test_udf_execution.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o
+.PHONY : tests/test_udf_execution.cpp.o
+
+tests/test_udf_execution.i: tests/test_udf_execution.cpp.i
+.PHONY : tests/test_udf_execution.i
+
+# target to preprocess a source file
+tests/test_udf_execution.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_udf_execution.cpp.i
+.PHONY : tests/test_udf_execution.cpp.i
+
+tests/test_udf_execution.s: tests/test_udf_execution.cpp.s
+.PHONY : tests/test_udf_execution.s
+
+# target to generate assembly for a file
+tests/test_udf_execution.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_udf_execution.cpp.s
+.PHONY : tests/test_udf_execution.cpp.s
+
 tests/test_valuation.o: tests/test_valuation.cpp.o
 .PHONY : tests/test_valuation.o
 
@@ -1120,6 +1192,12 @@ help:
 	@echo "... src/scenario.o"
 	@echo "... src/scenario.i"
 	@echo "... src/scenario.s"
+	@echo "... src/udf/udf_context.o"
+	@echo "... src/udf/udf_context.i"
+	@echo "... src/udf/udf_context.s"
+	@echo "... src/udf/udf_executor.o"
+	@echo "... src/udf/udf_executor.i"
+	@echo "... src/udf/udf_executor.s"
 	@echo "... src/valuation.o"
 	@echo "... src/valuation.i"
 	@echo "... src/valuation.s"
@@ -1144,6 +1222,9 @@ help:
 	@echo "... tests/test_scenario.o"
 	@echo "... tests/test_scenario.i"
 	@echo "... tests/test_scenario.s"
+	@echo "... tests/test_udf_execution.o"
+	@echo "... tests/test_udf_execution.i"
+	@echo "... tests/test_udf_execution.s"
 	@echo "... tests/test_valuation.o"
 	@echo "... tests/test_valuation.i"
 	@echo "... tests/test_valuation.s"

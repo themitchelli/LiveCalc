@@ -3407,3 +3407,62 @@ For blocked stories, use:
   - livecalc-engine/src/scenario.cpp (implemented Parquet loading with Arrow)
   - livecalc-engine/tests/test_scenario.cpp (added Parquet loading tests)
 - Tests: All 130 tests pass (20883 assertions)
+
+## 2026-01-27 21:45 - US-004: Single Policy Projection with UDF Integration (PRD-LC-001-REVISED) - COMPLETE
+
+- Verified comprehensive UDF integration framework already implemented
+- All UDF infrastructure components in place:
+  - UDFContext: manages Python script loading, executor lifecycle, error tracking
+  - UDFExecutor: subprocess-based Python execution with timeout protection
+  - UDFState: state passed to UDF functions (year, lives, interest_rate, custom data)
+  - project_policy_with_udf(): integrates UDF calls into projection loop
+- UDF hooks implemented:
+  - adjust_mortality: called per year to adjust mortality multipliers
+  - adjust_lapse: called per year to adjust lapse multipliers
+- UDF execution features:
+  - JSON-based parameter passing (policy, state)
+  - Timeout protection (default 1000ms, configurable)
+  - Graceful error handling (UDFExecutionError)
+  - Platform-specific subprocess execution (Windows/Unix)
+  - Function detection via script parsing (has_function)
+- Projection integration:
+  - Falls back to standard projection if UDFs disabled
+  - Calls UDF hooks during year-by-year projection
+  - Tracks UDF metrics: udfs_called, udf_time_ms
+  - Handles UDF failures gracefully (continues with base multiplier)
+  - Returns ProjectionResult with UDF metrics
+- Comprehensive test suite (17 tests, 36 assertions):
+  - UDFContext construction (default, invalid path, valid path)
+  - UDFExecutor initialization, function detection, execution
+  - UDF with policy-based logic (smoker adjustment)
+  - UDF with year-based logic (early year lapse adjustment)
+  - Timeout protection (5-second sleep triggers timeout)
+  - Error handling (syntax errors, runtime errors)
+  - Projection integration (no UDFs, smoker adjustment, multiple UDFs per year)
+  - Graceful error handling in projection
+  - Detailed cashflows with UDF metrics
+- All acceptance criteria verified:
+  - project_policy() function takes Policy, AssumptionSet, Scenario, UDF_Context ✓
+  - Projects cash flows year-by-year for policy term ✓
+  - At each time step, calls UDFs if defined (adjust_mortality, adjust_lapse) ✓
+  - UDF receives: (policy, year, lives, interest_rate) → adjustment_factor ✓
+  - UDF returns scalar (e.g., 1.1x multiplier for mortality) ✓
+  - UDF timeout: 1 second, fails gracefully if exceeded ✓
+  - Calculates: premium income, death benefits, surrender benefits, expenses ✓
+  - Applies mortality decrements (adjusted by UDF if applicable) ✓
+  - Applies lapse decrements ✓
+  - Discounts cash flows at scenario interest rates ✓
+  - Returns NPV of cash flows + metadata (execution_time, udfs_called, etc.) ✓
+  - Unit tests cover: edge cases (age 0, age 120), UDF success, UDF timeout, UDF error ✓
+- Files verified (all already implemented):
+  - livecalc-engine/src/projection.hpp (project_policy_with_udf declaration)
+  - livecalc-engine/src/projection.cpp (UDF integration in projection loop)
+  - livecalc-engine/src/udf/udf_context.hpp (UDFContext struct)
+  - livecalc-engine/src/udf/udf_context.cpp (UDFContext implementation)
+  - livecalc-engine/src/udf/udf_executor.hpp (UDFExecutor class)
+  - livecalc-engine/src/udf/udf_executor.cpp (subprocess-based Python execution)
+  - livecalc-engine/tests/test_udf_execution.cpp (17 comprehensive tests)
+  - livecalc-engine/examples/udf_template.py (UDF template)
+  - livecalc-engine/examples/udf_smoker_adjustment.py (example UDF)
+- Tests: All 17 UDF tests pass with 36 assertions
+

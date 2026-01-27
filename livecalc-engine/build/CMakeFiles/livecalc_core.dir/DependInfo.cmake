@@ -15,6 +15,8 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.cpp" "CMakeFiles/livecalc_core.dir/src/policy.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/policy.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.cpp" "CMakeFiles/livecalc_core.dir/src/projection.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/projection.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.cpp" "CMakeFiles/livecalc_core.dir/src/scenario.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/scenario.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.cpp" "CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.cpp" "CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.cpp" "CMakeFiles/livecalc_core.dir/src/valuation.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/valuation.cpp.o.d"
   )
 

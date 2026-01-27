@@ -9,6 +9,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/tests.dir/tests/test_projection.cpp.o.d"
   "CMakeFiles/tests.dir/tests/test_scenario.cpp.o"
   "CMakeFiles/tests.dir/tests/test_scenario.cpp.o.d"
+  "CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o"
+  "CMakeFiles/tests.dir/tests/test_udf_execution.cpp.o.d"
   "CMakeFiles/tests.dir/tests/test_valuation.cpp.o"
   "CMakeFiles/tests.dir/tests/test_valuation.cpp.o.d"
   "tests"

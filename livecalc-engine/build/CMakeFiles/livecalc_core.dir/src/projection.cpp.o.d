@@ -237,4 +237,7 @@ CMakeFiles/livecalc_core.dir/src/projection.cpp.o: \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/random \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/cmath \
-  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/numeric
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/numeric \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/../policy.hpp

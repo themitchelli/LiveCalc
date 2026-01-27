@@ -129,7 +129,7 @@
         "udfHooks": ["on_year_start", "adjust_mortality", "adjust_lapse", "apply_shock"],
         "pythonIntegration": "See US-007"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

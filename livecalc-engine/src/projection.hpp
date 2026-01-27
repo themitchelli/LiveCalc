@@ -8,6 +8,9 @@
 
 namespace livecalc {
 
+// Forward declaration for UDF support
+struct UDFContext;
+
 // Detailed cash flow for a single year
 struct YearlyCashFlow {
     uint8_t year;                   // Policy year (1-based)
@@ -26,11 +29,18 @@ struct ProjectionResult {
     double npv;                     // Net present value of all cash flows
     std::vector<YearlyCashFlow> cashflows;  // Detailed cash flows by year
 
+    // UDF execution metrics
+    int udfs_called;                // Number of UDF calls made
+    double udf_time_ms;             // Total time spent in UDF execution (milliseconds)
+
     // Convenience constructor for NPV-only result
     explicit ProjectionResult(double npv_value);
 
     // Full constructor
     ProjectionResult(double npv_value, std::vector<YearlyCashFlow>&& flows);
+
+    // Constructor with UDF metrics
+    ProjectionResult(double npv_value, std::vector<YearlyCashFlow>&& flows, int udfs, double udf_ms);
 
     // Default constructor
     ProjectionResult();
@@ -67,6 +77,20 @@ ProjectionResult project_policy(
     const LapseTable& lapse,
     const ExpenseAssumptions& expenses,
     const Scenario& scenario,
+    const ProjectionConfig& config = ProjectionConfig()
+);
+
+// Project a single policy with UDF support
+// UDF hooks available:
+// - adjust_mortality(policy, year, lives, interest_rate) -> multiplier
+// - adjust_lapse(policy, year, lives, interest_rate) -> multiplier
+ProjectionResult project_policy_with_udf(
+    const Policy& policy,
+    const MortalityTable& mortality,
+    const LapseTable& lapse,
+    const ExpenseAssumptions& expenses,
+    const Scenario& scenario,
+    UDFContext& udf_context,
     const ProjectionConfig& config = ProjectionConfig()
 );
 

@@ -50,6 +50,8 @@ set(LIB_SOURCES
     src/valuation.cpp
     src/io/csv_reader.cpp
     src/io/json_writer.cpp
+    src/udf/udf_context.cpp
+    src/udf/udf_executor.cpp
 )
 
 # Add Parquet support if enabled
@@ -115,6 +117,7 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
         tests/test_scenario.cpp
         tests/test_projection.cpp
         tests/test_valuation.cpp
+        tests/test_udf_execution.cpp
     )
     target_link_libraries(tests PRIVATE livecalc_core Catch2::Catch2WithMain)
 
