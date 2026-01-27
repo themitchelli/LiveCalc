@@ -74,6 +74,10 @@ if(BUILD_TESTS)
     add_executable(test_cache tests/test_cache.cpp)
     target_link_libraries(test_cache PRIVATE assumptions_lib Catch2::Catch2WithMain)
     add_test(NAME test_cache COMMAND test_cache)
+
+    add_executable(test_jwt_handler tests/test_jwt_handler.cpp)
+    target_link_libraries(test_jwt_handler PRIVATE assumptions_lib Catch2::Catch2WithMain)
+    add_test(NAME test_jwt_handler COMMAND test_jwt_handler)
 endif()
 
 # Installation

@@ -10,8 +10,11 @@ TEST_CASE("AssumptionsClient constructor", "[assumptions_client]") {
     SECTION("Constructs with valid parameters") {
         // This will fail without a live AM instance
         // In production, we'd mock the HTTP client
+        // Use a properly formatted JWT token (header.payload.signature)
         REQUIRE_NOTHROW(
-            AssumptionsClient("https://am.ddns.net", "fake-token", "/tmp/cache")
+            AssumptionsClient("https://am.ddns.net",
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDAwMDAwMDB9.signature",
+                "/tmp/cache")
         );
     }
 }
