@@ -66,7 +66,7 @@
         "callback": "projection_callback is a lambda/closure that writes parameters to SharedArrayBuffer, triggers projection, reads results",
         "result": "struct OptimizationResult { vector<double> final_params; double objective_value; int iterations; bool converged; }"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

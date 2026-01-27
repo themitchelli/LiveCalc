@@ -1,0 +1,73 @@
+{
+  "description": "Example solver configuration for parameter optimization",
+  "parameters": [
+    {
+      "name": "premium_rate",
+      "description": "Premium rate multiplier (1.0 = base rate)",
+      "type": "continuous",
+      "lower": 0.5,
+      "upper": 2.0,
+      "initial": 1.0,
+      "step": 0.01
+    },
+    {
+      "name": "reserve_factor",
+      "description": "Reserve factor (1.0 = statutory minimum)",
+      "type": "continuous",
+      "lower": 0.7,
+      "upper": 1.5,
+      "initial": 0.9,
+      "step": 0.01
+    },
+    {
+      "name": "dividend_percentage",
+      "description": "Dividend payout percentage",
+      "type": "continuous",
+      "lower": 0.0,
+      "upper": 0.3,
+      "initial": 0.1,
+      "step": 0.01
+    }
+  ],
+  "objective": {
+    "metric": "mean_npv",
+    "description": "Maximize mean NPV across scenarios",
+    "direction": "maximize"
+  },
+  "constraints": [
+    {
+      "name": "solvency_constraint",
+      "description": "Maintain minimum solvency ratio",
+      "metric": "cte_95",
+      "operator": ">=",
+      "value": 0.5
+    },
+    {
+      "name": "risk_constraint",
+      "description": "Limit standard deviation",
+      "metric": "std_dev",
+      "operator": "<=",
+      "value": 200.0
+    }
+  ],
+  "solver": {
+    "algorithm": "slsqp",
+    "description": "Sequential Least Squares Programming (gradient-based)",
+    "options": {
+      "max_iter": 20,
+      "ftol": 1e-6,
+      "eps": 1e-8
+    }
+  },
+  "timeout_seconds": 300,
+  "max_iterations": 20,
+  "convergence": {
+    "tolerance": 0.01,
+    "consecutive_iterations": 3,
+    "description": "Stop if objective improves <1% for 3 consecutive iterations"
+  },
+  "logging": {
+    "level": "INFO",
+    "log_each_iteration": true
+  }
+}
