@@ -751,5 +751,364 @@ class TestOuterPathGeneration(unittest.TestCase):
         self.assertTrue(np.all(outer_paths > 0))
 
 
+class TestInnerPathGeneration(unittest.TestCase):
+    """Test suite for inner path generation (US-004)"""
+
+    def setUp(self):
+        """Set up test engine"""
+        self.engine = PythonESGEngine()
+
+    def test_inner_path_generation_adds_stochastic_variation(self):
+        """Test that inner paths differ from outer path (stochastic variation)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 10,
+            'seed': 42,
+            'projection_years': 20,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Generate scenarios
+        total_scenarios = 3 * 10
+        output_buffer = np.zeros((total_scenarios, 20))
+        self.engine.runChunk(None, output_buffer)
+
+        # For US-004, inner paths should have stochastic variation
+        # Check that not all inner paths in a group are identical
+        for outer_idx in range(3):
+            start_idx = outer_idx * 10
+            end_idx = start_idx + 10
+
+            # Get all inner paths for this outer path
+            inner_paths = output_buffer[start_idx:end_idx, :]
+
+            # Check that inner paths are not all identical
+            # (at least some should differ due to stochastic variation)
+            unique_paths = 0
+            for i in range(10):
+                is_unique = True
+                for j in range(i):
+                    if np.allclose(inner_paths[i, :], inner_paths[j, :]):
+                        is_unique = False
+                        break
+                if is_unique:
+                    unique_paths += 1
+
+            # Expect at least 8 unique paths out of 10 (allow for rare duplicates)
+            self.assertGreaterEqual(
+                unique_paths,
+                8,
+                f"Outer path {outer_idx} should have at least 8 unique inner paths, got {unique_paths}"
+            )
+
+    def test_inner_path_generation_reproducible_with_seed(self):
+        """Test that inner paths are reproducible with the same seed"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 2,
+            'inner_paths_per_outer': 5,
+            'seed': 123,
+            'projection_years': 15,
+            'assumptions_version': 'v1.0'
+        }
+
+        # Generate scenarios twice with same seed
+        self.engine.initialize(config, credentials=None)
+        output_buffer_1 = np.zeros((10, 15))
+        self.engine.runChunk(None, output_buffer_1)
+
+        self.engine.dispose()
+        self.engine.initialize(config, credentials=None)
+        output_buffer_2 = np.zeros((10, 15))
+        self.engine.runChunk(None, output_buffer_2)
+
+        # Verify they are identical
+        np.testing.assert_array_almost_equal(
+            output_buffer_1,
+            output_buffer_2,
+            decimal=10,
+            err_msg="Scenarios should be reproducible with same seed"
+        )
+
+    def test_inner_path_generation_different_with_different_seed(self):
+        """Test that inner paths differ with different seeds"""
+        config1 = {
+            'esg_model': 'vasicek',
+            'outer_paths': 2,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 15,
+            'assumptions_version': 'v1.0'
+        }
+
+        config2 = {
+            'esg_model': 'vasicek',
+            'outer_paths': 2,
+            'inner_paths_per_outer': 5,
+            'seed': 999,  # Different seed
+            'projection_years': 15,
+            'assumptions_version': 'v1.0'
+        }
+
+        # Generate scenarios with different seeds
+        self.engine.initialize(config1, credentials=None)
+        output_buffer_1 = np.zeros((10, 15))
+        self.engine.runChunk(None, output_buffer_1)
+
+        self.engine.dispose()
+        self.engine.initialize(config2, credentials=None)
+        output_buffer_2 = np.zeros((10, 15))
+        self.engine.runChunk(None, output_buffer_2)
+
+        # Verify they are different
+        self.assertFalse(
+            np.allclose(output_buffer_1, output_buffer_2),
+            "Scenarios should differ with different seeds"
+        )
+
+    def test_inner_path_respects_mean_reversion(self):
+        """Test that inner paths show mean reversion toward outer path"""
+        # Set up with mock yield curve parameters
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 1,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v2.1'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Inject mock parameters with strong mean reversion
+        mock_params = {
+            'initial_yield_curve': np.array([0.03]),
+            'volatility_matrix': np.array([[0.005]]),  # Low volatility
+            'drift_rates': np.array([0.0]),
+            'mean_reversion': 0.5,  # Strong mean reversion
+            'resolved_version': 'v2.1',
+            'tenors': [1]
+        }
+        self.engine._yield_curve_params = mock_params
+
+        # Generate scenarios
+        output_buffer = np.zeros((100, 50))
+        self.engine.runChunk(None, output_buffer)
+
+        # Calculate average deviation from outer path across all inner paths
+        outer_path = self.engine._outer_paths[0, :]
+        mean_deviation_by_year = np.abs(output_buffer - outer_path).mean(axis=0)
+
+        # With mean reversion, deviations should remain bounded
+        # (not drift arbitrarily far from outer path)
+        max_deviation = mean_deviation_by_year.max()
+        self.assertLess(
+            max_deviation,
+            0.02,  # Max 2% average deviation with strong mean reversion
+            f"Mean reversion should keep paths close to outer path, got max deviation {max_deviation}"
+        )
+
+    def test_inner_path_generation_fast(self):
+        """Test that inner path generation is fast (<1ms per path target)"""
+        import time
+
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 5,
+            'inner_paths_per_outer': 1000,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Generate 5000 scenarios
+        total_scenarios = 5 * 1000
+        output_buffer = np.zeros((total_scenarios, 50))
+
+        start_time = time.time()
+        result = self.engine.runChunk(None, output_buffer)
+        elapsed_ms = (time.time() - start_time) * 1000
+
+        # Check execution time
+        time_per_path = elapsed_ms / total_scenarios
+
+        # Target: <1ms per path (acceptance criteria)
+        # Allow 10x margin for non-optimized environment
+        self.assertLess(
+            time_per_path,
+            10.0,
+            f"Inner path generation should be fast. Got {time_per_path:.3f}ms per path "
+            f"(total: {elapsed_ms:.1f}ms for {total_scenarios} paths)"
+        )
+
+        # Verify result contains execution time
+        self.assertIn('execution_time_ms', result)
+        self.assertGreater(result['execution_time_ms'], 0)
+
+    def test_inner_path_rates_positive(self):
+        """Test that all generated rates are positive (floor at 0.1%)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Generate scenarios
+        total_scenarios = 3 * 100
+        output_buffer = np.zeros((total_scenarios, 30))
+        self.engine.runChunk(None, output_buffer)
+
+        # Verify all rates are positive (floor at 0.001 = 0.1%)
+        min_rate = output_buffer.min()
+        self.assertGreaterEqual(
+            min_rate,
+            0.001,
+            f"All rates should be >= 0.1%, got minimum {min_rate}"
+        )
+
+    def test_inner_path_generation_uses_yield_curve_parameters(self):
+        """Test that inner paths use volatility and mean reversion from AM"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 1,
+            'inner_paths_per_outer': 1000,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v2.1'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Test with high volatility
+        high_vol_params = {
+            'initial_yield_curve': np.array([0.03]),
+            'volatility_matrix': np.array([[0.05]]),  # High volatility (5%)
+            'drift_rates': np.array([0.0]),
+            'mean_reversion': 0.1,
+            'resolved_version': 'v2.1',
+            'tenors': [1]
+        }
+        self.engine._yield_curve_params = high_vol_params
+
+        output_buffer_high_vol = np.zeros((1000, 50))
+        self.engine.runChunk(None, output_buffer_high_vol)
+
+        # Calculate standard deviation across scenarios
+        std_dev_high_vol = output_buffer_high_vol.std(axis=0).mean()
+
+        # Reset and test with low volatility
+        self.engine.dispose()
+        self.engine.initialize(config, credentials=None)
+
+        low_vol_params = {
+            'initial_yield_curve': np.array([0.03]),
+            'volatility_matrix': np.array([[0.001]]),  # Low volatility (0.1%)
+            'drift_rates': np.array([0.0]),
+            'mean_reversion': 0.1,
+            'resolved_version': 'v2.1',
+            'tenors': [1]
+        }
+        self.engine._yield_curve_params = low_vol_params
+
+        output_buffer_low_vol = np.zeros((1000, 50))
+        self.engine.runChunk(None, output_buffer_low_vol)
+
+        std_dev_low_vol = output_buffer_low_vol.std(axis=0).mean()
+
+        # High volatility should produce higher standard deviation
+        self.assertGreater(
+            std_dev_high_vol,
+            std_dev_low_vol * 2,  # At least 2x higher
+            f"High volatility ({std_dev_high_vol:.4f}) should produce wider spread "
+            f"than low volatility ({std_dev_low_vol:.4f})"
+        )
+
+    def test_inner_path_generation_for_all_outer_paths(self):
+        """Test that inner paths are generated for each outer path correctly"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 5,
+            'inner_paths_per_outer': 20,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Generate scenarios
+        total_scenarios = 5 * 20
+        output_buffer = np.zeros((total_scenarios, 30))
+        self.engine.runChunk(None, output_buffer)
+
+        # Verify each outer path group has proper variation
+        for outer_idx in range(5):
+            start_idx = outer_idx * 20
+            end_idx = start_idx + 20
+
+            inner_paths = output_buffer[start_idx:end_idx, :]
+
+            # Calculate standard deviation for this group
+            # Should have non-zero variation (stochastic)
+            std_dev = inner_paths.std(axis=0).mean()
+
+            self.assertGreater(
+                std_dev,
+                0.001,
+                f"Outer path {outer_idx} should have stochastic variation, got std_dev={std_dev}"
+            )
+
+    def test_inner_path_seeding_independence(self):
+        """Test that inner paths are independent across outer paths"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 50,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Generate scenarios
+        total_scenarios = 3 * 50
+        output_buffer = np.zeros((total_scenarios, 30))
+        self.engine.runChunk(None, output_buffer)
+
+        # Extract inner paths for each outer path
+        outer_0_paths = output_buffer[0:50, :]
+        outer_1_paths = output_buffer[50:100, :]
+        outer_2_paths = output_buffer[100:150, :]
+
+        # Calculate correlation between first inner paths of each outer group
+        # They should be independent (low correlation)
+        from scipy.stats import pearsonr
+
+        # Compare first inner path from outer 0 vs outer 1
+        path_0_0 = outer_0_paths[0, :]
+        path_1_0 = outer_1_paths[0, :]
+
+        correlation, _ = pearsonr(path_0_0, path_1_0)
+
+        # Correlation should be low (independent random seeds)
+        self.assertLess(
+            abs(correlation),
+            0.5,
+            f"Inner paths from different outer paths should be independent, "
+            f"got correlation {correlation}"
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

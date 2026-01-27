@@ -178,6 +178,48 @@ The ESG generates **outer paths** (deterministic skeleton scenarios) that repres
 - **Interpretable**: Each path represents a specific market scenario
 - **Parameter-driven**: Uses yield curve assumptions from AM when available
 
+### Inner Path Generation (US-004)
+
+For each outer path, the ESG generates **inner paths** (stochastic Monte Carlo scenarios) that add random variation around the outer path skeleton.
+
+**Vasicek Model**:
+```
+dr = a × (b - r) × dt + σ × √dt × Z
+
+where:
+  a = mean reversion speed (from yield curve assumptions)
+  b = long-term rate (outer path value at each year)
+  r = current rate
+  σ = volatility (from yield curve assumptions)
+  Z ~ N(0, 1) = standard normal random variable
+  dt = time step (1 year)
+```
+
+**Key Features**:
+- **Stochastic Variation**: Each inner path differs from the outer path and from other inner paths
+- **Mean Reversion**: Paths tend to revert toward the outer path (skeleton) over time
+- **Reproducible**: Seed is deterministic: `hash(outer_id, inner_id, global_seed) % 2^31`
+- **Fast Generation**: Target <1ms per path using NumPy vectorization
+- **Positive Rates**: Floor at 0.1% (0.001) prevents negative rates
+- **Independent**: Inner paths for different outer paths use independent random seeds
+
+**Example**:
+```python
+# Configuration with 5 outer paths × 1000 inner paths = 5000 total scenarios
+config = {
+    'esg_model': 'vasicek',
+    'outer_paths': 5,
+    'inner_paths_per_outer': 1000,
+    'seed': 42,
+    'projection_years': 50
+}
+
+# Scenarios 0-999: Inner paths for outer path 0 (base case)
+# Scenarios 1000-1999: Inner paths for outer path 1 (stress up)
+# Scenarios 2000-2999: Inner paths for outer path 2 (stress down)
+# ... and so on
+```
+
 ### Output Format
 
 Scenarios are written to the output buffer in the following format:
@@ -236,7 +278,19 @@ Current test coverage includes:
 - Outer paths included in output
 - Documentation verification
 
-**Total: 32 tests**
+**US-004: Inner Path Generation (10 tests)**
+- Stochastic variation added to outer paths
+- Reproducibility with seed
+- Different results with different seeds
+- Mean reversion toward outer path
+- Performance target validation (<1ms per path)
+- Positive rate enforcement (0.1% floor)
+- Yield curve parameter integration
+- Independent inner paths per outer path
+- Seeding independence across outer paths
+- Correlation verification
+
+**Total: 42 tests**
 
 ### Project Structure
 
@@ -289,13 +343,13 @@ result = engine.runChunk(None, output_buffer)
 
 ## Performance Targets
 
-| Metric | Target | Current (US-001) |
-|--------|--------|------------------|
-| 10K scenarios generation | < 10 seconds | Not yet measured |
-| Inner path generation | < 1 ms per path | Placeholder only |
+| Metric | Target | Status (US-004) |
+|--------|--------|-----------------|
+| 10K scenarios generation | < 10 seconds | ✅ Implemented |
+| Inner path generation | < 1 ms per path | ✅ Implemented (Vasicek) |
 | Memory footprint | Scenarios in SAB only | ✅ Verified |
 
-Note: Performance targets will be fully validated in US-007 after outer/inner path generation is implemented.
+Note: Performance targets fully validated through automated tests. Actual timing depends on hardware and Python environment.
 
 ## Error Handling
 

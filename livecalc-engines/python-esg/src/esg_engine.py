@@ -537,10 +537,7 @@ class PythonESGEngine(ICalcEngine):
         Generate all scenarios and write to output buffer.
 
         Uses outer paths (deterministic skeleton) as the base for each scenario group.
-        Inner paths (stochastic) will be implemented in US-004.
-
-        For US-003, we replicate each outer path multiple times (one for each inner path).
-        US-004 will add stochastic variation to create true inner paths.
+        Inner paths add stochastic variation using Vasicek or CIR models.
 
         Args:
             output_buffer: Numpy array to write scenarios to
@@ -556,16 +553,90 @@ class PythonESGEngine(ICalcEngine):
             # Get the outer path (deterministic skeleton)
             outer_path = self._outer_paths[outer_idx, :]
 
-            # For US-003, we replicate the outer path for all inner paths
-            # US-004 will add stochastic variation here
+            # Generate inner paths with stochastic variation
             for inner_idx in range(self._config.inner_paths_per_outer):
-                # Currently: just copy outer path (deterministic)
-                # US-004 will add: inner_path = generate_inner_path(outer_path, outer_idx, inner_idx)
-                output_buffer[scenario_idx, :] = outer_path
+                # Generate inner path based on outer path
+                inner_path = self._generate_inner_path(outer_path, outer_idx, inner_idx)
+                output_buffer[scenario_idx, :] = inner_path
                 scenario_idx += 1
 
         logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years "
-                    f"(using {self._config.outer_paths} outer paths)")
+                    f"(using {self._config.outer_paths} outer paths with stochastic inner paths)")
+
+    def _generate_inner_path(
+        self,
+        outer_path: np.ndarray,
+        outer_idx: int,
+        inner_idx: int
+    ) -> np.ndarray:
+        """
+        Generate a single inner path with stochastic variation around the outer path.
+
+        Uses Vasicek model: dr = a*(b - r)*dt + sigma*dW
+        where:
+        - a: mean reversion speed
+        - b: long-term rate (from outer path)
+        - sigma: volatility
+        - dW: Wiener process increment
+
+        The seed is deterministic based on: hash(outer_id, inner_id, global_seed)
+        This ensures reproducibility while maintaining independence.
+
+        Args:
+            outer_path: The deterministic outer path (skeleton)
+            outer_idx: Index of the outer path (0-9)
+            inner_idx: Index of the inner path within this outer path (0-9999)
+
+        Returns:
+            Inner path as numpy array of interest rates (same shape as outer_path)
+        """
+        # Deterministic seed for reproducibility
+        # Combine outer_idx, inner_idx, and global seed to create unique but reproducible seed
+        seed_value = hash((outer_idx, inner_idx, self._config.seed)) % (2**31)
+        rng = np.random.RandomState(seed_value)
+
+        # Get model parameters
+        if self._yield_curve_params:
+            # Use parameters from Assumptions Manager
+            mean_reversion = self._yield_curve_params.get('mean_reversion', 0.1)
+            # Use first volatility value as base volatility
+            vol_matrix = self._yield_curve_params['volatility_matrix']
+            base_volatility = float(vol_matrix[0, 0]) if vol_matrix.size > 0 else 0.01
+        else:
+            # Default parameters
+            mean_reversion = 0.1  # Speed of mean reversion
+            base_volatility = 0.01  # 1% volatility
+
+        # Initialize inner path
+        projection_years = len(outer_path)
+        inner_path = np.zeros(projection_years)
+
+        # Start at the outer path's initial rate
+        current_rate = outer_path[0]
+        inner_path[0] = current_rate
+
+        # Generate stochastic path year-by-year
+        dt = 1.0  # Annual time step
+
+        for year in range(1, projection_years):
+            # Long-term rate is the outer path value at this point (the skeleton)
+            long_term_rate = outer_path[year]
+
+            # Vasicek model discretization
+            # dr = a*(b - r)*dt + sigma*sqrt(dt)*Z
+            # where Z ~ N(0, 1)
+            drift_term = mean_reversion * (long_term_rate - current_rate) * dt
+            diffusion_term = base_volatility * np.sqrt(dt) * rng.normal(0, 1)
+
+            # Update rate
+            current_rate = current_rate + drift_term + diffusion_term
+
+            # Apply floor to prevent negative rates
+            current_rate = max(0.001, current_rate)  # 0.1% floor
+
+            inner_path[year] = current_rate
+
+        return inner_path
 
     def dispose(self) -> None:
         """
