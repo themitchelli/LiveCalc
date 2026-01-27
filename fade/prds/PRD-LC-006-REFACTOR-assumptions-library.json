@@ -182,7 +182,7 @@
           "LIVECALC_AM_CACHE_DIR": "/path/to/cache"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

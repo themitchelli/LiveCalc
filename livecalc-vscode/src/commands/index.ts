@@ -12,6 +12,7 @@ import { PipelineView, PipelineDataInspector, BreakpointManager, TimingProfiler 
 import { AuthManager, AMStatusBar, AMCache, AssumptionTreeDataProvider, AssumptionTreeItem, AssumptionsManagerClient } from '../assumptions-manager';
 import { executeAMLogin } from './am-login';
 import { executeAMLogout, executeAMClearCache } from './am-logout';
+import { executeAMConfigure } from './am-configure';
 import { logger } from '../logging/logger';
 
 /**
@@ -211,6 +212,13 @@ export function registerCommands(
 
   // Register Assumptions Manager commands
   if (authManager) {
+    // Configure command - guides user through setup
+    context.subscriptions.push(
+      vscode.commands.registerCommand('livecalc.amConfigure', async () => {
+        await executeAMConfigure(authManager);
+      })
+    );
+
     // Login command
     context.subscriptions.push(
       vscode.commands.registerCommand('livecalc.amLogin', async () => {

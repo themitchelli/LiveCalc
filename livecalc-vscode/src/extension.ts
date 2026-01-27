@@ -60,9 +60,10 @@ export function activate(context: vscode.ExtensionContext): void {
   configLoader = new ConfigLoader(context);
   context.subscriptions.push(configLoader);
 
-  // Initialize engine manager with extension path (lazy initialization)
+  // Initialize engine manager with extension path and context (lazy initialization)
   const engineManager = getEngineManager();
   engineManager.setExtensionPath(context.extensionPath);
+  engineManager.setExtensionContext(context);
 
   // Update status bar when engine initializes
   context.subscriptions.push(

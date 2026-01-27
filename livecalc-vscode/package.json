@@ -104,6 +104,12 @@
         "category": "LiveCalc"
       },
       {
+        "command": "livecalc.amConfigure",
+        "title": "Configure Assumptions Manager",
+        "category": "LiveCalc",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "livecalc.amLogin",
         "title": "Login to Assumptions Manager",
         "category": "LiveCalc"

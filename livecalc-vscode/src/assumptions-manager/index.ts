@@ -32,3 +32,11 @@ export {
   type TreeItemType,
   type AssumptionTreeItemData,
 } from './tree-provider';
+export {
+  getAMEnvironment,
+  setAMEnvironmentVariables,
+  clearAMEnvironmentVariables,
+  hasAMCredentials,
+  AM_ENV_VARS,
+  type AMEnvironment,
+} from './credentials-env';

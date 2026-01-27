@@ -59,6 +59,7 @@ export class LiveCalcEngineManager implements vscode.Disposable {
   private state: EngineState = EngineState.Uninitialized;
   private engine: any = null; // LiveCalcEngine instance
   private extensionPath: string = '';
+  private extensionContext: vscode.ExtensionContext | null = null;
   private initPromise: Promise<void> | null = null;
   private currentCancellation: vscode.CancellationToken | null = null;
   private aborted = false;
@@ -87,6 +88,20 @@ export class LiveCalcEngineManager implements vscode.Disposable {
    */
   setExtensionPath(extensionPath: string): void {
     this.extensionPath = extensionPath;
+  }
+
+  /**
+   * Set the extension context (required for AM credentials)
+   */
+  setExtensionContext(context: vscode.ExtensionContext): void {
+    this.extensionContext = context;
+  }
+
+  /**
+   * Get the extension context
+   */
+  private getExtensionContext(): vscode.ExtensionContext | null {
+    return this.extensionContext;
   }
 
   /**
@@ -159,6 +174,22 @@ export class LiveCalcEngineManager implements vscode.Disposable {
     }
 
     try {
+      // Set AM credentials as environment variables before engine initialization
+      // This allows the engine to access AM credentials via process.env
+      const { setAMEnvironmentVariables, getAMEnvironment } = await import('../assumptions-manager');
+
+      // Get current extension context (stored during setExtensionPath)
+      const context = this.getExtensionContext();
+      if (context) {
+        const amEnv = await getAMEnvironment(context);
+        if (amEnv) {
+          setAMEnvironmentVariables(amEnv);
+          logger.debug('AM credentials set as environment variables for engine');
+        } else {
+          logger.debug('No AM credentials available - engine will run without AM integration');
+        }
+      }
+
       // Dynamically import the engine module
       const { LiveCalcEngine } = await import('@livecalc/engine');
 

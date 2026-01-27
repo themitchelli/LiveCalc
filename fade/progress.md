@@ -3796,3 +3796,45 @@ For blocked stories, use:
   - livecalc-assumptions-lib/src/api/http_client.hpp (complete interface)
   - livecalc-assumptions-lib/src/api/http_client.cpp (full implementation, 274 lines)
 - Tests: HttpClient implementation complete and functional
+
+
+## 2026-01-27 23:45 - US-007: Integration with VS Code Extension (PRD-LC-006-REFACTOR) - COMPLETE
+
+- Implemented VS Code extension integration to pass AM credentials to calculation engines via environment variables
+- Created credentials-env.ts module:
+  - getAMEnvironment(): Retrieves AM credentials from AuthManager and formats as environment variables
+  - setAMEnvironmentVariables(): Sets process.env variables for engine consumption
+  - clearAMEnvironmentVariables(): Cleans up environment variables
+  - hasAMCredentials(): Checks if credentials are available
+  - Environment variable names: LIVECALC_AM_URL, LIVECALC_AM_TOKEN, LIVECALC_AM_CACHE_DIR
+- Updated LiveCalcEngineManager to inject credentials:
+  - Added extensionContext field to store VS Code extension context
+  - Added setExtensionContext() and getExtensionContext() methods
+  - Modified doInitialize() to call getAMEnvironment() and setAMEnvironmentVariables() before WASM engine initialization
+  - Credentials now available to engines when they initialize AssumptionsClient
+- Implemented 'LiveCalc: Configure Assumptions Manager' command:
+  - Created am-configure.ts with executeAMConfigure() wizard
+  - Step 1: Check/set AM URL in workspace configuration
+  - Step 2: Check authentication status and guide to login
+  - Handles URL changes (logs out if URL changes to avoid stale tokens)
+  - Registered command in package.json and commands/index.ts
+- Verified fail-fast behavior:
+  - C++ AssumptionsClient already throws clear exceptions (AssumptionsError, JWTError) when credentials missing or invalid
+  - No additional engine-side changes needed
+- All acceptance criteria met:
+  - ✓ VS Code extension stores AM credentials in SecretStorage (already implemented)
+  - ✓ Engine initialization receives credentials via environment variables (LIVECALC_AM_TOKEN, LIVECALC_AM_URL, LIVECALC_AM_CACHE_DIR)
+  - ✓ Orchestrator passes token to engines at startup (via setAMEnvironmentVariables in doInitialize)
+  - ✓ If no credentials provided, engine fails fast with clear message (verified AssumptionsClient error handling)
+  - ✓ Command: 'LiveCalc: Configure Assumptions Manager' (implemented and registered)
+- Files changed:
+  - livecalc-vscode/src/assumptions-manager/credentials-env.ts (new file - 125 lines)
+  - livecalc-vscode/src/assumptions-manager/index.ts (exported credentials-env functions)
+  - livecalc-vscode/src/engine/livecalc-engine.ts (added extensionContext, setExtensionContext, credential injection in doInitialize)
+  - livecalc-vscode/src/extension.ts (call setExtensionContext during activation)
+  - livecalc-vscode/src/commands/am-configure.ts (new file - 91 lines)
+  - livecalc-vscode/src/commands/index.ts (imported and registered amConfigure command)
+  - livecalc-vscode/package.json (added livecalc.amConfigure command)
+- Tests: TypeScript compilation successful, no errors
+- Integration: VS Code extension now seamlessly provides AM credentials to all calculation engines without code duplication
+
