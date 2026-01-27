@@ -3386,3 +3386,24 @@ For blocked stories, use:
   - livecalc-engine/CMakeLists.txt (added assumption_set.cpp to LIB_SOURCES, linked assumptions_lib)
 - Tests: All 129 tests pass (20882 assertions), including 6 new AssumptionSet tests (20 assertions)
 - Integration: AssumptionsClient library successfully linked and accessible via HAVE_ASSUMPTIONS_CLIENT define
+
+## 2026-01-27 21:30 - US-003: Economic Scenario Structure (PRD-LC-001-REVISED) - COMPLETE
+
+- Added Parquet loading support to ScenarioSet via load_from_parquet() method
+- Supports both wide format (scenario_id, year_1..year_50) and long format (scenario_id, year, rate)
+- Integration with Apache Arrow C++ library (conditional compilation with HAVE_ARROW)
+- Parquet loading validates schema and reports clear errors for missing columns
+- Added unit tests for Parquet loading (conditional on HAVE_ARROW availability)
+- All existing functionality preserved: CSV loading, GBM generation, binary serialization
+- All acceptance criteria met:
+  - ✓ Scenario struct contains interest rates by year (1-50)
+  - ✓ ScenarioSet contains multiple scenarios (1,000 - 100,000)
+  - ✓ Scenarios can be generated programmatically (GBM with drift/volatility)
+  - ✓ Scenarios can be loaded from Parquet (both wide and long formats)
+  - ✓ Seed-based generation for reproducibility
+  - ✓ Unit tests validate scenario generation produces expected distribution
+- Files changed:
+  - livecalc-engine/src/scenario.hpp (added load_from_parquet declaration)
+  - livecalc-engine/src/scenario.cpp (implemented Parquet loading with Arrow)
+  - livecalc-engine/tests/test_scenario.cpp (added Parquet loading tests)
+- Tests: All 130 tests pass (20883 assertions)

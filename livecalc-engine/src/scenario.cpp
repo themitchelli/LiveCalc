@@ -7,6 +7,13 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#ifdef HAVE_ARROW
+#include <arrow/api.h>
+#include <arrow/io/api.h>
+#include <parquet/arrow/reader.h>
+#include <parquet/arrow/schema.h>
+#endif
+
 namespace livecalc {
 
 // ============================================================================
@@ -217,6 +224,120 @@ ScenarioSet ScenarioSet::load_from_csv(std::istream& is) {
 
     return set;
 }
+
+#ifdef HAVE_ARROW
+
+ScenarioSet ScenarioSet::load_from_parquet(const std::string& filepath) {
+    ScenarioSet set;
+
+    // Open Parquet file
+    std::shared_ptr<arrow::io::ReadableFile> infile;
+    auto status = arrow::io::ReadableFile::Open(filepath, arrow::default_memory_pool(), &infile);
+    if (!status.ok()) {
+        throw std::runtime_error("Cannot open Parquet file: " + filepath + " - " + status.ToString());
+    }
+
+    // Create Parquet reader
+    std::unique_ptr<parquet::arrow::FileReader> arrow_reader;
+    status = parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &arrow_reader);
+    if (!status.ok()) {
+        throw std::runtime_error("Cannot create Parquet reader: " + status.ToString());
+    }
+
+    // Read entire table into memory
+    std::shared_ptr<arrow::Table> table;
+    status = arrow_reader->ReadTable(&table);
+    if (!status.ok()) {
+        throw std::runtime_error("Cannot read Parquet table: " + status.ToString());
+    }
+
+    auto schema = table->schema();
+
+    // Detect format: check if we have year_1, year_2, etc. (wide) or year column (long)
+    int scenario_id_idx = schema->GetFieldIndex("scenario_id");
+    int year_col_idx = schema->GetFieldIndex("year");
+
+    if (scenario_id_idx < 0) {
+        throw std::runtime_error("Parquet file missing required 'scenario_id' column");
+    }
+
+    bool is_long_format = (year_col_idx >= 0);
+
+    if (is_long_format) {
+        // Long format: scenario_id (uint32), year (uint8), rate (float64)
+        int rate_idx = schema->GetFieldIndex("rate");
+        if (rate_idx < 0) {
+            throw std::runtime_error("Long format Parquet missing 'rate' column");
+        }
+
+        auto scenario_id_column = std::static_pointer_cast<arrow::UInt32Array>(table->column(scenario_id_idx)->chunk(0));
+        auto year_column = std::static_pointer_cast<arrow::UInt8Array>(table->column(year_col_idx)->chunk(0));
+        auto rate_column = std::static_pointer_cast<arrow::DoubleArray>(table->column(rate_idx)->chunk(0));
+
+        // Group by scenario_id
+        std::unordered_map<uint32_t, Scenario> scenario_map;
+        int64_t num_rows = table->num_rows();
+
+        for (int64_t i = 0; i < num_rows; ++i) {
+            uint32_t scenario_id = scenario_id_column->Value(i);
+            uint8_t year = year_column->Value(i);
+            double rate = rate_column->Value(i);
+
+            if (scenario_map.find(scenario_id) == scenario_map.end()) {
+                scenario_map[scenario_id] = Scenario();
+            }
+            scenario_map[scenario_id].set_rate(year, rate);
+        }
+
+        // Convert map to vector (sorted by scenario_id)
+        std::vector<std::pair<uint32_t, Scenario>> sorted_scenarios(
+            scenario_map.begin(), scenario_map.end());
+        std::sort(sorted_scenarios.begin(), sorted_scenarios.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+
+        for (auto& pair : sorted_scenarios) {
+            set.add(std::move(pair.second));
+        }
+
+    } else {
+        // Wide format: scenario_id, year_1, year_2, ..., year_50
+        // Verify we have all year columns
+        std::vector<int> year_indices;
+        for (uint8_t year = 1; year <= Scenario::MAX_YEAR; ++year) {
+            std::string col_name = "year_" + std::to_string(year);
+            int idx = schema->GetFieldIndex(col_name);
+            if (idx < 0) {
+                throw std::runtime_error("Wide format Parquet missing column: " + col_name);
+            }
+            year_indices.push_back(idx);
+        }
+
+        auto scenario_id_column = std::static_pointer_cast<arrow::UInt32Array>(table->column(scenario_id_idx)->chunk(0));
+        int64_t num_rows = table->num_rows();
+        set.reserve(static_cast<size_t>(num_rows));
+
+        for (int64_t i = 0; i < num_rows; ++i) {
+            Scenario scenario;
+            for (uint8_t year = 1; year <= Scenario::MAX_YEAR; ++year) {
+                auto rate_column = std::static_pointer_cast<arrow::DoubleArray>(
+                    table->column(year_indices[year - 1])->chunk(0));
+                double rate = rate_column->Value(i);
+                scenario.set_rate(year, rate);
+            }
+            set.add(std::move(scenario));
+        }
+    }
+
+    return set;
+}
+
+#else // !HAVE_ARROW
+
+ScenarioSet ScenarioSet::load_from_parquet(const std::string& filepath) {
+    throw std::runtime_error("Apache Arrow not available. Rebuild with -DHAVE_ARROW to enable Parquet support.");
+}
+
+#endif // HAVE_ARROW
 
 void ScenarioSet::serialize(std::ostream& os) const {
     // Write count as uint32_t

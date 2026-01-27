@@ -84,6 +84,10 @@ public:
     static ScenarioSet load_from_csv(const std::string& filepath);
     static ScenarioSet load_from_csv(std::istream& is);
 
+    // Load from Parquet: expects columns scenario_id (uint32), year_1..year_50 (float64)
+    // or scenario_id (uint32), year (uint8), rate (float64) for long format
+    static ScenarioSet load_from_parquet(const std::string& filepath);
+
     // Binary serialization for WASM
     void serialize(std::ostream& os) const;
     static ScenarioSet deserialize(std::istream& is);

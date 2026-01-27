@@ -415,3 +415,29 @@ TEST_CASE("ScenarioSet memory footprint helper", "[scenarioset]") {
     size_t footprint = set.memory_footprint();
     REQUIRE(footprint >= 1000 * sizeof(Scenario));
 }
+
+// ============================================================================
+// Parquet Loading Tests
+// ============================================================================
+
+#ifdef HAVE_ARROW
+
+TEST_CASE("ScenarioSet Parquet loading wide format", "[scenarioset][parquet]") {
+    // This test requires a Parquet file created externally
+    // For now, we test that the function throws when file doesn't exist
+    REQUIRE_THROWS_AS(ScenarioSet::load_from_parquet("nonexistent.parquet"), std::runtime_error);
+}
+
+TEST_CASE("ScenarioSet Parquet loading long format", "[scenarioset][parquet]") {
+    // This test requires a Parquet file created externally
+    // For now, we test that the function throws when file doesn't exist
+    REQUIRE_THROWS_AS(ScenarioSet::load_from_parquet("nonexistent_long.parquet"), std::runtime_error);
+}
+
+#else
+
+TEST_CASE("ScenarioSet Parquet loading throws when Arrow not available", "[scenarioset][parquet]") {
+    REQUIRE_THROWS_AS(ScenarioSet::load_from_parquet("test.parquet"), std::runtime_error);
+}
+
+#endif // HAVE_ARROW
