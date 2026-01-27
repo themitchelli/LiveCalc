@@ -486,9 +486,14 @@ class PythonESGEngine(ICalcEngine):
 
         Args:
             input_buffer: None (ESG has no input dependencies)
-            output_buffer: Pre-allocated numpy array for scenarios
-                          Shape: (num_scenarios, projection_years, 1)
-                          Dtype: np.float64
+            output_buffer: Pre-allocated structured numpy array for scenarios
+                          Dtype: [('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')]
+                          Shape: (num_scenarios * projection_years,)
+
+                          Format: Each row is [scenario_id, year, interest_rate]
+                          - scenario_id: uint32 (outer_id * 1000 + inner_id)
+                          - year: uint32 (1 to projection_years)
+                          - rate: float32 (per-annum rate, e.g., 0.03 for 3%)
 
         Returns:
             Dict with:
@@ -506,20 +511,40 @@ class PythonESGEngine(ICalcEngine):
         start_time = time.time()
 
         try:
-            # Calculate total scenarios
+            # Calculate total scenarios and rows
             total_scenarios = self._config.outer_paths * self._config.inner_paths_per_outer
+            total_rows = total_scenarios * self._config.projection_years
 
-            # Validate output buffer shape
-            expected_shape = (total_scenarios, self._config.projection_years)
-            if output_buffer.shape != expected_shape:
-                raise ExecutionError(
-                    f"Output buffer shape mismatch. Expected {expected_shape}, got {output_buffer.shape}"
-                )
+            # Validate output buffer
+            if not isinstance(output_buffer, np.ndarray):
+                raise ExecutionError("Output buffer must be a numpy array")
 
-            # Generate scenarios
-            # For US-001, we'll implement a simple placeholder that writes scenarios
-            # US-003 and US-004 will implement actual outer/inner path generation
-            self._generate_scenarios(output_buffer)
+            # Check if buffer has the correct dtype (structured array)
+            if output_buffer.dtype.names is None:
+                # Legacy format: 2D array (num_scenarios, projection_years)
+                # This is for backwards compatibility with tests
+                expected_shape = (total_scenarios, self._config.projection_years)
+                if output_buffer.shape != expected_shape:
+                    raise ExecutionError(
+                        f"Output buffer shape mismatch. Expected {expected_shape}, got {output_buffer.shape}"
+                    )
+                self._generate_scenarios_legacy(output_buffer)
+            else:
+                # Structured array format (US-005)
+                expected_dtype_names = ('scenario_id', 'year', 'rate')
+                if output_buffer.dtype.names != expected_dtype_names:
+                    raise ExecutionError(
+                        f"Output buffer dtype mismatch. Expected fields {expected_dtype_names}, "
+                        f"got {output_buffer.dtype.names}"
+                    )
+
+                expected_shape = (total_rows,)
+                if output_buffer.shape != expected_shape:
+                    raise ExecutionError(
+                        f"Output buffer shape mismatch. Expected {expected_shape}, got {output_buffer.shape}"
+                    )
+
+                self._generate_scenarios_structured(output_buffer)
 
             execution_time_ms = (time.time() - start_time) * 1000
 
@@ -532,9 +557,55 @@ class PythonESGEngine(ICalcEngine):
         except Exception as e:
             raise ExecutionError(f"Failed to generate scenarios: {str(e)}")
 
-    def _generate_scenarios(self, output_buffer: np.ndarray) -> None:
+    def _generate_scenarios_structured(self, output_buffer: np.ndarray) -> None:
         """
-        Generate all scenarios and write to output buffer.
+        Generate all scenarios and write to structured output buffer (US-005 format).
+
+        Output format: [scenario_id, year, interest_rate]
+        - scenario_id: outer_id * 1000 + inner_id
+        - year: 1 to projection_years
+        - rate: per-annum interest rate (e.g., 0.03 for 3%)
+
+        Uses outer paths (deterministic skeleton) as the base for each scenario group.
+        Inner paths add stochastic variation using Vasicek or CIR models.
+
+        Args:
+            output_buffer: Structured numpy array
+                          Dtype: [('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')]
+                          Shape: (num_scenarios * projection_years,)
+        """
+        if self._outer_paths is None:
+            raise ExecutionError("Outer paths not generated. Call initialize() first.")
+
+        total_scenarios = self._config.outer_paths * self._config.inner_paths_per_outer
+        row_idx = 0
+
+        for outer_idx in range(self._config.outer_paths):
+            # Get the outer path (deterministic skeleton)
+            outer_path = self._outer_paths[outer_idx, :]
+
+            # Generate inner paths with stochastic variation
+            for inner_idx in range(self._config.inner_paths_per_outer):
+                # Calculate scenario_id: outer_id * 1000 + inner_id
+                scenario_id = outer_idx * 1000 + inner_idx
+
+                # Generate inner path based on outer path
+                inner_path = self._generate_inner_path(outer_path, outer_idx, inner_idx)
+
+                # Write each (scenario_id, year, rate) tuple to output
+                for year_idx in range(self._config.projection_years):
+                    output_buffer[row_idx]['scenario_id'] = scenario_id
+                    output_buffer[row_idx]['year'] = year_idx + 1  # Years are 1-indexed
+                    output_buffer[row_idx]['rate'] = inner_path[year_idx]
+                    row_idx += 1
+
+        logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years "
+                    f"in structured format (US-005): {row_idx} total rows written "
+                    f"(using {self._config.outer_paths} outer paths with stochastic inner paths)")
+
+    def _generate_scenarios_legacy(self, output_buffer: np.ndarray) -> None:
+        """
+        Generate all scenarios and write to legacy 2D output buffer (for backwards compatibility).
 
         Uses outer paths (deterministic skeleton) as the base for each scenario group.
         Inner paths add stochastic variation using Vasicek or CIR models.

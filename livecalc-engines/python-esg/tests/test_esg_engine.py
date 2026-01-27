@@ -1110,5 +1110,283 @@ class TestInnerPathGeneration(unittest.TestCase):
         )
 
 
+class TestScenarioOutputFormat(unittest.TestCase):
+    """Test suite for US-005: Scenario Output Format"""
+
+    def setUp(self):
+        """Set up test engine"""
+        self.engine = PythonESGEngine()
+
+    def test_structured_output_format(self):
+        """Test that scenarios are written in structured format [scenario_id, year, rate]"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 10,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Calculate expected dimensions
+        total_scenarios = 3 * 5  # 15 scenarios
+        total_rows = total_scenarios * 10  # 150 rows (15 scenarios × 10 years)
+
+        # Create structured output buffer (US-005 format)
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        # Generate scenarios
+        result = self.engine.runChunk(None, output_buffer)
+
+        # Verify result metadata
+        self.assertEqual(result['scenarios_generated'], total_scenarios)
+        self.assertIn('execution_time_ms', result)
+        self.assertGreater(result['execution_time_ms'], 0)
+
+        # Verify all rows are filled
+        self.assertTrue(np.all(output_buffer['year'] > 0), "All years should be > 0")
+        self.assertTrue(np.all(output_buffer['rate'] > 0), "All rates should be > 0")
+
+    def test_scenario_id_format(self):
+        """Test that scenario_id follows the formula: outer_id * 1000 + inner_id"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 10,
+            'seed': 42,
+            'projection_years': 5,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Create structured output buffer
+        total_rows = 3 * 10 * 5  # 150 rows
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        self.engine.runChunk(None, output_buffer)
+
+        # Verify scenario_id format for specific scenarios
+        # Scenario (outer=0, inner=0): ID should be 0
+        # Scenario (outer=0, inner=9): ID should be 9
+        # Scenario (outer=1, inner=0): ID should be 1000
+        # Scenario (outer=2, inner=5): ID should be 2005
+
+        # Extract unique scenario IDs
+        unique_ids = np.unique(output_buffer['scenario_id'])
+        self.assertEqual(len(unique_ids), 30, "Should have 30 unique scenario IDs")
+
+        # Check specific IDs
+        expected_ids = [0, 9, 1000, 1009, 2000, 2009]
+        for expected_id in expected_ids:
+            self.assertIn(expected_id, unique_ids, f"Expected scenario ID {expected_id} not found")
+
+        # Verify each scenario has exactly projection_years rows
+        for scenario_id in unique_ids:
+            scenario_rows = output_buffer[output_buffer['scenario_id'] == scenario_id]
+            self.assertEqual(len(scenario_rows), 5, f"Scenario {scenario_id} should have 5 years")
+
+    def test_year_indexing(self):
+        """Test that years are 1-indexed (1 to projection_years)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 2,
+            'inner_paths_per_outer': 3,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        total_rows = 2 * 3 * 50  # 300 rows
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        self.engine.runChunk(None, output_buffer)
+
+        # Check that years are 1 to 50 for each scenario
+        unique_scenario_ids = np.unique(output_buffer['scenario_id'])
+
+        for scenario_id in unique_scenario_ids:
+            scenario_rows = output_buffer[output_buffer['scenario_id'] == scenario_id]
+            years = scenario_rows['year']
+
+            # Years should be [1, 2, 3, ..., 50]
+            expected_years = np.arange(1, 51)
+            np.testing.assert_array_equal(
+                years,
+                expected_years,
+                f"Scenario {scenario_id} years should be 1-50"
+            )
+
+    def test_interest_rate_format(self):
+        """Test that interest rates are per-annum (e.g., 0.03 for 3%)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 20,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        total_rows = 3 * 5 * 20
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        self.engine.runChunk(None, output_buffer)
+
+        # Rates should be reasonable (0.1% to 20% = 0.001 to 0.20)
+        rates = output_buffer['rate']
+        self.assertTrue(np.all(rates > 0.001), "All rates should be > 0.1%")
+        self.assertTrue(np.all(rates < 0.30), "All rates should be < 30%")
+
+        # Check that rates are actually float values (not percentages like 3.0)
+        # Mean rate should be around 0.03-0.05 (3-5% per annum)
+        mean_rate = np.mean(rates)
+        self.assertGreater(mean_rate, 0.005, "Mean rate should be > 0.5%")
+        self.assertLess(mean_rate, 0.15, "Mean rate should be < 15%")
+
+    def test_buffer_size_calculation(self):
+        """Test that buffer size matches expected: num_scenarios * projection_years"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 5,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        total_scenarios = 5 * 100  # 500 scenarios
+        total_rows = total_scenarios * 30  # 15,000 rows
+
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        result = self.engine.runChunk(None, output_buffer)
+
+        # Verify correct number of scenarios generated
+        self.assertEqual(result['scenarios_generated'], 500)
+
+        # Verify all rows are filled
+        unique_scenarios = np.unique(output_buffer['scenario_id'])
+        self.assertEqual(len(unique_scenarios), 500, "Should have 500 unique scenarios")
+
+        # Verify total rows
+        self.assertEqual(len(output_buffer), 15000, "Should have 15,000 total rows")
+
+    def test_structured_buffer_dtype_validation(self):
+        """Test that engine validates structured buffer dtype"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 2,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 10,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Create buffer with wrong dtype
+        wrong_dtype = np.dtype([('id', 'u4'), ('time', 'u4'), ('value', 'f4')])
+        output_buffer = np.zeros(100, dtype=wrong_dtype)
+
+        # Should raise ExecutionError due to dtype mismatch
+        with self.assertRaises(ExecutionError) as context:
+            self.engine.runChunk(None, output_buffer)
+
+        self.assertIn("dtype mismatch", str(context.exception).lower())
+
+    def test_structured_buffer_shape_validation(self):
+        """Test that engine validates structured buffer shape"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 10,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Create buffer with wrong shape (too small)
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        wrong_size = 50  # Should be 3 * 5 * 10 = 150
+        output_buffer = np.zeros(wrong_size, dtype=dtype)
+
+        # Should raise ExecutionError due to shape mismatch
+        with self.assertRaises(ExecutionError) as context:
+            self.engine.runChunk(None, output_buffer)
+
+        self.assertIn("shape mismatch", str(context.exception).lower())
+
+    def test_backwards_compatibility_with_legacy_buffer(self):
+        """Test that engine still supports legacy 2D buffer format for backwards compatibility"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 5,
+            'seed': 42,
+            'projection_years': 10,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Create legacy 2D buffer
+        total_scenarios = 3 * 5
+        output_buffer = np.zeros((total_scenarios, 10))
+
+        # Should work without errors
+        result = self.engine.runChunk(None, output_buffer)
+
+        self.assertEqual(result['scenarios_generated'], 15)
+        self.assertTrue(np.all(output_buffer > 0), "All values should be > 0")
+
+    def test_structured_output_with_large_dataset(self):
+        """Test structured output with larger dataset (performance check)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 10,
+            'inner_paths_per_outer': 1000,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # 10 outer × 1000 inner × 50 years = 500,000 rows
+        total_rows = 10 * 1000 * 50
+
+        dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+        output_buffer = np.zeros(total_rows, dtype=dtype)
+
+        import time
+        start = time.time()
+        result = self.engine.runChunk(None, output_buffer)
+        elapsed = time.time() - start
+
+        # Should complete in reasonable time (< 15 seconds for 10K scenarios)
+        self.assertLess(elapsed, 15.0, f"Large dataset generation took {elapsed:.2f}s, expected < 15s")
+
+        # Verify results
+        self.assertEqual(result['scenarios_generated'], 10000)
+        unique_scenarios = np.unique(output_buffer['scenario_id'])
+        self.assertEqual(len(unique_scenarios), 10000, "Should have 10,000 unique scenarios")
+
+
 if __name__ == '__main__':
     unittest.main()

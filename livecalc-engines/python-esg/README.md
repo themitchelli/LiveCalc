@@ -220,22 +220,74 @@ config = {
 # ... and so on
 ```
 
-### Output Format
+### Output Format (US-005)
 
-Scenarios are written to the output buffer in the following format:
+**Structured Array Format** (Standard):
+
+Scenarios are written as a structured numpy array with the following schema:
+
+```python
+dtype = np.dtype([
+    ('scenario_id', 'u4'),  # uint32: outer_id * 1000 + inner_id
+    ('year', 'u4'),         # uint32: 1 to projection_years (1-indexed)
+    ('rate', 'f4')          # float32: per-annum rate (e.g., 0.03 for 3%)
+])
+```
+
+- **Shape**: `(num_scenarios * projection_years,)` - flattened rows
+- **Scenario ID Formula**: `scenario_id = outer_id * 1000 + inner_id`
+  - Example: Outer path 2, inner path 15 → scenario_id = 2015
+- **Year Indexing**: Years are 1-indexed (1 to 50, not 0 to 49)
+- **Rate Units**: Per-annum interest rates (0.03 = 3% per year)
+
+**Example Usage**:
+```python
+# Create structured output buffer
+total_scenarios = outer_paths * inner_paths_per_outer
+total_rows = total_scenarios * projection_years
+dtype = np.dtype([('scenario_id', 'u4'), ('year', 'u4'), ('rate', 'f4')])
+output_buffer = np.zeros(total_rows, dtype=dtype)
+
+# Run engine
+engine.runChunk(None, output_buffer)
+
+# Access data
+# Get all rows for scenario 1005
+scenario_1005 = output_buffer[output_buffer['scenario_id'] == 1005]
+
+# Get year 25 for scenario 1005
+year_25 = scenario_1005[scenario_1005['year'] == 25]
+rate = year_25['rate'][0]  # e.g., 0.0345
+
+# Get all rates for year 1 across all scenarios
+year_1_rates = output_buffer[output_buffer['year'] == 1]['rate']
+```
+
+**Buffer Size Calculation**:
+```python
+# Memory footprint: 12 bytes per row (4 + 4 + 4)
+# Example: 10 outer × 1000 inner × 50 years = 500,000 rows = 6 MB
+num_scenarios = outer_paths * inner_paths_per_outer
+total_rows = num_scenarios * projection_years
+buffer_size_bytes = total_rows * 12  # 12 bytes per row
+```
+
+**Legacy Format** (for backwards compatibility):
+
+The engine still supports the legacy 2D array format for older code:
 
 - **Shape**: `(num_scenarios, projection_years)`
 - **Type**: `np.float64`
-- **Units**: Per-annum interest rates (e.g., 0.03 for 3%)
-- **Scenario ID**: `scenario_idx = outer_id * inner_paths_per_outer + inner_id`
+- **Units**: Per-annum interest rates
 
 Example:
 ```python
+# Legacy format
+output_buffer = np.zeros((total_scenarios, projection_years))
+engine.runChunk(None, output_buffer)
+
 # Access scenario 0, year 1
 rate = output_buffer[0, 0]  # e.g., 0.0301
-
-# Access scenario 150, year 25
-rate = output_buffer[150, 24]  # e.g., 0.0345
 ```
 
 ## Development
@@ -290,7 +342,19 @@ Current test coverage includes:
 - Seeding independence across outer paths
 - Correlation verification
 
-**Total: 42 tests**
+**US-005: Scenario Output Format (10 tests)**
+- Structured array format [scenario_id, year, rate]
+- Scenario ID formula validation (outer_id * 1000 + inner_id)
+- Year indexing validation (1-indexed: 1 to projection_years)
+- Interest rate format validation (per-annum: 0.03 for 3%)
+- Buffer size calculation verification
+- Structured buffer dtype validation
+- Structured buffer shape validation
+- Backwards compatibility with legacy 2D buffer
+- Large dataset generation (10K scenarios × 50 years)
+- Performance validation (<15s for 10K scenarios)
+
+**Total: 52 tests**
 
 ### Project Structure
 
@@ -432,8 +496,8 @@ Without credentials, the engine uses default parameters (for testing/development
 - [x] **US-001**: ICalcEngine Interface Implementation
 - [x] **US-002**: Yield Curve Assumption Resolution
 - [x] **US-003**: Outer Path Generation (Deterministic skeleton)
-- [ ] **US-004**: Inner Path Generation (Monte Carlo on-the-fly)
-- [ ] **US-005**: Scenario Output Format
+- [x] **US-004**: Inner Path Generation (Monte Carlo on-the-fly)
+- [x] **US-005**: Scenario Output Format (Structured array format)
 - [ ] **US-006**: Configuration & Parameter Management
 - [ ] **US-007**: Performance & Memory Efficiency
 - [ ] **US-008**: Error Handling & Logging
