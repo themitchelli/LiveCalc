@@ -1,5 +1,6 @@
 #include "policy.hpp"
 #include "io/csv_reader.hpp"
+#include "io/parquet_reader.hpp"
 #include <fstream>
 #include <stdexcept>
 
@@ -121,6 +122,10 @@ PolicySet PolicySet::load_from_csv(const std::string& filepath) {
         throw std::runtime_error("Cannot open file: " + filepath);
     }
     return load_from_csv(file);
+}
+
+PolicySet PolicySet::load_from_parquet(const std::string& filepath) {
+    return ParquetReader::load_policies(filepath);
 }
 
 PolicySet PolicySet::load_from_csv(std::istream& is) {

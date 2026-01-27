@@ -254,7 +254,7 @@ Usage with config file:
 
 ### Parquet Support
 
-The CLI supports Parquet files for efficient loading of large policy datasets:
+The CLI supports Parquet files for efficient loading of large policy datasets and exporting valuation results:
 
 ```bash
 ./livecalc-engine \
@@ -264,6 +264,34 @@ The CLI supports Parquet files for efficient loading of large policy datasets:
 ```
 
 Parquet support is optional and requires building with `-DENABLE_PARQUET=ON` and the Apache Arrow library installed.
+
+#### Policy Input Schema
+
+Parquet files for policies must contain these columns:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `policy_id` | uint64 | Unique policy identifier |
+| `age` | uint8 | Age at issue (0-120) |
+| `gender` | uint8 | Gender (0=Male, 1=Female) |
+| `sum_assured` | float64 | Sum assured amount |
+| `premium` | float64 | Annual premium amount |
+| `term` | uint8 | Policy term in years |
+| `product_type` | uint8 | Product type (0=Term, 1=WholeLife, 2=Endowment) |
+| `underwriting_class` | uint8 | Underwriting class (0=Standard, 1=Smoker, 2=NonSmoker, 3=Preferred, 4=Substandard) |
+
+Additional columns are stored as string attributes in the `Policy.attributes` map.
+
+#### Results Output Schema
+
+Valuation results exported to Parquet contain these columns:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `scenario_id` | uint32 | Scenario identifier (0-indexed) |
+| `npv` | float64 | Total NPV for this scenario (sum across all policies) |
+
+**Note:** To export scenario NPVs to Parquet, ensure `store_scenario_npvs` is enabled in the valuation configuration.
 
 ### Python UDF Integration
 

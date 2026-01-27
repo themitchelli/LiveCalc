@@ -77,6 +77,8 @@ public:
     static PolicySet load_from_csv(const std::string& filepath);
     static PolicySet load_from_csv(std::istream& is);
 
+    static PolicySet load_from_parquet(const std::string& filepath);
+
     void serialize(std::ostream& os) const;
     static PolicySet deserialize(std::istream& is);
 

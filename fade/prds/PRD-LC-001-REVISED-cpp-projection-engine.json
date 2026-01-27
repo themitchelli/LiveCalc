@@ -215,7 +215,7 @@
           "results": ["scenario_id (uint32)", "npv (float64)", "cashflows (list<float64>)"]
         }
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

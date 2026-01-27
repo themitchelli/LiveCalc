@@ -50,13 +50,14 @@ set(LIB_SOURCES
     src/valuation.cpp
     src/io/csv_reader.cpp
     src/io/json_writer.cpp
+    src/io/parquet_reader.cpp
+    src/io/parquet_writer.cpp
     src/udf/udf_context.cpp
     src/udf/udf_executor.cpp
 )
 
-# Add Parquet support if enabled
+# Parquet support configuration
 if(ENABLE_PARQUET)
-    list(APPEND LIB_SOURCES src/io/parquet_reader.cpp)
     message(STATUS "Parquet support enabled (requires Apache Arrow)")
 endif()
 
@@ -149,6 +150,7 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
         tests/test_projection.cpp
         tests/test_valuation.cpp
         tests/test_udf_execution.cpp
+        tests/test_parquet_io.cpp
     )
     target_link_libraries(tests PRIVATE livecalc_core Catch2::Catch2WithMain)
 
