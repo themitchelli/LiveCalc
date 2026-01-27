@@ -104,6 +104,7 @@ class PythonESGEngine(ICalcEngine):
         self._config: Optional[ESGConfig] = None
         self._assumptions_client: Optional[Any] = None
         self._yield_curve_params: Optional[Dict[str, Any]] = None
+        self._outer_paths: Optional[np.ndarray] = None  # Stored outer paths (deterministic)
 
     def initialize(self, config: Dict[str, Any], credentials: Optional[Dict[str, str]] = None) -> None:
         """
@@ -154,6 +155,9 @@ class PythonESGEngine(ICalcEngine):
                     logger.warning("AM credentials incomplete. Assumption resolution disabled.")
             else:
                 logger.warning("No AM credentials provided or assumptions_client not available.")
+
+            # Generate outer paths (deterministic skeleton)
+            self._generate_outer_paths()
 
             self._initialized = True
             logger.info(f"ESG engine initialized: model={self._config.esg_model}, "
@@ -351,6 +355,113 @@ class PythonESGEngine(ICalcEngine):
 
         logger.debug(f"Validated yield curve parameters: {num_tenors} tenors")
 
+    def _generate_outer_paths(self) -> None:
+        """
+        Generate outer paths (deterministic skeleton scenarios).
+
+        Outer paths represent pre-defined market scenarios:
+        - Base case: initial yield curve remains flat
+        - Stress scenarios: parallel shifts up/down
+        - Non-parallel shifts: steepening/flattening
+
+        The outer paths are stored in self._outer_paths as a matrix:
+        Shape: (outer_paths, projection_years)
+
+        Each row is an outer path, each column is a year.
+        Values are interest rates (e.g., 0.03 for 3%).
+
+        Raises:
+            InitializationError: If outer path generation fails
+        """
+        try:
+            # Initialize outer paths array
+            outer_paths = np.zeros((self._config.outer_paths, self._config.projection_years))
+
+            # If we have yield curve parameters from AM, use them
+            # Otherwise, use simple defaults
+            if self._yield_curve_params and len(self._yield_curve_params['initial_yield_curve']) > 0:
+                initial_curve = self._yield_curve_params['initial_yield_curve']
+                # Use the first rate (1-year) as base rate
+                base_rate = float(initial_curve[0])
+                drift_rate = float(self._yield_curve_params['drift_rates'][0])
+            else:
+                # Default: 3% base rate, 0% drift
+                base_rate = 0.03
+                drift_rate = 0.0
+                logger.warning("No yield curve parameters available. Using defaults for outer paths.")
+
+            # Define outer path scenarios based on market conditions
+            # The exact scenarios depend on the number of outer paths requested
+            num_outer = self._config.outer_paths
+
+            if num_outer >= 1:
+                # Outer path 0: Base case - rates stay constant
+                outer_paths[0, :] = base_rate
+
+            if num_outer >= 2:
+                # Outer path 1: Rates increase by 1% per year (stress up)
+                for year in range(self._config.projection_years):
+                    outer_paths[1, year] = base_rate + (year * 0.01)
+
+            if num_outer >= 3:
+                # Outer path 2: Rates decrease by 0.5% per year (stress down)
+                for year in range(self._config.projection_years):
+                    outer_paths[2, year] = max(0.001, base_rate - (year * 0.005))  # Floor at 0.1%
+
+            if num_outer >= 4:
+                # Outer path 3: Mean reversion to long-term rate
+                long_term_rate = base_rate + 0.01  # Assume LT rate is 1% higher
+                mean_reversion_speed = 0.1
+                current_rate = base_rate
+                for year in range(self._config.projection_years):
+                    current_rate = current_rate + mean_reversion_speed * (long_term_rate - current_rate)
+                    outer_paths[3, year] = current_rate
+
+            if num_outer >= 5:
+                # Outer path 4: V-shaped recovery (down then up)
+                midpoint = self._config.projection_years // 2
+                for year in range(self._config.projection_years):
+                    if year < midpoint:
+                        outer_paths[4, year] = base_rate - (year * 0.005)
+                    else:
+                        outer_paths[4, year] = base_rate - (midpoint * 0.005) + ((year - midpoint) * 0.01)
+
+            if num_outer >= 6:
+                # Outer path 5: Inverted yield curve recovery
+                for year in range(self._config.projection_years):
+                    outer_paths[5, year] = base_rate - 0.01 + (year * 0.002)
+
+            if num_outer >= 7:
+                # Outer path 6: Gradual drift using AM drift parameter
+                current_rate = base_rate
+                for year in range(self._config.projection_years):
+                    current_rate = current_rate + drift_rate
+                    outer_paths[6, year] = max(0.001, current_rate)
+
+            if num_outer >= 8:
+                # Outer path 7: High inflation scenario (rapid rise)
+                for year in range(self._config.projection_years):
+                    outer_paths[7, year] = base_rate + (year * 0.02)
+
+            if num_outer >= 9:
+                # Outer path 8: Deflation scenario (gradual decline to zero)
+                for year in range(self._config.projection_years):
+                    outer_paths[8, year] = max(0.001, base_rate - (year * 0.003))
+
+            if num_outer >= 10:
+                # Outer path 9: Volatile scenario (sine wave around base)
+                for year in range(self._config.projection_years):
+                    outer_paths[9, year] = base_rate + 0.02 * np.sin(year * 0.5)
+
+            # Store outer paths
+            self._outer_paths = outer_paths
+
+            logger.info(f"Generated {self._config.outer_paths} outer paths × {self._config.projection_years} years")
+            logger.debug(f"Outer path 0 (base case) rates: {outer_paths[0, :5]}... (first 5 years)")
+
+        except Exception as e:
+            raise InitializationError(f"Failed to generate outer paths: {str(e)}")
+
     def get_info(self) -> EngineInfo:
         """
         Get ESG engine metadata.
@@ -423,29 +534,38 @@ class PythonESGEngine(ICalcEngine):
 
     def _generate_scenarios(self, output_buffer: np.ndarray) -> None:
         """
-        Generate scenarios and write to output buffer.
+        Generate all scenarios and write to output buffer.
 
-        For US-001, this is a simple placeholder. US-003 and US-004 will implement
-        the full outer/inner path generation logic.
+        Uses outer paths (deterministic skeleton) as the base for each scenario group.
+        Inner paths (stochastic) will be implemented in US-004.
+
+        For US-003, we replicate each outer path multiple times (one for each inner path).
+        US-004 will add stochastic variation to create true inner paths.
 
         Args:
             output_buffer: Numpy array to write scenarios to
+                          Shape: (num_scenarios, projection_years)
         """
-        # Placeholder: Generate simple deterministic scenarios for testing
-        np.random.seed(self._config.seed)
+        if self._outer_paths is None:
+            raise ExecutionError("Outer paths not generated. Call initialize() first.")
 
         total_scenarios = self._config.outer_paths * self._config.inner_paths_per_outer
 
-        for scenario_idx in range(total_scenarios):
-            # Simple deterministic pattern: base rate + small variation
-            base_rate = 0.03  # 3% base rate
-            variation = (scenario_idx % 10) * 0.001  # Small variation
+        scenario_idx = 0
+        for outer_idx in range(self._config.outer_paths):
+            # Get the outer path (deterministic skeleton)
+            outer_path = self._outer_paths[outer_idx, :]
 
-            for year in range(self._config.projection_years):
-                rate = base_rate + variation + (year * 0.0001)  # Slight drift
-                output_buffer[scenario_idx, year] = rate
+            # For US-003, we replicate the outer path for all inner paths
+            # US-004 will add stochastic variation here
+            for inner_idx in range(self._config.inner_paths_per_outer):
+                # Currently: just copy outer path (deterministic)
+                # US-004 will add: inner_path = generate_inner_path(outer_path, outer_idx, inner_idx)
+                output_buffer[scenario_idx, :] = outer_path
+                scenario_idx += 1
 
-        logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years")
+        logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years "
+                    f"(using {self._config.outer_paths} outer paths)")
 
     def dispose(self) -> None:
         """
@@ -455,6 +575,7 @@ class PythonESGEngine(ICalcEngine):
         self._config = None
         self._assumptions_client = None
         self._yield_curve_params = None
+        self._outer_paths = None
         logger.info("ESG engine disposed")
 
     @property

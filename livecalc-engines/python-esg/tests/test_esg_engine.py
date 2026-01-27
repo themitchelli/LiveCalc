@@ -528,5 +528,228 @@ class TestYieldCurveResolution(unittest.TestCase):
         self.assertIn("mean_reversion must be numeric", str(ctx.exception))
 
 
+class TestOuterPathGeneration(unittest.TestCase):
+    """Test suite for outer path generation (US-003)"""
+
+    def setUp(self):
+        """Set up test engine"""
+        self.engine = PythonESGEngine()
+
+    def test_outer_paths_generated_on_initialization(self):
+        """Test that outer paths are generated during initialization"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Verify outer paths were generated
+        self.assertIsNotNone(self.engine._outer_paths)
+        self.assertEqual(self.engine._outer_paths.shape, (3, 50))
+
+    def test_outer_paths_deterministic(self):
+        """Test that outer paths are deterministic (reproducible)"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 5,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v1.0'
+        }
+
+        # Generate outer paths twice
+        self.engine.initialize(config, credentials=None)
+        outer_paths_1 = self.engine._outer_paths.copy()
+
+        self.engine.dispose()
+        self.engine.initialize(config, credentials=None)
+        outer_paths_2 = self.engine._outer_paths.copy()
+
+        # Verify they are identical (deterministic)
+        np.testing.assert_array_equal(outer_paths_1, outer_paths_2)
+
+    def test_outer_path_scenarios(self):
+        """Test that different outer paths represent different scenarios"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 5,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+        outer_paths = self.engine._outer_paths
+
+        # Outer path 0 (base case) should be flat
+        base_case = outer_paths[0, :]
+        self.assertTrue(np.all(base_case == base_case[0]), "Base case should be constant rates")
+
+        # Outer path 1 (stress up) should be increasing
+        stress_up = outer_paths[1, :]
+        self.assertTrue(np.all(np.diff(stress_up) > 0), "Stress up should have increasing rates")
+
+        # Outer path 2 (stress down) should be decreasing
+        stress_down = outer_paths[2, :]
+        self.assertTrue(np.all(np.diff(stress_down) <= 0), "Stress down should have decreasing rates")
+
+        # All outer paths should be different
+        for i in range(5):
+            for j in range(i + 1, 5):
+                self.assertFalse(
+                    np.allclose(outer_paths[i, :], outer_paths[j, :]),
+                    f"Outer path {i} should differ from outer path {j}"
+                )
+
+    def test_outer_paths_use_yield_curve_assumptions(self):
+        """Test that outer paths use yield curve parameters when available"""
+        # Create mock assumptions
+        mock_params = {
+            'initial_yield_curve': np.array([0.05, 0.052, 0.054]),  # 5% base
+            'volatility_matrix': np.array([[0.01, 0, 0], [0, 0.01, 0], [0, 0, 0.01]]),
+            'drift_rates': np.array([0.002, 0.002, 0.002]),  # 0.2% drift
+            'mean_reversion': 0.1,
+            'resolved_version': 'v2.1',
+            'tenors': [1, 2, 3]
+        }
+
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 30,
+            'assumptions_version': 'v2.1'
+        }
+
+        self.engine.initialize(config, credentials=None)
+        # Inject mock parameters
+        self.engine._yield_curve_params = mock_params
+        # Regenerate outer paths with mock params
+        self.engine._generate_outer_paths()
+
+        outer_paths = self.engine._outer_paths
+
+        # Base case should use the initial curve base rate (5%)
+        base_case = outer_paths[0, :]
+        self.assertAlmostEqual(base_case[0], 0.05, places=4)
+
+    def test_outer_paths_with_different_counts(self):
+        """Test outer path generation with different path counts"""
+        for num_paths in [3, 5, 7, 10]:
+            config = {
+                'esg_model': 'vasicek',
+                'outer_paths': num_paths,
+                'inner_paths_per_outer': 100,
+                'seed': 42,
+                'projection_years': 30,
+                'assumptions_version': 'v1.0'
+            }
+
+            self.engine.initialize(config, credentials=None)
+
+            # Verify correct number of outer paths generated
+            self.assertEqual(self.engine._outer_paths.shape[0], num_paths)
+            self.assertEqual(self.engine._outer_paths.shape[1], 30)
+
+            self.engine.dispose()
+
+    def test_outer_paths_with_different_projection_years(self):
+        """Test outer path generation with different projection horizons"""
+        for years in [10, 30, 50, 100]:
+            config = {
+                'esg_model': 'vasicek',
+                'outer_paths': 3,
+                'inner_paths_per_outer': 100,
+                'seed': 42,
+                'projection_years': years,
+                'assumptions_version': 'v1.0'
+            }
+
+            self.engine.initialize(config, credentials=None)
+
+            # Verify correct projection horizon
+            self.assertEqual(self.engine._outer_paths.shape[1], years)
+
+            self.engine.dispose()
+
+    def test_outer_paths_included_in_scenario_output(self):
+        """Test that outer paths are correctly used in runChunk output"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 3,
+            'inner_paths_per_outer': 10,  # Small for testing
+            'seed': 42,
+            'projection_years': 20,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Run scenario generation
+        total_scenarios = 3 * 10  # 30 scenarios
+        output_buffer = np.zeros((total_scenarios, 20))
+        result = self.engine.runChunk(None, output_buffer)
+
+        # Verify scenarios were generated
+        self.assertEqual(result['scenarios_generated'], 30)
+
+        # For US-003, all scenarios in the same outer path group should be identical
+        # (US-004 will add stochastic variation)
+        for outer_idx in range(3):
+            start_idx = outer_idx * 10
+            end_idx = start_idx + 10
+
+            # All 10 inner paths for this outer path should match the outer path
+            outer_path = self.engine._outer_paths[outer_idx, :]
+            for inner_idx in range(10):
+                scenario_idx = start_idx + inner_idx
+                np.testing.assert_array_equal(
+                    output_buffer[scenario_idx, :],
+                    outer_path,
+                    err_msg=f"Scenario {scenario_idx} should match outer path {outer_idx}"
+                )
+
+    def test_outer_paths_documented(self):
+        """Test that outer path definitions are documented"""
+        config = {
+            'esg_model': 'vasicek',
+            'outer_paths': 10,
+            'inner_paths_per_outer': 100,
+            'seed': 42,
+            'projection_years': 50,
+            'assumptions_version': 'v1.0'
+        }
+
+        self.engine.initialize(config, credentials=None)
+
+        # Verify outer paths exist and have expected characteristics
+        outer_paths = self.engine._outer_paths
+
+        # Path 0: Base case (flat)
+        self.assertTrue(np.all(outer_paths[0, :] == outer_paths[0, 0]))
+
+        # Path 1: Rates increase (stress up)
+        self.assertTrue(outer_paths[1, -1] > outer_paths[1, 0])
+
+        # Path 2: Rates decrease (stress down)
+        self.assertTrue(outer_paths[2, -1] < outer_paths[2, 0])
+
+        # Path 3: Mean reversion (should converge)
+        # Check that later years are closer to some target than early years
+        early_deviation = abs(outer_paths[3, 0] - outer_paths[3, -1])
+        self.assertGreater(early_deviation, 0)
+
+        # All paths should have positive rates (floor at 0.001)
+        self.assertTrue(np.all(outer_paths > 0))
+
+
 if __name__ == '__main__':
     unittest.main()

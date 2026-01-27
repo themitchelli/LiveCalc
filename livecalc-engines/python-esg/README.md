@@ -155,6 +155,29 @@ result = engine.runChunk(input_buffer=None, output_buffer=output_buffer)
 engine.dispose()
 ```
 
+### Outer Path Scenarios (US-003)
+
+The ESG generates **outer paths** (deterministic skeleton scenarios) that represent different market conditions:
+
+| Path | Description | Example |
+|------|-------------|---------|
+| 0 | Base case | Rates stay constant at initial level |
+| 1 | Stress up | Rates increase 1% per year |
+| 2 | Stress down | Rates decrease 0.5% per year (floor at 0.1%) |
+| 3 | Mean reversion | Rates converge to long-term level |
+| 4 | V-shaped recovery | Rates drop then rise |
+| 5 | Inverted yield curve | Gradual normalization |
+| 6 | Gradual drift | Uses AM drift parameter |
+| 7 | High inflation | Rapid rate rise (2% per year) |
+| 8 | Deflation | Gradual decline to near-zero |
+| 9 | Volatile | Sine wave around base rate |
+
+**Key Properties:**
+- **Deterministic**: Outer paths are always the same for a given configuration
+- **Reproducible**: Same config produces identical outer paths across runs
+- **Interpretable**: Each path represents a specific market scenario
+- **Parameter-driven**: Uses yield curve assumptions from AM when available
+
 ### Output Format
 
 Scenarios are written to the output buffer in the following format:
@@ -203,7 +226,17 @@ Current test coverage includes:
   - Dimension checking
   - Error handling
 
-**Total: 23 tests**
+**US-003: Outer Path Generation (9 tests)**
+- Outer paths generated on initialization
+- Deterministic generation (reproducible)
+- Different scenarios per outer path
+- Yield curve parameter integration
+- Variable path counts (3-10)
+- Variable projection years (10-100)
+- Outer paths included in output
+- Documentation verification
+
+**Total: 32 tests**
 
 ### Project Structure
 
@@ -344,7 +377,7 @@ Without credentials, the engine uses default parameters (for testing/development
 
 - [x] **US-001**: ICalcEngine Interface Implementation
 - [x] **US-002**: Yield Curve Assumption Resolution
-- [ ] **US-003**: Outer Path Generation (Deterministic skeleton)
+- [x] **US-003**: Outer Path Generation (Deterministic skeleton)
 - [ ] **US-004**: Inner Path Generation (Monte Carlo on-the-fly)
 - [ ] **US-005**: Scenario Output Format
 - [ ] **US-006**: Configuration & Parameter Management

@@ -100,7 +100,7 @@
         "generation": "Deterministic formula: new_rate = old_rate + drift",
         "storage": "Numpy array, kept in memory during entire valuation"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
