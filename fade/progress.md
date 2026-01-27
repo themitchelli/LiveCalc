@@ -3354,3 +3354,35 @@ For blocked stories, use:
   - livecalc-engine/CMakeLists.txt (added ENABLE_PARQUET option)
   - livecalc-engine/tests/test_policy.cpp (updated all tests, added 1M capacity test)
 - Tests: All tests pass, 1M policy capacity validated
+
+## 2026-01-27 21:15 - US-002: Assumption Tables & Resolution (PRD-LC-001-REVISED) - COMPLETE
+
+- Created AssumptionSet class that wraps MortalityTable, LapseTable, and ExpenseAssumptions
+- Integrated with AssumptionsClient from PRD-LC-006-REFACTOR for remote assumption resolution
+- Supports two initialization paths:
+  1. resolve_from_am(): Fetch assumptions from Assumptions Manager (using assumptions_client.hpp)
+  2. load_from_files(): Load from local CSV files (legacy path)
+- AssumptionSet provides unified interface for accessing assumptions with multipliers
+- Tracked resolved versions for audit trail (stored in resolved_versions_ map)
+- Helper methods convert flat vectors from AM API to internal table structures:
+  - populate_mortality_from_vector(): Expects 242 values (121 ages × 2 genders)
+  - populate_lapse_from_vector(): Expects 50 values (years 1-50)
+  - populate_expense_from_vector(): Expects 4 values [acquisition, maintenance, percent_of_premium, claim_expense]
+- Direct table access methods for advanced use cases
+- All acceptance criteria met:
+  - ✓ AssumptionSet struct holds resolved assumptions: mortality, lapse, expenses
+  - ✓ Mortality: lookup by (age, gender) → qx
+  - ✓ Lapse: lookup by (policy_year) → lapse rate
+  - ✓ Expenses: per-policy and percentage-of-premium
+  - ✓ Integration with assumptions_client.hpp (PRD-LC-006-REFACTOR)
+  - ✓ Engine initializes: AssumptionSet am = client.resolve('mortality:v2.1', 'lapse:v1.0', ...)
+  - ✓ All assumptions must be resolved before projection starts (is_initialized() check)
+  - ✓ Unit tests validate table lookups at boundaries
+- Files created:
+  - livecalc-engine/src/assumption_set.hpp (AssumptionSet class declaration)
+  - livecalc-engine/src/assumption_set.cpp (implementation with AM integration)
+  - livecalc-engine/tests/test_assumption_set.cpp (6 comprehensive unit tests)
+- Files modified:
+  - livecalc-engine/CMakeLists.txt (added assumption_set.cpp to LIB_SOURCES, linked assumptions_lib)
+- Tests: All 129 tests pass (20882 assertions), including 6 new AssumptionSet tests (20 assertions)
+- Integration: AssumptionsClient library successfully linked and accessible via HAVE_ASSUMPTIONS_CLIENT define

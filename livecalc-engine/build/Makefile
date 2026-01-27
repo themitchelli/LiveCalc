@@ -95,6 +95,51 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/local/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/local/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/local/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/local/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/local/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/local/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build//CMakeFiles/progress.marks
@@ -581,6 +626,43 @@ Catch2WithMain/fast:
 	$(MAKE) $(MAKESILENT) -f _deps/catch2-build/src/CMakeFiles/Catch2WithMain.dir/build.make _deps/catch2-build/src/CMakeFiles/Catch2WithMain.dir/build
 .PHONY : Catch2WithMain/fast
 
+#=============================================================================
+# Target rules for targets named assumptions_lib
+
+# Build rule for target.
+assumptions_lib: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 assumptions_lib
+.PHONY : assumptions_lib
+
+# fast build rule for target.
+assumptions_lib/fast:
+	$(MAKE) $(MAKESILENT) -f livecalc-assumptions-lib/CMakeFiles/assumptions_lib.dir/build.make livecalc-assumptions-lib/CMakeFiles/assumptions_lib.dir/build
+.PHONY : assumptions_lib/fast
+
+src/assumption_set.o: src/assumption_set.cpp.o
+.PHONY : src/assumption_set.o
+
+# target to build an object file
+src/assumption_set.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/assumption_set.cpp.o
+.PHONY : src/assumption_set.cpp.o
+
+src/assumption_set.i: src/assumption_set.cpp.i
+.PHONY : src/assumption_set.i
+
+# target to preprocess a source file
+src/assumption_set.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/assumption_set.cpp.i
+.PHONY : src/assumption_set.cpp.i
+
+src/assumption_set.s: src/assumption_set.cpp.s
+.PHONY : src/assumption_set.s
+
+# target to generate assembly for a file
+src/assumption_set.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/assumption_set.cpp.s
+.PHONY : src/assumption_set.cpp.s
+
 src/assumptions.o: src/assumptions.cpp.o
 .PHONY : src/assumptions.o
 
@@ -797,6 +879,30 @@ tests/benchmark_valuation.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/benchmark.dir/build.make CMakeFiles/benchmark.dir/tests/benchmark_valuation.cpp.s
 .PHONY : tests/benchmark_valuation.cpp.s
 
+tests/test_assumption_set.o: tests/test_assumption_set.cpp.o
+.PHONY : tests/test_assumption_set.o
+
+# target to build an object file
+tests/test_assumption_set.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_assumption_set.cpp.o
+.PHONY : tests/test_assumption_set.cpp.o
+
+tests/test_assumption_set.i: tests/test_assumption_set.cpp.i
+.PHONY : tests/test_assumption_set.i
+
+# target to preprocess a source file
+tests/test_assumption_set.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_assumption_set.cpp.i
+.PHONY : tests/test_assumption_set.cpp.i
+
+tests/test_assumption_set.s: tests/test_assumption_set.cpp.s
+.PHONY : tests/test_assumption_set.s
+
+# target to generate assembly for a file
+tests/test_assumption_set.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_assumption_set.cpp.s
+.PHONY : tests/test_assumption_set.cpp.s
+
 tests/test_assumptions.o: tests/test_assumptions.cpp.o
 .PHONY : tests/test_assumptions.o
 
@@ -948,6 +1054,10 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
 	@echo "... rebuild_cache"
 	@echo "... test"
 	@echo "... Continuous"
@@ -980,11 +1090,15 @@ help:
 	@echo "... NightlyUpdate"
 	@echo "... Catch2"
 	@echo "... Catch2WithMain"
+	@echo "... assumptions_lib"
 	@echo "... benchmark"
 	@echo "... cli_tests"
 	@echo "... livecalc-engine"
 	@echo "... livecalc_core"
 	@echo "... tests"
+	@echo "... src/assumption_set.o"
+	@echo "... src/assumption_set.i"
+	@echo "... src/assumption_set.s"
 	@echo "... src/assumptions.o"
 	@echo "... src/assumptions.i"
 	@echo "... src/assumptions.s"
@@ -1012,6 +1126,9 @@ help:
 	@echo "... tests/benchmark_valuation.o"
 	@echo "... tests/benchmark_valuation.i"
 	@echo "... tests/benchmark_valuation.s"
+	@echo "... tests/test_assumption_set.o"
+	@echo "... tests/test_assumption_set.i"
+	@echo "... tests/test_assumption_set.s"
 	@echo "... tests/test_assumptions.o"
 	@echo "... tests/test_assumptions.i"
 	@echo "... tests/test_assumptions.s"

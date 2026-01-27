@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/livecalc_core.dir/src/assumption_set.cpp.o"
+  "CMakeFiles/livecalc_core.dir/src/assumption_set.cpp.o.d"
   "CMakeFiles/livecalc_core.dir/src/assumptions.cpp.o"
   "CMakeFiles/livecalc_core.dir/src/assumptions.cpp.o.d"
   "CMakeFiles/livecalc_core.dir/src/io/csv_reader.cpp.o"

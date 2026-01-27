@@ -96,6 +96,9 @@ livecalc__engine_EXTERNAL_OBJECTS =
 livecalc-engine: CMakeFiles/livecalc-engine.dir/src/main.cpp.o
 livecalc-engine: CMakeFiles/livecalc-engine.dir/build.make
 livecalc-engine: liblivecalc_core.a
+livecalc-engine: livecalc-assumptions-lib/libassumptions_lib.a
+livecalc-engine: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
+livecalc-engine: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 livecalc-engine: CMakeFiles/livecalc-engine.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable livecalc-engine"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/livecalc-engine.dir/link.txt --verbose=$(VERBOSE)

@@ -85,7 +85,7 @@
         "structure": "std::map<string, Table> where Table is vector<vector<double>> or similar",
         "validation": "Check that required assumptions are present, fail fast if missing"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

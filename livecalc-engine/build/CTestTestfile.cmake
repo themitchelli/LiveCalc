@@ -7,3 +7,4 @@
 include("/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/tests-b12d07c_include.cmake")
 include("/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/cli_tests-b12d07c_include.cmake")
 subdirs("_deps/catch2-build")
+subdirs("livecalc-assumptions-lib")

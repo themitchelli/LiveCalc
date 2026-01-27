@@ -44,6 +44,7 @@ endif()
 set(LIB_SOURCES
     src/policy.cpp
     src/assumptions.cpp
+    src/assumption_set.cpp
     src/scenario.cpp
     src/projection.cpp
     src/valuation.cpp
@@ -86,10 +87,31 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
     add_executable(livecalc-engine src/main.cpp)
     target_link_libraries(livecalc-engine PRIVATE livecalc_core)
 
+    # Add assumptions library subdirectory (for AssumptionsClient integration)
+    # Note: For US-002, we test AssumptionSet with local file loading only.
+    # Full AssumptionsClient integration requires assumptions-lib to be built.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../livecalc-assumptions-lib/CMakeLists.txt")
+        set(BUILD_TESTS_TEMP ${BUILD_TESTS})
+        set(BUILD_TESTS OFF CACHE BOOL "Disable tests for assumptions lib" FORCE)
+        # Temporarily disable -Werror for assumptions-lib compilation
+        set(CMAKE_CXX_FLAGS_BACKUP "${CMAKE_CXX_FLAGS}")
+        string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../livecalc-assumptions-lib
+                         ${CMAKE_CURRENT_BINARY_DIR}/livecalc-assumptions-lib EXCLUDE_FROM_ALL)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_BACKUP}")
+        set(BUILD_TESTS ${BUILD_TESTS_TEMP} CACHE BOOL "Restore tests setting" FORCE)
+        target_link_libraries(livecalc_core PUBLIC assumptions_lib)
+        target_compile_definitions(livecalc_core PUBLIC HAVE_ASSUMPTIONS_CLIENT)
+        message(STATUS "Assumptions Manager client library found and linked")
+    else()
+        message(STATUS "Assumptions Manager client library not found (AssumptionSet will support local files only)")
+    endif()
+
     # Test executable
     add_executable(tests
         tests/test_policy.cpp
         tests/test_assumptions.cpp
+        tests/test_assumption_set.cpp
         tests/test_scenario.cpp
         tests/test_projection.cpp
         tests/test_valuation.cpp

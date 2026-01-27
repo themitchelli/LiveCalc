@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/src/catch2/.. -I/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-build/generated-includes
 
-CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -ffile-prefix-map=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/=
+CXX_FLAGS = -w -O3 -DNDEBUG -std=gnu++17 -Wall -Wextra -Werror -pedantic -ffile-prefix-map=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/catch2-src/=
 
