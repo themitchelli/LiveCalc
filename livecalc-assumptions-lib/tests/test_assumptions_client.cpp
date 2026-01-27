@@ -41,6 +41,56 @@ TEST_CASE("PolicyAttrs variants", "[assumptions_client]") {
     REQUIRE(std::get<int>(attrs["smoker"]) == 0);
 }
 
+TEST_CASE("TableSchema structure", "[assumptions_client]") {
+    SECTION("Mortality table schema") {
+        TableSchema schema;
+        schema.name = "mortality-standard";
+        schema.table_type = "mortality";
+        schema.index_columns = {"age", "gender"};
+        schema.value_column = "qx";
+        schema.row_count = 242;  // 121 ages × 2 genders
+        schema.col_count = 3;    // age, gender, qx
+
+        schema.column_types["age"] = "int";
+        schema.column_types["gender"] = "string";
+        schema.column_types["qx"] = "double";
+
+        REQUIRE(schema.table_type == "mortality");
+        REQUIRE(schema.index_columns.size() == 2);
+        REQUIRE(schema.row_count == 242);
+    }
+
+    SECTION("Lapse table schema") {
+        TableSchema schema;
+        schema.name = "lapse-standard";
+        schema.table_type = "lapse";
+        schema.index_columns = {"policy_year"};
+        schema.value_column = "rate";
+        schema.row_count = 50;  // Years 1-50
+        schema.col_count = 2;   // policy_year, rate
+
+        schema.column_types["policy_year"] = "int";
+        schema.column_types["rate"] = "double";
+
+        REQUIRE(schema.table_type == "lapse");
+        REQUIRE(schema.index_columns.size() == 1);
+        REQUIRE(schema.row_count == 50);
+    }
+
+    SECTION("Expense table schema") {
+        TableSchema schema;
+        schema.name = "expense-standard";
+        schema.table_type = "expense";
+        schema.index_columns = {};  // No index, single row
+        schema.value_column = "amount";
+        schema.row_count = 1;
+        schema.col_count = 5;  // acquisition, maintenance, percent_of_premium, claim_expense, amount
+
+        REQUIRE(schema.table_type == "expense");
+        REQUIRE(schema.index_columns.empty());
+    }
+}
+
 // Integration tests (require live AM instance)
 // These are commented out for now
 

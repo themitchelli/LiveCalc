@@ -143,7 +143,7 @@
         "resolution": "Table is fetched once, cached. Lookups happen locally via binary search or hash map.",
         "assumption_config": "AM stores column structure with table. Resolver matches policy_attrs to table columns."
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -162,7 +162,7 @@
         "implementation": "livecalc-assumptions-lib/src/api/http_client.hpp",
         "library": "libcurl (C++), requests (Python)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

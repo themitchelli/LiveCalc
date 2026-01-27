@@ -24,6 +24,19 @@ using PolicyAttrValue = std::variant<int, double, std::string>;
 using PolicyAttrs = std::map<std::string, PolicyAttrValue>;
 
 /**
+ * Table schema information
+ */
+struct TableSchema {
+    std::string name;
+    std::string table_type;  // "mortality", "lapse", "expense"
+    std::vector<std::string> index_columns;  // Columns used for lookup (e.g., ["age", "gender"])
+    std::string value_column;  // Column containing the value (e.g., "qx", "rate", "amount")
+    std::map<std::string, std::string> column_types;  // Column name -> type ("int", "string", "double")
+    size_t row_count;
+    size_t col_count;
+};
+
+/**
  * Assumptions client error
  */
 class AssumptionsError : public std::runtime_error {
@@ -102,9 +115,12 @@ private:
     std::unique_ptr<JWTHandler> jwt_handler_;
     std::unique_ptr<LRUCache> cache_;
     std::unique_ptr<HttpClient> http_client_;
+    std::map<std::string, TableSchema> schema_cache_;  // Cache for table schemas
 
     std::string build_cache_key(const std::string& name, const std::string& version) const;
     std::vector<double> fetch_from_api(const std::string& name, const std::string& version);
+    TableSchema fetch_schema(const std::string& name, const std::string& version);
+    size_t compute_table_index(const TableSchema& schema, const PolicyAttrs& policy_attrs) const;
 };
 
 } // namespace assumptions
