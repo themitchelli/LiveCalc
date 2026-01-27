@@ -8,6 +8,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # SIMD build option (only applies to Emscripten WASM builds)
 option(ENABLE_SIMD "Enable SIMD128 instructions for WASM (requires browser support)" OFF)
 
+# Parquet support (requires Apache Arrow C++)
+option(ENABLE_PARQUET "Enable Parquet file support via Apache Arrow" OFF)
+
 # Detect build environment
 # Emscripten: Browser/Node.js WASM with JS wrapper
 # WASI: Standalone WASM for Wasmtime/Wasmer CLI execution
@@ -48,6 +51,12 @@ set(LIB_SOURCES
     src/io/json_writer.cpp
 )
 
+# Add Parquet support if enabled
+if(ENABLE_PARQUET)
+    list(APPEND LIB_SOURCES src/io/parquet_reader.cpp)
+    message(STATUS "Parquet support enabled (requires Apache Arrow)")
+endif()
+
 # ============================================================================
 # Native Build Configuration
 # ============================================================================
@@ -64,6 +73,14 @@ if(NOT WASM_BUILD AND NOT WASI_BUILD)
     # Main library
     add_library(livecalc_core STATIC ${LIB_SOURCES})
     target_include_directories(livecalc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+    # Link Apache Arrow if Parquet enabled
+    if(ENABLE_PARQUET)
+        find_package(Arrow REQUIRED)
+        find_package(Parquet REQUIRED)
+        target_link_libraries(livecalc_core PUBLIC Arrow::arrow_shared Parquet::parquet_shared)
+        target_compile_definitions(livecalc_core PUBLIC HAVE_ARROW)
+    endif()
 
     # Main executable
     add_executable(livecalc-engine src/main.cpp)

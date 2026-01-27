@@ -3331,3 +3331,26 @@ For blocked stories, use:
 - Tests: Comprehensive unit tests for all components (integration tests require live AM instance)
 - Documentation: Complete API reference, usage examples, integration guide
 
+
+## 2026-01-27 20:45 - US-001: Policy Data Structure (PRD-LC-001-REVISED) - COMPLETE
+
+- Extended Policy struct with new fields for PRD-LC-001-REVISED requirements
+- Added underwriting_class field with enum: Standard, Smoker, NonSmoker, Preferred, Substandard
+- Added flexible attributes map (std::map<std::string, std::string>) for extensibility
+- Changed policy_id from uint32_t to uint64_t to support larger datasets (1M+ policies)
+- Updated binary serialization to handle variable-size attributes map
+- Created parquet_reader.hpp/cpp for Apache Arrow Parquet integration
+- Added CMake option ENABLE_PARQUET for optional Parquet support
+- Updated CSV loading to parse underwriting_class and additional attribute columns
+- Extended all unit tests to validate new fields
+- Added test for 1M policy capacity with memory footprint validation
+- All 123 tests pass with 20862 assertions
+- Memory footprint: 32-128 bytes per policy (depending on attributes)
+- Files changed:
+  - livecalc-engine/src/policy.hpp (added underwriting_class, attributes)
+  - livecalc-engine/src/policy.cpp (updated serialization, CSV parsing)
+  - livecalc-engine/src/io/parquet_reader.hpp (new)
+  - livecalc-engine/src/io/parquet_reader.cpp (new - Apache Arrow integration)
+  - livecalc-engine/CMakeLists.txt (added ENABLE_PARQUET option)
+  - livecalc-engine/tests/test_policy.cpp (updated all tests, added 1M capacity test)
+- Tests: All tests pass, 1M policy capacity validated

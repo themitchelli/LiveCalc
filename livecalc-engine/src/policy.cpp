@@ -12,7 +12,9 @@ bool Policy::operator==(const Policy& other) const {
            sum_assured == other.sum_assured &&
            premium == other.premium &&
            term == other.term &&
-           product_type == other.product_type;
+           product_type == other.product_type &&
+           underwriting_class == other.underwriting_class &&
+           attributes == other.attributes;
 }
 
 void Policy::serialize(std::ostream& os) const {
@@ -25,6 +27,21 @@ void Policy::serialize(std::ostream& os) const {
     os.write(reinterpret_cast<const char*>(&term), sizeof(term));
     uint8_t product_val = static_cast<uint8_t>(product_type);
     os.write(reinterpret_cast<const char*>(&product_val), sizeof(product_val));
+    uint8_t underwriting_val = static_cast<uint8_t>(underwriting_class);
+    os.write(reinterpret_cast<const char*>(&underwriting_val), sizeof(underwriting_val));
+
+    // Serialize attributes map
+    uint32_t attr_count = static_cast<uint32_t>(attributes.size());
+    os.write(reinterpret_cast<const char*>(&attr_count), sizeof(attr_count));
+    for (const auto& [key, value] : attributes) {
+        uint32_t key_len = static_cast<uint32_t>(key.size());
+        os.write(reinterpret_cast<const char*>(&key_len), sizeof(key_len));
+        os.write(key.data(), key_len);
+
+        uint32_t val_len = static_cast<uint32_t>(value.size());
+        os.write(reinterpret_cast<const char*>(&val_len), sizeof(val_len));
+        os.write(value.data(), val_len);
+    }
 }
 
 Policy Policy::deserialize(std::istream& is) {
@@ -40,6 +57,26 @@ Policy Policy::deserialize(std::istream& is) {
     uint8_t product_val;
     is.read(reinterpret_cast<char*>(&product_val), sizeof(product_val));
     p.product_type = static_cast<ProductType>(product_val);
+    uint8_t underwriting_val;
+    is.read(reinterpret_cast<char*>(&underwriting_val), sizeof(underwriting_val));
+    p.underwriting_class = static_cast<UnderwritingClass>(underwriting_val);
+
+    // Deserialize attributes map
+    uint32_t attr_count;
+    is.read(reinterpret_cast<char*>(&attr_count), sizeof(attr_count));
+    for (uint32_t i = 0; i < attr_count; ++i) {
+        uint32_t key_len;
+        is.read(reinterpret_cast<char*>(&key_len), sizeof(key_len));
+        std::string key(key_len, '\0');
+        is.read(&key[0], key_len);
+
+        uint32_t val_len;
+        is.read(reinterpret_cast<char*>(&val_len), sizeof(val_len));
+        std::string value(val_len, '\0');
+        is.read(&value[0], val_len);
+
+        p.attributes[key] = value;
+    }
 
     if (!is) {
         throw std::runtime_error("Failed to deserialize Policy");
@@ -97,12 +134,12 @@ PolicySet PolicySet::load_from_csv(std::istream& is) {
 
     while (reader.has_more()) {
         auto row = reader.read_row();
-        if (row.size() < 7) {
+        if (row.size() < 8) {  // Now requires 8 fields minimum (added underwriting_class)
             continue;
         }
 
         Policy p;
-        p.policy_id = static_cast<uint32_t>(std::stoul(row[0]));
+        p.policy_id = std::stoull(row[0]);  // Changed to support uint64_t
         p.age = static_cast<uint8_t>(std::stoi(row[1]));
 
         std::string gender_str = row[2];
@@ -123,6 +160,27 @@ PolicySet PolicySet::load_from_csv(std::istream& is) {
             p.product_type = ProductType::WholeLife;
         } else {
             p.product_type = ProductType::Endowment;
+        }
+
+        // Parse underwriting class
+        std::string underwriting_str = row[7];
+        if (underwriting_str == "Standard" || underwriting_str == "0") {
+            p.underwriting_class = UnderwritingClass::Standard;
+        } else if (underwriting_str == "Smoker" || underwriting_str == "1") {
+            p.underwriting_class = UnderwritingClass::Smoker;
+        } else if (underwriting_str == "NonSmoker" || underwriting_str == "2") {
+            p.underwriting_class = UnderwritingClass::NonSmoker;
+        } else if (underwriting_str == "Preferred" || underwriting_str == "3") {
+            p.underwriting_class = UnderwritingClass::Preferred;
+        } else {
+            p.underwriting_class = UnderwritingClass::Substandard;
+        }
+
+        // Parse additional attributes if present (columns beyond 8)
+        for (size_t i = 8; i < row.size() && i < header.size(); ++i) {
+            if (!row[i].empty()) {
+                p.attributes[header[i]] = row[i];
+            }
         }
 
         ps.add(std::move(p));

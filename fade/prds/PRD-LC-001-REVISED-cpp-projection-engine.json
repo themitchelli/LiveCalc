@@ -64,7 +64,7 @@
         "estimatedSize": "~64 bytes per policy (with flexible attributes)",
         "parquetIntegration": "Use Apache Arrow C++ for efficient Parquet loading"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

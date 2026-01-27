@@ -228,6 +228,10 @@ CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.o: \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/vector \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/__split_buffer \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/map \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/__tree \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/__node_handle \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/optional \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/istream \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumptions.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/array \

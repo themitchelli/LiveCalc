@@ -462,6 +462,12 @@ Catch2_SOURCE_DIR:STATIC=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc
 //Maximum time allowed before CTest will kill the test.
 DART_TESTING_TIMEOUT:STRING=1500
 
+//Enable Parquet file support via Apache Arrow
+ENABLE_PARQUET:BOOL=OFF
+
+//Enable SIMD128 instructions for WASM (requires browser support)
+ENABLE_SIMD:BOOL=OFF
+
 //Directory under which to collect all populated content
 FETCHCONTENT_BASE_DIR:PATH=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps
 
