@@ -3685,3 +3685,40 @@ For blocked stories, use:
   - livecalc-assumptions-lib/CMakeLists.txt (added test_jwt_handler target)
   - livecalc-assumptions-lib/tests/test_assumptions_client.cpp (fixed token format)
 - Tests: All 3 test suites pass (test_assumptions_client, test_cache, test_jwt_handler)
+
+## 2026-01-27 22:16 - US-004: LRU Caching with Version Immutability (PRD-LC-006-REFACTOR) - COMPLETE
+
+- Verified comprehensive LRU cache implementation already exists
+- Enhanced test suite with 7 comprehensive test cases covering all acceptance criteria:
+  1. Version immutability (latest/draft not cached)
+  2. Basic operations (get, put, statistics)
+  3. LRU eviction with size limit enforcement
+  4. Disk persistence across cache sessions
+  5. Thread safety with concurrent reads (10 threads × 100 reads)
+  6. Graceful degradation with read-only directories
+  7. Version isolation (v1.0 vs v2.0)
+- Created comprehensive cache documentation (docs/CACHE.md):
+  - Overview and key features
+  - API reference with examples
+  - Performance considerations (memory, disk I/O, eviction)
+  - Binary file format specification
+  - Testing guide
+  - Troubleshooting section
+  - Integration notes
+- All acceptance criteria met:
+  - ✅ Cache key structure: 'table-name:version' (immutable)
+  - ✅ 'latest' and 'draft' never cached
+  - ✅ OS-standard cache location (macOS, Windows, Linux)
+  - ✅ Metadata: fetch_time, version, data, hash
+  - ✅ LRU eviction (configurable, default 500MB)
+  - ✅ Statistics: hits, misses, bytes_stored, entries_count
+  - ✅ Thread-safe concurrent reads (mutex-protected)
+  - ✅ Graceful degradation (read-only dirs)
+- Files changed:
+  - livecalc-assumptions-lib/tests/test_cache.cpp (enhanced from 3 to 7 test cases, 1031 assertions)
+  - livecalc-assumptions-lib/docs/CACHE.md (new - comprehensive documentation)
+  - livecalc-assumptions-lib/README.md (added docs section reference)
+  - fade/prds/PRD-LC-006-REFACTOR-assumptions-library.json (set US-004 passes: true)
+- Tests: All 3 test suites pass (test_assumptions_client, test_cache, test_jwt_handler)
+- Test coverage: 1031 assertions in 7 cache test cases
+

@@ -124,7 +124,7 @@
         "fileFormat": "Binary: [magic_byte (1)][version (1)][data_len (8)][metadata_json][data_blob]",
         "hashValidation": "SHA256 of data stored in metadata, checked on load"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

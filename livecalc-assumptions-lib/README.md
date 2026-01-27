@@ -126,6 +126,12 @@ target_include_directories(your_target PRIVATE /path/to/livecalc-assumptions-lib
 target_link_libraries(your_target PRIVATE /path/to/livecalc-assumptions-lib/build/libassumptions_lib.a curl)
 ```
 
+## Documentation
+
+- **[Cache Documentation](docs/CACHE.md)**: LRU cache implementation details, thread safety, version immutability
+- **[API Documentation](docs/API.md)**: Full API reference (coming soon)
+- **[Integration Guide](docs/INTEGRATION.md)**: How to integrate with engines (coming soon)
+
 ## API Reference
 
 ### AssumptionsClient
