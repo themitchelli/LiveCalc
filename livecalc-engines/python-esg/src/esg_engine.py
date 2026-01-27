@@ -16,9 +16,10 @@ Features:
 
 import sys
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import numpy as np
 import logging
+import time
 from dataclasses import dataclass
 
 # Add parent directory to path for imports
@@ -41,6 +42,30 @@ from .calc_engine_interface import (
 
 
 logger = logging.getLogger(__name__)
+
+# Configure logging format to include timestamp and context
+def configure_logging(level=logging.INFO):
+    """
+    Configure logging with timestamp and context.
+
+    Args:
+        level: Logging level (default: INFO)
+    """
+    formatter = logging.Formatter(
+        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # Get or create handler
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    logger.setLevel(level)
+
+# Auto-configure on module load
+configure_logging()
 
 
 @dataclass
@@ -70,17 +95,39 @@ class ESGConfig:
         Raises:
             ConfigurationError: If any parameter is invalid
         """
+        errors = []
+
         if self.esg_model not in ('vasicek', 'cir'):
-            raise ConfigurationError(f"Invalid esg_model: {self.esg_model}. Must be 'vasicek' or 'cir'.")
+            errors.append(
+                f"esg_model: '{self.esg_model}' is invalid. "
+                f"Expected: 'vasicek' or 'cir'. "
+                f"The ESG model determines the stochastic process used for scenario generation."
+            )
 
         if not (3 <= self.outer_paths <= 10):
-            raise ConfigurationError(f"Invalid outer_paths: {self.outer_paths}. Must be 3-10.")
+            errors.append(
+                f"outer_paths: {self.outer_paths} is out of range. "
+                f"Expected: 3-10. "
+                f"Outer paths represent different market scenarios (e.g., base, stress, optimistic)."
+            )
 
         if not (100 <= self.inner_paths_per_outer <= 10000):
-            raise ConfigurationError(f"Invalid inner_paths_per_outer: {self.inner_paths_per_outer}. Must be 100-10000.")
+            errors.append(
+                f"inner_paths_per_outer: {self.inner_paths_per_outer} is out of range. "
+                f"Expected: 100-10000. "
+                f"This controls the number of Monte Carlo paths per outer scenario."
+            )
 
         if not (1 <= self.projection_years <= 100):
-            raise ConfigurationError(f"Invalid projection_years: {self.projection_years}. Must be 1-100.")
+            errors.append(
+                f"projection_years: {self.projection_years} is out of range. "
+                f"Expected: 1-100. "
+                f"This determines the time horizon for scenario projections."
+            )
+
+        if errors:
+            error_msg = "Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+            raise ConfigurationError(error_msg)
 
 
 class PythonESGEngine(ICalcEngine):
@@ -186,14 +233,16 @@ class PythonESGEngine(ICalcEngine):
             logger.warning("No assumptions client available for yield curve resolution")
             return
 
+        assumption_name = 'yield-curve-parameters'
+        assumption_version = self._config.assumptions_version
+
         try:
+            logger.info(f"Resolving assumption: {assumption_name}:{assumption_version}")
+
             # Resolve yield curve parameters
             # Note: assumptions_client.resolve() returns the raw data from AM
             # For structured assumptions, this would be a nested dict/array
-            params = self._assumptions_client.resolve(
-                'yield-curve-parameters',
-                self._config.assumptions_version
-            )
+            params = self._assumptions_client.resolve(assumption_name, assumption_version)
 
             # Parse the assumption structure
             # Real AM would return structured data; for now we handle both
@@ -206,7 +255,10 @@ class PythonESGEngine(ICalcEngine):
                 parsed_params = self._parse_flat_yield_curve(params)
             else:
                 raise InitializationError(
-                    f"Unexpected yield curve parameter format: {type(params)}"
+                    f"Failed to resolve assumption '{assumption_name}:{assumption_version}': "
+                    f"Unexpected data format received from Assumptions Manager. "
+                    f"Expected: dict or array, got: {type(params).__name__}. "
+                    f"Check assumption table structure in Assumptions Manager."
                 )
 
             # Validate all required fields are present
@@ -216,14 +268,24 @@ class PythonESGEngine(ICalcEngine):
             self._yield_curve_params = parsed_params
 
             # Log version resolution (handles 'latest' → actual version mapping)
-            resolved_version = parsed_params.get('resolved_version', self._config.assumptions_version)
-            if self._config.assumptions_version == 'latest':
-                logger.info(f"Resolved yield-curve-parameters:latest → {resolved_version}")
+            resolved_version = parsed_params.get('resolved_version', assumption_version)
+            if assumption_version == 'latest':
+                logger.info(f"Resolved {assumption_name}:latest → {resolved_version}")
             else:
-                logger.info(f"Resolved yield-curve-parameters:{resolved_version}")
+                logger.info(f"Resolved {assumption_name}:{resolved_version}")
 
+        except InitializationError:
+            raise
         except Exception as e:
-            raise InitializationError(f"Failed to resolve yield curve assumptions: {str(e)}")
+            error_msg = (
+                f"Failed to resolve assumption '{assumption_name}:{assumption_version}' from Assumptions Manager. "
+                f"Error: {str(e)}. "
+                f"Verify that: (1) the assumption table exists, "
+                f"(2) the version is correct, "
+                f"(3) AM credentials are valid."
+            )
+            logger.error(error_msg)
+            raise InitializationError(error_msg) from e
 
     def _parse_yield_curve_structure(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -311,49 +373,95 @@ class PythonESGEngine(ICalcEngine):
         Raises:
             InitializationError: If validation fails
         """
+        errors = []
+
         # Check required fields exist
         required_fields = ['initial_yield_curve', 'volatility_matrix', 'drift_rates', 'mean_reversion']
         missing_fields = [f for f in required_fields if f not in params or params[f] is None]
 
         if missing_fields:
-            raise InitializationError(
-                f"Missing required yield curve parameters: {', '.join(missing_fields)}"
+            errors.append(
+                f"Missing required yield curve parameters: {', '.join(missing_fields)}. "
+                f"These parameters are required for stochastic scenario generation."
             )
 
         # Validate dimensions
-        initial_curve = params['initial_yield_curve']
-        vol_matrix = params['volatility_matrix']
-        drift = params['drift_rates']
+        initial_curve = params.get('initial_yield_curve')
+        vol_matrix = params.get('volatility_matrix')
+        drift = params.get('drift_rates')
+        mean_reversion = params.get('mean_reversion')
 
-        if len(initial_curve) == 0:
-            raise InitializationError("initial_yield_curve is empty")
+        if initial_curve is not None:
+            if len(initial_curve) == 0:
+                errors.append("initial_yield_curve is empty. At least one tenor is required.")
 
-        num_tenors = len(initial_curve)
+            num_tenors = len(initial_curve)
 
-        # Volatility matrix should be square and match tenor count
-        if vol_matrix.ndim != 2:
-            raise InitializationError(f"volatility_matrix must be 2D, got {vol_matrix.ndim}D")
+            # Volatility matrix validation
+            if vol_matrix is not None:
+                if vol_matrix.ndim != 2:
+                    errors.append(
+                        f"volatility_matrix must be 2-dimensional, got {vol_matrix.ndim}D. "
+                        f"Expected shape: ({num_tenors}, {num_tenors})."
+                    )
+                elif vol_matrix.shape != (num_tenors, num_tenors):
+                    errors.append(
+                        f"volatility_matrix shape {vol_matrix.shape} doesn't match "
+                        f"initial_yield_curve length {num_tenors}. "
+                        f"The volatility matrix must be square with dimensions matching the number of tenors."
+                    )
 
-        if vol_matrix.shape != (num_tenors, num_tenors):
-            raise InitializationError(
-                f"volatility_matrix shape {vol_matrix.shape} doesn't match "
-                f"initial_yield_curve length {num_tenors}"
+                # Check for negative volatilities (math error)
+                if np.any(vol_matrix < 0):
+                    negative_count = np.sum(vol_matrix < 0)
+                    min_vol = np.min(vol_matrix)
+                    errors.append(
+                        f"volatility_matrix contains {negative_count} negative value(s). "
+                        f"Minimum value: {min_vol:.6f}. "
+                        f"Volatilities must be non-negative as they represent standard deviations."
+                    )
+
+            # Drift rates validation
+            if drift is not None and len(drift) != num_tenors:
+                errors.append(
+                    f"drift_rates length {len(drift)} doesn't match "
+                    f"initial_yield_curve length {num_tenors}. "
+                    f"Each tenor must have a corresponding drift rate."
+                )
+
+        # Mean reversion validation
+        if mean_reversion is not None:
+            if not isinstance(mean_reversion, (int, float)):
+                errors.append(
+                    f"mean_reversion must be numeric, got {type(mean_reversion).__name__}. "
+                    f"This parameter controls the speed of reversion to long-term rates."
+                )
+            elif mean_reversion < 0:
+                errors.append(
+                    f"mean_reversion is negative: {mean_reversion:.6f}. "
+                    f"Negative mean reversion leads to unstable scenarios. "
+                    f"Typical values are 0.01 to 1.0."
+                )
+            elif mean_reversion > 10.0:
+                # Warning, not error
+                logger.warning(
+                    f"mean_reversion is very high: {mean_reversion:.2f}. "
+                    f"This may cause overly rapid convergence. "
+                    f"Typical values are 0.01 to 1.0."
+                )
+
+        if errors:
+            error_msg = (
+                "Yield curve parameter validation failed:\n" +
+                "\n".join(f"  - {e}" for e in errors) +
+                "\nCheck the assumption table structure in Assumptions Manager."
             )
+            raise InitializationError(error_msg)
 
-        # Drift rates should match tenor count
-        if len(drift) != num_tenors:
-            raise InitializationError(
-                f"drift_rates length {len(drift)} doesn't match "
-                f"initial_yield_curve length {num_tenors}"
-            )
-
-        # Mean reversion should be a scalar
-        if not isinstance(params['mean_reversion'], (int, float)):
-            raise InitializationError(
-                f"mean_reversion must be numeric, got {type(params['mean_reversion'])}"
-            )
-
+        num_tenors = len(initial_curve) if initial_curve is not None else 0
         logger.debug(f"Validated yield curve parameters: {num_tenors} tenors")
+        logger.info(f"Yield curve parameters validated successfully: {num_tenors} tenors, "
+                   f"mean_reversion={mean_reversion:.4f}")
 
     def _generate_outer_paths(self) -> None:
         """
@@ -579,6 +687,8 @@ class PythonESGEngine(ICalcEngine):
 
         total_scenarios = self._config.outer_paths * self._config.inner_paths_per_outer
         row_idx = 0
+        slow_paths = 0
+        total_generation_time_ms = 0.0
 
         for outer_idx in range(self._config.outer_paths):
             # Get the outer path (deterministic skeleton)
@@ -589,8 +699,20 @@ class PythonESGEngine(ICalcEngine):
                 # Calculate scenario_id: outer_id * 1000 + inner_id
                 scenario_id = outer_idx * 1000 + inner_idx
 
-                # Generate inner path based on outer path
+                # Generate inner path based on outer path with timing
+                path_start = time.time()
                 inner_path = self._generate_inner_path(outer_path, outer_idx, inner_idx)
+                path_time_ms = (time.time() - path_start) * 1000
+                total_generation_time_ms += path_time_ms
+
+                # Monitor performance: warn if inner path generation exceeds 10ms
+                if path_time_ms > 10.0:
+                    slow_paths += 1
+                    logger.warning(
+                        f"Slow inner path generation detected: {path_time_ms:.2f}ms "
+                        f"(scenario_id={scenario_id}, outer={outer_idx}, inner={inner_idx}). "
+                        f"Target: <10ms per path. This may indicate performance issues."
+                    )
 
                 # Write each (scenario_id, year, rate) tuple to output
                 for year_idx in range(self._config.projection_years):
@@ -599,6 +721,12 @@ class PythonESGEngine(ICalcEngine):
                     output_buffer[row_idx]['rate'] = inner_path[year_idx]
                     row_idx += 1
 
+        avg_generation_time_ms = total_generation_time_ms / total_scenarios if total_scenarios > 0 else 0
+        logger.info(
+            f"Generated {total_scenarios} scenarios in {total_generation_time_ms:.2f}ms total "
+            f"(avg {avg_generation_time_ms:.3f}ms per path). "
+            f"Slow paths (>10ms): {slow_paths}"
+        )
         logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years "
                     f"in structured format (US-005): {row_idx} total rows written "
                     f"(using {self._config.outer_paths} outer paths with stochastic inner paths)")
@@ -618,6 +746,8 @@ class PythonESGEngine(ICalcEngine):
             raise ExecutionError("Outer paths not generated. Call initialize() first.")
 
         total_scenarios = self._config.outer_paths * self._config.inner_paths_per_outer
+        slow_paths = 0
+        total_generation_time_ms = 0.0
 
         scenario_idx = 0
         for outer_idx in range(self._config.outer_paths):
@@ -626,11 +756,30 @@ class PythonESGEngine(ICalcEngine):
 
             # Generate inner paths with stochastic variation
             for inner_idx in range(self._config.inner_paths_per_outer):
-                # Generate inner path based on outer path
+                # Generate inner path based on outer path with timing
+                path_start = time.time()
                 inner_path = self._generate_inner_path(outer_path, outer_idx, inner_idx)
+                path_time_ms = (time.time() - path_start) * 1000
+                total_generation_time_ms += path_time_ms
+
+                # Monitor performance: warn if inner path generation exceeds 10ms
+                if path_time_ms > 10.0:
+                    slow_paths += 1
+                    logger.warning(
+                        f"Slow inner path generation detected: {path_time_ms:.2f}ms "
+                        f"(scenario {scenario_idx}, outer={outer_idx}, inner={inner_idx}). "
+                        f"Target: <10ms per path. This may indicate performance issues."
+                    )
+
                 output_buffer[scenario_idx, :] = inner_path
                 scenario_idx += 1
 
+        avg_generation_time_ms = total_generation_time_ms / total_scenarios if total_scenarios > 0 else 0
+        logger.info(
+            f"Generated {total_scenarios} scenarios in {total_generation_time_ms:.2f}ms total "
+            f"(avg {avg_generation_time_ms:.3f}ms per path). "
+            f"Slow paths (>10ms): {slow_paths}"
+        )
         logger.debug(f"Generated {total_scenarios} scenarios × {self._config.projection_years} years "
                     f"(using {self._config.outer_paths} outer paths with stochastic inner paths)")
 

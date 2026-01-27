@@ -311,7 +311,7 @@ Current test coverage includes:
 - Configuration validation (8 tests)
 - Engine initialization (5 tests)
 - Scenario generation (5 tests)
-- Error handling (4 tests)
+- Error handling (4 tests + 14 comprehensive error/logging tests)
 - Determinism verification (1 test)
 - Yield curve assumption resolution (16 tests)
   - Structured parameter parsing
@@ -505,9 +505,11 @@ Scales well to:
 
 Note: Actual performance depends on hardware, Python version, and NumPy optimization level.
 
-## Error Handling
+## Error Handling & Logging
 
-The engine raises specific exceptions for different error conditions:
+The engine provides comprehensive error handling with clear, actionable error messages and detailed logging.
+
+### Error Types
 
 ```python
 from python_esg.src import (
@@ -515,18 +517,115 @@ from python_esg.src import (
     ConfigurationError,
     ExecutionError
 )
+```
 
+### Configuration Errors
+
+Configuration errors include the problematic field, expected format, and context:
+
+```python
+try:
+    config = ESGConfig(
+        esg_model='invalid_model',  # Wrong!
+        outer_paths=2,              # Too few!
+        inner_paths_per_outer=50,   # Too few!
+        seed=42,
+        projection_years=200        # Too many!
+    )
+    config.validate()
+except ConfigurationError as e:
+    print(f"Configuration validation failed:\n{e}")
+    # Output includes all errors with explanations:
+    # - esg_model: 'invalid_model' is invalid. Expected: 'vasicek' or 'cir'.
+    #   The ESG model determines the stochastic process...
+    # - outer_paths: 2 is out of range. Expected: 3-10.
+    #   Outer paths represent different market scenarios...
+```
+
+### Assumption Resolution Errors
+
+Failed assumption resolution includes the assumption name, version, and guidance:
+
+```python
 try:
     engine.initialize(config, credentials)
-except ConfigurationError as e:
-    print(f"Invalid configuration: {e}")
 except InitializationError as e:
-    print(f"Failed to initialize: {e}")
+    print(f"Initialization failed: {e}")
+    # Output example:
+    # Failed to resolve assumption 'yield-curve-parameters:v2.1' from Assumptions Manager.
+    # Error: Connection timeout.
+    # Verify that: (1) the assumption table exists,
+    #              (2) the version is correct,
+    #              (3) AM credentials are valid.
+```
 
+### Math Errors
+
+Math validation errors (negative volatility, negative mean reversion) include details and consequences:
+
+```python
+# If volatility matrix contains negative values:
+# volatility_matrix contains 1 negative value(s).
+# Minimum value: -0.015000.
+# Volatilities must be non-negative as they represent standard deviations.
+
+# If mean reversion is negative:
+# mean_reversion is negative: -0.500000.
+# Negative mean reversion leads to unstable scenarios.
+# Typical values are 0.01 to 1.0.
+```
+
+### Execution Errors
+
+Execution errors provide clear guidance on what went wrong:
+
+```python
 try:
     result = engine.runChunk(None, output_buffer)
 except ExecutionError as e:
     print(f"Scenario generation failed: {e}")
+    # Examples:
+    # - "Engine not initialized. Call initialize() first."
+    # - "Output buffer shape mismatch. Expected (300, 50), got (100, 50)"
+```
+
+### Performance Monitoring
+
+The engine logs performance warnings when inner path generation exceeds performance targets:
+
+```python
+# Log output example:
+# 2026-01-27 23:45:12 - esg_engine - WARNING - Slow inner path generation detected: 12.34ms
+# (scenario_id=1005, outer=1, inner=5). Target: <10ms per path.
+# This may indicate performance issues.
+
+# Summary logged at end:
+# 2026-01-27 23:45:15 - esg_engine - INFO - Generated 3000 scenarios in 8234.56ms total
+# (avg 2.745ms per path). Slow paths (>10ms): 3
+```
+
+### Logging Configuration
+
+All log messages include timestamps and context for debugging:
+
+```python
+# Log format: YYYY-MM-DD HH:MM:SS - module - LEVEL - message
+# Example:
+# 2026-01-27 23:45:10 - esg_engine - INFO - ESG engine initialized:
+# model=vasicek, outer_paths=3, inner_paths_per_outer=1000
+```
+
+Configure logging level:
+
+```python
+from esg_engine import configure_logging
+import logging
+
+# Set to DEBUG for verbose output
+configure_logging(logging.DEBUG)
+
+# Set to WARNING to only see warnings and errors
+configure_logging(logging.WARNING)
 ```
 
 ## Assumptions Manager Integration
@@ -590,7 +689,7 @@ Without credentials, the engine uses default parameters (for testing/development
 - [x] **US-005**: Scenario Output Format (Structured array format) ✅
 - [x] **US-006**: Configuration & Parameter Management ✅
 - [x] **US-007**: Performance & Memory Efficiency ✅
-- [ ] **US-008**: Error Handling & Logging
+- [x] **US-008**: Error Handling & Logging ✅
 
 ## License
 

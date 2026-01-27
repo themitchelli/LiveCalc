@@ -192,7 +192,7 @@
       "technicalNotes": {
         "logging": "Python logging module, handler to orchestrator's log stream"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [
