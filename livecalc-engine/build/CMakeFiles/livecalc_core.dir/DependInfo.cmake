@@ -12,6 +12,8 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumptions.cpp" "CMakeFiles/livecalc_core.dir/src/assumptions.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/assumptions.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/csv_reader.cpp" "CMakeFiles/livecalc_core.dir/src/io/csv_reader.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/io/csv_reader.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/json_writer.cpp" "CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.cpp" "CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_writer.cpp" "CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.cpp" "CMakeFiles/livecalc_core.dir/src/policy.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/policy.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.cpp" "CMakeFiles/livecalc_core.dir/src/projection.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/projection.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.cpp" "CMakeFiles/livecalc_core.dir/src/scenario.cpp.o" "gcc" "CMakeFiles/livecalc_core.dir/src/scenario.cpp.o.d"

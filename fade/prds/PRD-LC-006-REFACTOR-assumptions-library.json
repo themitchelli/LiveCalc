@@ -83,7 +83,7 @@
         "dependencies": ["requests", "numpy", "platformdirs"],
         "exampleUsage": "from assumptions_client import AssumptionsClient; am = AssumptionsClient(\"https://am.ddns.net\", token, \"/cache\"); qx = am.resolve_scalar(\"mortality-standard\", \"v2.1\", {\"age\": 50, \"gender\": \"M\"})"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

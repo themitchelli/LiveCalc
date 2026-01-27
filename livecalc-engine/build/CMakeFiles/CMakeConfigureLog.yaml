@@ -2955,3 +2955,278 @@ events:
         - "/Users/stevemitchell/Applications"
         - "/Applications"
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:333 (try_compile)"
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:640 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:68 (find_package)"
+    description: "Detecting CXX OpenMP compiler info"
+    directories:
+      source: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk"
+      binary: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-w"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_Xclang fopenmp"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk'
+        
+        Run Build Command(s): /usr/local/bin/cmake -E env VERBOSE=1 /usr/local/bin/gmake -f Makefile cmTC_fec55/fast
+        /usr/local/bin/gmake  -f CMakeFiles/cmTC_fec55.dir/build.make CMakeFiles/cmTC_fec55.dir/build
+        gmake[1]: Entering directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk'
+        Building CXX object CMakeFiles/cmTC_fec55.dir/OpenMPTryFlag.cpp.o
+        /usr/bin/c++   -w -Xclang -fopenmp -std=gnu++17 -MD -MT CMakeFiles/cmTC_fec55.dir/OpenMPTryFlag.cpp.o -MF CMakeFiles/cmTC_fec55.dir/OpenMPTryFlag.cpp.o.d -o CMakeFiles/cmTC_fec55.dir/OpenMPTryFlag.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk/OpenMPTryFlag.cpp
+        /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk/OpenMPTryFlag.cpp:2:10: fatal error: 'omp.h' file not found
+        #include <omp.h>
+                 ^~~~~~~
+        1 error generated.
+        gmake[1]: *** [CMakeFiles/cmTC_fec55.dir/build.make:82: CMakeFiles/cmTC_fec55.dir/OpenMPTryFlag.cpp.o] Error 1
+        gmake[1]: Leaving directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-BJ0aSk'
+        gmake: *** [Makefile:134: cmTC_fec55/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:425 (find_library)"
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:640 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:68 (find_package)"
+    mode: "library"
+    variable: "OpenMP_libomp_LIBRARY"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "FIRST"
+      SearchAppBundle: "FIRST"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "omp"
+      - "gomp"
+      - "iomp5"
+    candidate_directories:
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Users/stevemitchell/Documents/GitHub/fade/"
+      - "/Users/stevemitchell/.nvm/versions/node/v18.20.8/bin/"
+      - "/Users/stevemitchell/.pyenv/shims/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/stevemitchell/.local/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+    searched_directories:
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Users/stevemitchell/Documents/GitHub/fade/"
+      - "/Users/stevemitchell/.nvm/versions/node/v18.20.8/bin/"
+      - "/Users/stevemitchell/.pyenv/shims/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/stevemitchell/.local/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Users/stevemitchell/Documents/GitHub/fade/"
+      - "/Users/stevemitchell/.nvm/versions/node/v18.20.8/bin/"
+      - "/Users/stevemitchell/.pyenv/shims/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/stevemitchell/.local/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Users/stevemitchell/Documents/GitHub/fade/"
+      - "/Users/stevemitchell/.nvm/versions/node/v18.20.8/bin/"
+      - "/Users/stevemitchell/.pyenv/shims/"
+      - "/usr/local/bin/"
+      - "/System/Cryptexes/App/usr/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/usr/sbin/"
+      - "/sbin/"
+      - "/Users/stevemitchell/.local/bin/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/"
+      - "/usr/local/lib/"
+      - "/usr/local/"
+      - "/usr/lib/"
+      - "/usr/"
+      - "/opt/"
+      - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/"
+      - "/Library/Developer/CommandLineTools/Library/Frameworks/"
+      - "/Library/Frameworks/"
+      - "/System/Library/Frameworks/"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/Users/stevemitchell/Documents/GitHub/fade"
+        - "/Users/stevemitchell/.nvm/versions/node/v18.20.8/bin"
+        - "/Users/stevemitchell/.pyenv/shims"
+        - "/Users/stevemitchell/.pyenv/bin"
+        - "/usr/local/bin"
+        - "/System/Cryptexes/App/usr/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/usr/sbin"
+        - "/sbin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
+        - "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
+        - "/Users/stevemitchell/.local/bin"
+        - "/Users/stevemitchell/.local/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr"
+        - "/usr/local"
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr/local"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+        - "/sw"
+        - "/opt/local"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+      CMAKE_SYSTEM_FRAMEWORK_PATH:
+        - "~/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/Network/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Developer/CommandLineTools/Library/Frameworks"
+        - "/Library/Frameworks"
+        - "/Network/Library/Frameworks"
+        - "/System/Library/Frameworks"
+...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:333 (try_compile)"
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:640 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:68 (find_package)"
+    description: "Detecting CXX OpenMP compiler info"
+    directories:
+      source: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS"
+      binary: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-w"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_Xclang fopenmp"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS'
+        
+        Run Build Command(s): /usr/local/bin/cmake -E env VERBOSE=1 /usr/local/bin/gmake -f Makefile cmTC_6ce5a/fast
+        /usr/local/bin/gmake  -f CMakeFiles/cmTC_6ce5a.dir/build.make CMakeFiles/cmTC_6ce5a.dir/build
+        gmake[1]: Entering directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS'
+        Building CXX object CMakeFiles/cmTC_6ce5a.dir/OpenMPTryFlag.cpp.o
+        /usr/bin/c++   -w -Xclang -fopenmp -std=gnu++17 -MD -MT CMakeFiles/cmTC_6ce5a.dir/OpenMPTryFlag.cpp.o -MF CMakeFiles/cmTC_6ce5a.dir/OpenMPTryFlag.cpp.o.d -o CMakeFiles/cmTC_6ce5a.dir/OpenMPTryFlag.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS/OpenMPTryFlag.cpp
+        /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS/OpenMPTryFlag.cpp:2:10: fatal error: 'omp.h' file not found
+        #include <omp.h>
+                 ^~~~~~~
+        1 error generated.
+        gmake[1]: *** [CMakeFiles/cmTC_6ce5a.dir/build.make:82: CMakeFiles/cmTC_6ce5a.dir/OpenMPTryFlag.cpp.o] Error 1
+        gmake[1]: Leaving directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-qIomZS'
+        gmake: *** [Makefile:134: cmTC_6ce5a/fast] Error 2
+        
+      exitCode: 2
+...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:574 (try_compile)"
+      - "/usr/local/share/cmake/Modules/FindOpenMP.cmake:714 (_OPENMP_GET_SPEC_DATE)"
+      - "CMakeLists.txt:77 (find_package)"
+    description: "Detecting CXX OpenMP version"
+    directories:
+      source: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I"
+      binary: "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "-w"
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_OSX_ARCHITECTURES: ""
+      CMAKE_OSX_DEPLOYMENT_TARGET: ""
+      CMAKE_OSX_SYSROOT: ""
+    buildResult:
+      variable: "OpenMP_SPECTEST_CXX_"
+      cached: true
+      stdout: |
+        Change Dir: '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I'
+        
+        Run Build Command(s): /usr/local/bin/cmake -E env VERBOSE=1 /usr/local/bin/gmake -f Makefile cmTC_96417/fast
+        /usr/local/bin/gmake  -f CMakeFiles/cmTC_96417.dir/build.make CMakeFiles/cmTC_96417.dir/build
+        gmake[1]: Entering directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I'
+        Building CXX object CMakeFiles/cmTC_96417.dir/OpenMPCheckVersion.cpp.o
+        /usr/bin/c++   -w -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include -std=gnu++17 -MD -MT CMakeFiles/cmTC_96417.dir/OpenMPCheckVersion.cpp.o -MF CMakeFiles/cmTC_96417.dir/OpenMPCheckVersion.cpp.o.d -o CMakeFiles/cmTC_96417.dir/OpenMPCheckVersion.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I/OpenMPCheckVersion.cpp
+        Linking CXX executable cmTC_96417
+        /usr/local/bin/cmake -E cmake_link_script CMakeFiles/cmTC_96417.dir/link.txt --verbose=1
+        /usr/bin/c++ -w -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cmTC_96417.dir/OpenMPCheckVersion.cpp.o -o cmTC_96417
+        gmake[1]: Leaving directory '/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles/CMakeScratch/TryCompile-kQQa2I'
+        
+      exitCode: 0
+...

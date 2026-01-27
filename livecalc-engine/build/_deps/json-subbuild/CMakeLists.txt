@@ -16,10 +16,18 @@ unset(ENV{CMAKE_TOOLCHAIN_FILE})
 project(json-populate NONE)
 
 
+# Pass through things we've already detected in the main project to avoid
+# paying the cost of redetecting them again in ExternalProject_Add()
+set(GIT_EXECUTABLE [==[/usr/local/bin/git]==])
+set(Git_VERSION [==[2.28.0]==])
+set_property(GLOBAL PROPERTY _CMAKE_FindGit_GIT_EXECUTABLE_VERSION
+  [==[/usr/local/bin/git;2.28.0]==]
+)
+
 
 include(ExternalProject)
 ExternalProject_Add(json-populate
-                     "UPDATE_DISCONNECTED" "False" "DOWNLOAD_EXTRACT_TIMESTAMP" "TRUE" "EXTERNALPROJECT_INTERNAL_ARGUMENT_SEPARATOR" "URL" "https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz"
+                     "UPDATE_DISCONNECTED" "False" "GIT_REPOSITORY" "https://github.com/nlohmann/json.git" "EXTERNALPROJECT_INTERNAL_ARGUMENT_SEPARATOR" "GIT_TAG" "v3.11.3"
                     SOURCE_DIR          "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src"
                     BINARY_DIR          "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build"
                     CONFIGURE_COMMAND   ""

@@ -96,6 +96,7 @@ benchmark_EXTERNAL_OBJECTS =
 benchmark: CMakeFiles/benchmark.dir/tests/benchmark_valuation.cpp.o
 benchmark: CMakeFiles/benchmark.dir/build.make
 benchmark: liblivecalc_core.a
+benchmark: /usr/local/opt/libomp/lib/libomp.dylib
 benchmark: livecalc-assumptions-lib/libassumptions_lib.a
 benchmark: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 benchmark: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd

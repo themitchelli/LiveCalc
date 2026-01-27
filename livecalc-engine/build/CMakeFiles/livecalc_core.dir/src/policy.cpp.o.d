@@ -232,6 +232,8 @@ CMakeFiles/livecalc_core.dir/src/policy.cpp.o: \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/__bsd_locale_defaults.h \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/bitset \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/csv_reader.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/../policy.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/fstream \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/filesystem \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/stack \

@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/tests.dir/tests/test_assumption_set.cpp.o.d"
   "CMakeFiles/tests.dir/tests/test_assumptions.cpp.o"
   "CMakeFiles/tests.dir/tests/test_assumptions.cpp.o.d"
+  "CMakeFiles/tests.dir/tests/test_parquet_io.cpp.o"
+  "CMakeFiles/tests.dir/tests/test_parquet_io.cpp.o.d"
   "CMakeFiles/tests.dir/tests/test_policy.cpp.o"
   "CMakeFiles/tests.dir/tests/test_policy.cpp.o.d"
   "CMakeFiles/tests.dir/tests/test_projection.cpp.o"

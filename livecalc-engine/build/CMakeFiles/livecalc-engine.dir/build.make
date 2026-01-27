@@ -96,6 +96,7 @@ livecalc__engine_EXTERNAL_OBJECTS =
 livecalc-engine: CMakeFiles/livecalc-engine.dir/src/main.cpp.o
 livecalc-engine: CMakeFiles/livecalc-engine.dir/build.make
 livecalc-engine: liblivecalc_core.a
+livecalc-engine: /usr/local/opt/libomp/lib/libomp.dylib
 livecalc-engine: livecalc-assumptions-lib/libassumptions_lib.a
 livecalc-engine: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 livecalc-engine: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd

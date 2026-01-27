@@ -1204,7 +1204,9 @@ CMakeFiles/livecalc_core.dir/src/policy.cpp.o: /Users/stevemitchell/Documents/Gi
   /Library/Developer/CommandLineTools/usr/lib/clang/12.0.0/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/12.0.0/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/12.0.0/include/stdint.h \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/csv_reader.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.hpp
 
 CMakeFiles/livecalc_core.dir/src/projection.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.cpp \
@@ -2383,6 +2385,7 @@ CMakeFiles/livecalc_core.dir/src/valuation.cpp.o: /Users/stevemitchell/Documents
   /Library/Developer/CommandLineTools/usr/include/c++/v1/initializer_list \
   /Library/Developer/CommandLineTools/usr/include/c++/v1/ios \
   /Library/Developer/CommandLineTools/usr/include/c++/v1/iosfwd \
+  /Library/Developer/CommandLineTools/usr/include/c++/v1/iostream \
   /Library/Developer/CommandLineTools/usr/include/c++/v1/istream \
   /Library/Developer/CommandLineTools/usr/include/c++/v1/iterator \
   /Library/Developer/CommandLineTools/usr/include/c++/v1/limits \
@@ -2425,8 +2428,11 @@ CMakeFiles/livecalc_core.dir/src/valuation.cpp.o: /Users/stevemitchell/Documents
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/policy.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.hpp \
-  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.hpp
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.hpp \
+  /usr/local/opt/libomp/include/omp.h
 
+
+/usr/local/opt/libomp/include/omp.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/unistd.h:
 
@@ -2439,6 +2445,8 @@ CMakeFiles/livecalc_core.dir/src/valuation.cpp.o: /Users/stevemitchell/Documents
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_filesec_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/gethostuuid.h:
+
+/Library/Developer/CommandLineTools/usr/include/c++/v1/iostream:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_seek_set.h:
 
@@ -2815,6 +2823,8 @@ CMakeFiles/livecalc_core.dir/src/valuation.cpp.o: /Users/stevemitchell/Documents
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/unistd.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sched.h:
+
+/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.hpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/i386/_mcontext.h:
 

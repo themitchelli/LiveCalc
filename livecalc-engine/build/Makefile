@@ -735,6 +735,54 @@ src/io/json_writer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.s
 .PHONY : src/io/json_writer.cpp.s
 
+src/io/parquet_reader.o: src/io/parquet_reader.cpp.o
+.PHONY : src/io/parquet_reader.o
+
+# target to build an object file
+src/io/parquet_reader.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o
+.PHONY : src/io/parquet_reader.cpp.o
+
+src/io/parquet_reader.i: src/io/parquet_reader.cpp.i
+.PHONY : src/io/parquet_reader.i
+
+# target to preprocess a source file
+src/io/parquet_reader.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.i
+.PHONY : src/io/parquet_reader.cpp.i
+
+src/io/parquet_reader.s: src/io/parquet_reader.cpp.s
+.PHONY : src/io/parquet_reader.s
+
+# target to generate assembly for a file
+src/io/parquet_reader.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.s
+.PHONY : src/io/parquet_reader.cpp.s
+
+src/io/parquet_writer.o: src/io/parquet_writer.cpp.o
+.PHONY : src/io/parquet_writer.o
+
+# target to build an object file
+src/io/parquet_writer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o
+.PHONY : src/io/parquet_writer.cpp.o
+
+src/io/parquet_writer.i: src/io/parquet_writer.cpp.i
+.PHONY : src/io/parquet_writer.i
+
+# target to preprocess a source file
+src/io/parquet_writer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.i
+.PHONY : src/io/parquet_writer.cpp.i
+
+src/io/parquet_writer.s: src/io/parquet_writer.cpp.s
+.PHONY : src/io/parquet_writer.s
+
+# target to generate assembly for a file
+src/io/parquet_writer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/livecalc_core.dir/build.make CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.s
+.PHONY : src/io/parquet_writer.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -999,6 +1047,30 @@ tests/test_cli.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cli_tests.dir/build.make CMakeFiles/cli_tests.dir/tests/test_cli.cpp.s
 .PHONY : tests/test_cli.cpp.s
 
+tests/test_parquet_io.o: tests/test_parquet_io.cpp.o
+.PHONY : tests/test_parquet_io.o
+
+# target to build an object file
+tests/test_parquet_io.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_parquet_io.cpp.o
+.PHONY : tests/test_parquet_io.cpp.o
+
+tests/test_parquet_io.i: tests/test_parquet_io.cpp.i
+.PHONY : tests/test_parquet_io.i
+
+# target to preprocess a source file
+tests/test_parquet_io.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_parquet_io.cpp.i
+.PHONY : tests/test_parquet_io.cpp.i
+
+tests/test_parquet_io.s: tests/test_parquet_io.cpp.s
+.PHONY : tests/test_parquet_io.s
+
+# target to generate assembly for a file
+tests/test_parquet_io.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/tests.dir/build.make CMakeFiles/tests.dir/tests/test_parquet_io.cpp.s
+.PHONY : tests/test_parquet_io.cpp.s
+
 tests/test_policy.o: tests/test_policy.cpp.o
 .PHONY : tests/test_policy.o
 
@@ -1180,6 +1252,12 @@ help:
 	@echo "... src/io/json_writer.o"
 	@echo "... src/io/json_writer.i"
 	@echo "... src/io/json_writer.s"
+	@echo "... src/io/parquet_reader.o"
+	@echo "... src/io/parquet_reader.i"
+	@echo "... src/io/parquet_reader.s"
+	@echo "... src/io/parquet_writer.o"
+	@echo "... src/io/parquet_writer.i"
+	@echo "... src/io/parquet_writer.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
@@ -1213,6 +1291,9 @@ help:
 	@echo "... tests/test_cli.o"
 	@echo "... tests/test_cli.i"
 	@echo "... tests/test_cli.s"
+	@echo "... tests/test_parquet_io.o"
+	@echo "... tests/test_parquet_io.i"
+	@echo "... tests/test_parquet_io.s"
 	@echo "... tests/test_policy.o"
 	@echo "... tests/test_policy.i"
 	@echo "... tests/test_policy.s"

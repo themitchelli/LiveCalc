@@ -1,0 +1,5 @@
+if(EXISTS "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/cli_tests-b12d07c_tests.cmake")
+  include("/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/cli_tests-b12d07c_tests.cmake")
+else()
+  add_test(cli_tests_NOT_BUILT-b12d07c cli_tests_NOT_BUILT-b12d07c)
+endif()

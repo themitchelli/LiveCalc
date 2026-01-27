@@ -184,10 +184,38 @@ CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/json_writer.cpp -o CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.s
 
+CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o: CMakeFiles/livecalc_core.dir/flags.make
+CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.cpp
+CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o: CMakeFiles/livecalc_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o -MF CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o.d -o CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.cpp
+
+CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.cpp > CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.i
+
+CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_reader.cpp -o CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.s
+
+CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o: CMakeFiles/livecalc_core.dir/flags.make
+CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_writer.cpp
+CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o: CMakeFiles/livecalc_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o -MF CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o.d -o CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_writer.cpp
+
+CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_writer.cpp > CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.i
+
+CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/parquet_writer.cpp -o CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.s
+
 CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o: CMakeFiles/livecalc_core.dir/flags.make
 CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.cpp
 CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o: CMakeFiles/livecalc_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o -MF CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o.d -o CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.cpp
 
 CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.i: cmake_force
@@ -201,7 +229,7 @@ CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.s: cmake_force
 CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o: CMakeFiles/livecalc_core.dir/flags.make
 CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.cpp
 CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o: CMakeFiles/livecalc_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o -MF CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o.d -o CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_executor.cpp
 
 CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.i: cmake_force
@@ -222,6 +250,8 @@ livecalc_core_OBJECTS = \
 "CMakeFiles/livecalc_core.dir/src/valuation.cpp.o" \
 "CMakeFiles/livecalc_core.dir/src/io/csv_reader.cpp.o" \
 "CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.o" \
+"CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o" \
+"CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o" \
 "CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o" \
 "CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o"
 
@@ -236,11 +266,13 @@ liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/projection.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/valuation.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/io/csv_reader.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/io/json_writer.cpp.o
+liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/io/parquet_reader.cpp.o
+liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/io/parquet_writer.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/udf/udf_context.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/src/udf/udf_executor.cpp.o
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/build.make
 liblivecalc_core.a: CMakeFiles/livecalc_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX static library liblivecalc_core.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Linking CXX static library liblivecalc_core.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/livecalc_core.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/livecalc_core.dir/link.txt --verbose=$(VERBOSE)
 

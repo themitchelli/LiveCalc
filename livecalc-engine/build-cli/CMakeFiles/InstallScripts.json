@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/_deps/catch2-build/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/_deps/catch2-build/src/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/_deps/json-build/cmake_install.cmake",
+		"/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build-cli/livecalc-assumptions-lib/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

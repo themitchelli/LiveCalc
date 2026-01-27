@@ -240,11 +240,66 @@ CMakeFiles/livecalc-engine.dir/src/main.cpp.o: \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/optional \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumptions.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/array \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/assumption_set.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/scenario.hpp \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/random \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/cmath \
   /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/numeric \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/valuation.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/projection.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/udf/udf_context.hpp \
   /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/json_writer.hpp \
-  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/../valuation.hpp
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/src/io/../valuation.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/json.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/adl_serializer.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/abi_macros.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/conversions/from_json.hpp \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/forward_list \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/unordered_map \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/__hash_table \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/valarray \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/exceptions.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/value_t.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/macro_scope.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/detected.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/void_t.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/thirdparty/hedley/hedley.hpp \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/version \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/string_escape.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/position_t.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/cpp_future.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/type_traits.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/iterator_traits.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/call_std/begin.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/call_std/end.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/json_fwd.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/string_concat.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/identity_tag.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/std_fs.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/conversions/to_json.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/iteration_proxy.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/byte_container_with_subtype.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/hash.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/binary_reader.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/input_adapters.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/json_sax.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/lexer.hpp \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/clocale \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/meta/is_sax.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/input/parser.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/internal_iterator.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/primitive_iterator.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/iter_impl.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/iterators/json_reverse_iterator.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/json_custom_base_class.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/json_pointer.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/json_ref.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/output/binary_writer.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/output/output_adapters.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/output/serializer.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/conversions/to_chars.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/ordered_map.hpp \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/any \
+  /Library/Developer/CommandLineTools/usr/bin/../include/c++/v1/experimental/__config \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/detail/macro_unscope.hpp \
+  /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src/include/nlohmann/thirdparty/hedley/hedley_undef.hpp

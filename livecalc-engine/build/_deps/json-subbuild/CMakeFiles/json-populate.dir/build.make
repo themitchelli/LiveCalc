@@ -82,6 +82,9 @@ CMakeFiles/json-populate-complete: json-populate-prefix/src/json-populate-stamp/
 	/usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles/json-populate-complete
 	/usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-done
 
+json-populate-prefix/src/json-populate-stamp/json-populate-update:
+.PHONY : json-populate-prefix/src/json-populate-stamp/json-populate-update
+
 json-populate-prefix/src/json-populate-stamp/json-populate-build: json-populate-prefix/src/json-populate-stamp/json-populate-configure
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "No build step for 'json-populate'"
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build && /usr/local/bin/cmake -E echo_append
@@ -93,13 +96,10 @@ json-populate-prefix/src/json-populate-stamp/json-populate-configure: json-popul
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build && /usr/local/bin/cmake -E echo_append
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build && /usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-configure
 
-json-populate-prefix/src/json-populate-stamp/json-populate-download: json-populate-prefix/src/json-populate-stamp/download-json-populate.cmake
-json-populate-prefix/src/json-populate-stamp/json-populate-download: json-populate-prefix/src/json-populate-stamp/json-populate-urlinfo.txt
+json-populate-prefix/src/json-populate-stamp/json-populate-download: json-populate-prefix/src/json-populate-stamp/json-populate-gitinfo.txt
 json-populate-prefix/src/json-populate-stamp/json-populate-download: json-populate-prefix/src/json-populate-stamp/json-populate-mkdir
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Performing download step (download, verify and extract) for 'json-populate'"
-	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps && /usr/local/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/download-json-populate.cmake
-	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps && /usr/local/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/verify-json-populate.cmake
-	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps && /usr/local/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/extract-json-populate.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Performing download step (git clone) for 'json-populate'"
+	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps && /usr/local/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/tmp/json-populate-gitclone.cmake
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps && /usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-download
 
 json-populate-prefix/src/json-populate-stamp/json-populate-install: json-populate-prefix/src/json-populate-stamp/json-populate-build
@@ -118,16 +118,19 @@ json-populate-prefix/src/json-populate-stamp/json-populate-patch: json-populate-
 	/usr/local/bin/cmake -E echo_append
 	/usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-patch
 
+json-populate-prefix/src/json-populate-stamp/json-populate-update:
+.PHONY : json-populate-prefix/src/json-populate-stamp/json-populate-update
+
 json-populate-prefix/src/json-populate-stamp/json-populate-test: json-populate-prefix/src/json-populate-stamp/json-populate-install
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "No test step for 'json-populate'"
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build && /usr/local/bin/cmake -E echo_append
 	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-build && /usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-test
 
+json-populate-prefix/src/json-populate-stamp/json-populate-update: json-populate-prefix/tmp/json-populate-gitupdate.cmake
 json-populate-prefix/src/json-populate-stamp/json-populate-update: json-populate-prefix/src/json-populate-stamp/json-populate-update-info.txt
 json-populate-prefix/src/json-populate-stamp/json-populate-update: json-populate-prefix/src/json-populate-stamp/json-populate-download
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "No update step for 'json-populate'"
-	/usr/local/bin/cmake -E echo_append
-	/usr/local/bin/cmake -E touch /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/src/json-populate-stamp/json-populate-update
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Performing update step for 'json-populate'"
+	cd /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-src && /usr/local/bin/cmake -Dcan_fetch=YES -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-engine/build/_deps/json-subbuild/json-populate-prefix/tmp/json-populate-gitupdate.cmake
 
 CMakeFiles/json-populate.dir/codegen:
 .PHONY : CMakeFiles/json-populate.dir/codegen
