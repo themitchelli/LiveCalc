@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-003",
+  "complexity": "medium",
   "title": "VS Code Extension Foundation",
   "type": "feature",
   "priority": "critical",

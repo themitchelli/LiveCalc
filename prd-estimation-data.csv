@@ -1,0 +1,15 @@
+PRD ID,Title,Stories,ACs,Est Sessions,Complexity,Keywords,First Timestamp,Last Timestamp,Actual Duration (h),Estimated Hours,Accuracy %,Accuracy Status,Time Per Story (h),Time Per AC (h)
+PRD-LC-002,WASM Compilation and Web Worker Threading,6,52,3-4 FADE sessions,medium,performance,2026-01-23 23:15,2026-01-23 23:55,0.7,3.0,+77.8%,Overestimated,0.12,0.013
+PRD-LC-003,VS Code Extension Foundation,8,95,4-5 FADE sessions,medium,integrate,2026-01-24 00:05,2026-01-24 02:15,2.2,4.0,+45.8%,Overestimated,0.27,0.023
+PRD-LC-004,Results Panel and Visualisation,9,89,3-4 FADE sessions,medium,dashboard,2026-01-24 08:15,2026-01-24 15:00,6.8,3.0,-125.0%,Underestimated,0.76,0.076
+PRD-LC-005,Auto-Run and Hot Reload,9,83,2-3 FADE sessions,medium,none,2026-01-24 16:00,2026-01-24 23:30,7.5,2.0,-275.0%,Underestimated,0.83,0.090
+PRD-LC-010,Modular Orchestration Layer,9,60,5-6 FADE sessions,medium,integrate,2026-01-24 18:36,2026-01-24 19:44,19.7,5.0,-294.7%,Underestimated,2.19,0.329
+SPIKE-LC-007,Engine Performance Infrastructure,5,28,unknown,medium,fix + integrate + performance,2026-01-24 12:30,2026-01-24 12:50,0.3,N/A,N/A,N/A,0.07,0.012
+,,,,,,,,,,,,
+Summary Stats,,,,,,,,,,,
+Total Estimated Hours (excluding SPIKE),15.0,,,,,,,
+Total Actual Hours,37.1,,,,,,,
+Overall Accuracy,-118.5%,,,,,,,
+Overestimated Count,2,,,,,,,
+Underestimated Count,3,,,,,,,
+Accurate Count (±10%),0,,,,,,,

@@ -1,0 +1,244 @@
+{
+  "id": "PRD-LC-007",
+  "complexity": "high",
+  "title": "Python ESG (Economic Scenario Generator) Engine",
+  "type": "feature",
+  "priority": "high",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Build a pluggable Python-based Economic Scenario Generator (ESG) that produces interest rate scenarios for nested stochastic valuation. ESG runs independently, resolves its own assumptions, and outputs scenarios via SharedArrayBuffer to the projection engine. Implements outer-path generation (pre-defined) with on-the-fly inner-path generation to avoid massive file sizes.",
+  "problem": [
+    "ESG is a complex, domain-specific model that changes frequently based on market conditions and actuarial requirements",
+    "C++ ESG would require recompilation for every assumption or methodology change",
+    "Pre-generating all inner scenarios creates files too large to manage",
+    "Python allows actuaries to iterate quickly on ESG logic without touching C++"
+  ],
+  "solution": [
+    "Build ESG as a Python-based pluggable engine satisfying the ICalcEngine interface",
+    "ESG resolves its own assumptions (yield curves, volatility parameters) from Assumptions Manager",
+    "Generates outer paths (pre-defined) once at startup",
+    "Generates inner paths on-the-fly during projection as needed",
+    "Output scenarios written to SharedArrayBuffer for zero-copy handoff to C++ projection engine"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-006-REFACTOR",
+      "title": "Assumptions Manager Library",
+      "status": "required",
+      "notes": "ESG uses Python assumptions_client to resolve yield curve assumptions"
+    },
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "required",
+      "notes": "ESG is a node in the calculation DAG, implements ICalcEngine interface"
+    }
+  ],
+  "technicalNotes": {
+    "language": "Python 3.11+",
+    "framework": "NumPy, SciPy for numerical operations",
+    "interface": "Implements ICalcEngine (initialize, runChunk, dispose)",
+    "executionContext": "Runs in separate thread/process, communicates via SharedArrayBuffer",
+    "dataFormat": "Input/output via SharedArrayBuffer (Parquet for external)",
+    "assumptions": "Resolves yield curves, volatility, drift parameters from AM",
+    "performanceTarget": "Generate 1K scenarios (10K inner paths each) in <10 seconds"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "ICalcEngine Interface Implementation",
+      "story": "As an orchestrator, I need the ESG to implement the standard ICalcEngine interface so it can be plugged into the calculation DAG",
+      "acceptanceCriteria": [
+        "ESG class implements: initialize(config, credentials), runChunk(input_buffer, output_buffer), dispose()",
+        "initialize() receives: ESG configuration (model type, parameters), AM credentials",
+        "runChunk() receives: empty input (ESG has no input dependencies), writes scenarios to output_buffer",
+        "output_buffer is SharedArrayBuffer pre-allocated by orchestrator",
+        "Scenarios written in standard format: [scenario_id, year, interest_rate]",
+        "dispose() cleans up resources (Python state, temporary files)",
+        "Error handling: raise exceptions with clear messages, logged by orchestrator"
+      ],
+      "technicalNotes": {
+        "interface": "Define ICalcEngine interface in Python or C++ (language-agnostic)",
+        "implementation": "class PythonESGEngine(ICalcEngine): ...",
+        "execution": "Spawned as subprocess or embedded in main process via FFI"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Yield Curve Assumption Resolution",
+      "story": "As an ESG, I need to resolve yield curve assumptions from Assumptions Manager so I generate scenarios consistent with governance",
+      "acceptanceCriteria": [
+        "Initialize: load 'yield-curve-parameters:v2.1' from AM",
+        "Assumptions include: initial_yield_curve (vector by tenor), volatility_matrix, drift_rates, mean_reversion",
+        "Validate that all required parameters are present, fail if missing",
+        "Log: 'Resolved yield-curve-parameters:latest → v2.1'",
+        "Support 'latest' version (always fetch fresh)",
+        "Cache mechanism: via assumptions_client (PRD-LC-006-REFACTOR)"
+      ],
+      "technicalNotes": {
+        "pythonCode": "from assumptions_client import AssumptionsClient; client = AssumptionsClient(...); params = client.resolve('yield-curve-parameters', 'v2.1')",
+        "assumptionStructure": "yield_curve: np.ndarray(shape=(20,)), volatility: np.ndarray(shape=(20,20)), drift: np.ndarray(shape=(20,)), mean_reversion: float"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Outer Path Generation",
+      "story": "As an ESG, I need to generate outer paths (deterministic or low-randomness paths) that form the skeleton for inner path generation",
+      "acceptanceCriteria": [
+        "Outer paths are pre-defined based on market scenarios: base case, stress, optimistic",
+        "Generate from yield curve + market assumptions (e.g., 'rates go up 1% per year')",
+        "Number of outer paths: configurable (default 3-10)",
+        "Output: matrix [outer_path_id, year, interest_rate] for 50 years",
+        "Deterministic (reproducible with seed)",
+        "Documentation: what each outer path represents"
+      ],
+      "technicalNotes": {
+        "generation": "Deterministic formula: new_rate = old_rate + drift",
+        "storage": "Numpy array, kept in memory during entire valuation"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Inner Path Generation (On-The-Fly)",
+      "story": "As an ESG, I need to generate inner paths on-the-fly during projection to avoid pre-generating massive scenario files",
+      "acceptanceCriteria": [
+        "Inner paths are stochastic (Monte Carlo) paths conditional on each outer path",
+        "Generation method: Geometric Brownian Motion with mean reversion (Vasicek or CIR)",
+        "Number of inner paths per outer path: configurable (default 1K)",
+        "Generation happens lazily: when projection asks for scenario (outer_i, inner_j), generate on-demand",
+        "Generation is seeded for reproducibility: seed = hash(outer_id, inner_id, global_seed)",
+        "Inner path generation must be fast (<1ms per path)"
+      ],
+      "technicalNotes": {
+        "algorithm": "Vasicek model: dr = a*(b - r) dt + sigma * dW",
+        "parameters": "a (mean reversion), b (long-term rate), sigma (volatility) from assumptions",
+        "seed": "Python random.seed(hash(outer_id, inner_id, global_seed) % 2^31)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Scenario Output Format",
+      "story": "As an orchestrator, I need scenarios in a standard format so the projection engine can easily consume them",
+      "acceptanceCriteria": [
+        "Output format: [scenario_id, year, interest_rate] where scenario_id = outer_id * 1000 + inner_id",
+        "Scenarios cover: 1-50 years",
+        "Interest rates are per-annum (e.g., 0.03 for 3%)",
+        "Written to SharedArrayBuffer pre-allocated by orchestrator",
+        "Format documented with example data"
+      ],
+      "technicalNotes": {
+        "bufferLayout": "struct Scenario { uint32_t scenario_id; uint32_t year; float rate; }",
+        "bufferSize": "num_scenarios * 50 years * 12 bytes per row"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Configuration & Parameter Management",
+      "story": "As an actuary, I need to configure the ESG (model type, parameters, output range) so I control scenario generation",
+      "acceptanceCriteria": [
+        "Config file format: JSON with schema",
+        "Parameters: esg_model (vasicek, cir, etc.), outer_paths (3-10), inner_paths_per_outer (100-10000), seed (int), projection_years (1-100)",
+        "Config validation: fail fast if invalid",
+        "Example config: esg_config.json",
+        "Support updating assumptions version in config (e.g., 'yield-curve-parameters:v2.2')"
+      ],
+      "technicalNotes": {
+        "configSchema": {
+          "esg_model": "string (vasicek | cir)",
+          "outer_paths": "int",
+          "inner_paths_per_outer": "int",
+          "seed": "int",
+          "projection_years": "int",
+          "assumptions_version": "string (e.g., 'v2.1')"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Performance & Memory Efficiency",
+      "story": "As a platform engineer, I need the ESG to generate large scenario sets efficiently without excessive memory usage",
+      "acceptanceCriteria": [
+        "Generate 10 outer paths × 1K inner paths (10K total scenarios) in <10 seconds",
+        "Memory footprint: scenarios in SharedArrayBuffer (not duplicated in Python heap)",
+        "Lazy generation: don't pre-generate all scenarios, generate on-demand",
+        "Parallel generation: use NumPy vectorization where possible",
+        "Benchmark: <1ms per inner path generation"
+      ],
+      "technicalNotes": {
+        "vectorization": "Use NumPy for batch operations (generate 1000 paths at once)",
+        "memory": "Write directly to SharedArrayBuffer, don't keep copies"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Error Handling & Logging",
+      "story": "As an operator, I need clear error messages and logs so I can debug ESG failures",
+      "acceptanceCriteria": [
+        "Failed assumption resolution → clear message with assumption name and version",
+        "Invalid configuration → message with problematic field and expected format",
+        "Math errors (e.g., negative volatility) → message with details",
+        "Performance issues → warning if inner path generation > 10ms",
+        "All messages logged with timestamp and context"
+      ],
+      "technicalNotes": {
+        "logging": "Python logging module, handler to orchestrator's log stream"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engines/python-esg/src/esg_engine.py",
+    "livecalc-engines/python-esg/src/vasicek_model.py",
+    "livecalc-engines/python-esg/src/cir_model.py",
+    "livecalc-engines/python-esg/src/scenario_generator.py",
+    "livecalc-engines/python-esg/src/config.py",
+    "livecalc-engines/python-esg/src/calc_engine_interface.py",
+    "livecalc-engines/python-esg/tests/test_esg_engine.py",
+    "livecalc-engines/python-esg/tests/test_scenario_generation.py",
+    "livecalc-engines/python-esg/examples/esg_config.json",
+    "livecalc-engines/python-esg/examples/run_esg.py",
+    "livecalc-engines/python-esg/README.md"
+  ],
+  "definitionOfDone": [
+    "ESG implements ICalcEngine interface correctly",
+    "Assumption resolution from AM works for yield curves",
+    "Outer paths generate deterministically",
+    "Inner paths generate on-demand with correct seeding",
+    "Scenarios written to SharedArrayBuffer efficiently",
+    "Configuration validation works",
+    "Performance target met: 10K scenarios in <10 seconds",
+    "Error handling and logging comprehensive",
+    "All 8 user stories pass acceptance criteria",
+    "Examples and documentation complete"
+  ],
+  "estimatedSessions": "4-5 FADE sessions",
+  "risks": [
+    {
+      "risk": "Inner path generation is slow for large numbers of paths",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Vectorize using NumPy. Profile and optimize hot loop. Consider pre-caching common scenarios."
+    },
+    {
+      "risk": "SharedArrayBuffer alignment issues with Python",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Use ctypes or numpy to write aligned data. Test alignment constraints."
+    },
+    {
+      "risk": "Assumption resolution API latency",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Cache assumption resolution. Fail fast if AM unavailable."
+    }
+  ]
+}

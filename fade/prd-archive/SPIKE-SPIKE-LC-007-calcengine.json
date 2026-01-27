@@ -1,5 +1,6 @@
 {
   "id": "SPIKE-LC-007",
+  "complexity": "medium",
   "title": "Engine Performance Infrastructure: Work-Stealing and SIMD Build",
   "type": "spike",
   "priority": "high",

@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-001",
+  "complexity": "medium",
   "title": "C++ Projection Engine Core",
   "type": "feature",
   "priority": "critical",

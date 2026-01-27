@@ -174,3 +174,262 @@ Only add learnings that are:
 - **What:** When estimating percentile rank of a value between known percentiles (P25, P50, P75, etc.), linear interpolation provides reasonable approximation: rank = lower_percentile + (upper_percentile - lower_percentile) × (value - lower_value) / (upper_value - lower_value)
 - **Why it matters:** Computing exact percentile rank requires sorting all values (O(n log n)). For diagnostic bundles where we already have summary percentiles, interpolation gives fast approximation without re-processing full dataset.
 
+
+## 2026-01-26 - Classified PRD-LC-015 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-015 - Polyglot Logic & Python/Pyodide Local Integration
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-018 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-018 - Local Artifact Sinks & Persistence
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-019A as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-019A - Analytic Platform Connectors (Snowflake/Databricks)
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: -1)
+    - 3 ACs (<5 = simple)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-019B as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-019B - Re-compute Relay System (Just-in-Time Data Spawning)
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: -1)
+    - 4 ACs (<5 = simple)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-019C as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-019C - Parallel Multi-Sink Streaming
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: -1)
+    - 2 ACs (<5 = simple)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-030 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-030 - Standards Documentation Enhancements & Templates
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-001 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-001 - C++ Projection Engine Core
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-002 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-002 - WASM Compilation and Web Worker Threading
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-003 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-003 - VS Code Extension Foundation
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-004 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-004 - Results Panel and Visualisation
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-005 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-005 - Auto-Run and Hot Reload
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-006 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-006 - string
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-010 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-010 - bus://scenarios/rates
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-012 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-012 - Cloud Runtime & Execution Bridge
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 0, no strong signals)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-013 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-013 - Cloud Platform Management (PaaS Features)
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: -1)
+    - 4 ACs (<5 = simple)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified PRD-LC-014 as medium
+
+**Source:** fade classify
+
+**PRD:** PRD-LC-014 - Project Standards & Architecture Documentation
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 2)
+    - contains complex keywords (architecture/refactor/integrate/migrate)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified SPIKE-LC-007 as medium
+
+**Source:** fade classify
+
+**PRD:** SPIKE-LC-007 - CalcEngine
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 2)
+    - contains complex keywords (architecture/refactor/integrate/migrate)
+
+**Decision:** User accepted medium classification
+
+
+## 2026-01-26 - Classified SPIKE-LC-007 as medium
+
+**Source:** fade classify
+
+**PRD:** SPIKE-LC-007 - CalcEngine
+
+**Analysis:**
+  /usr/local/bin/fade: line 2245: [[: 0
+  0: syntax error in expression (error token is "0")
+  Complexity analysis: medium (score: 2)
+    - contains complex keywords (architecture/refactor/integrate/migrate)
+
+**Decision:** User accepted medium classification
+

@@ -1,0 +1,256 @@
+{
+  "id": "PRD-LC-006-REFACTOR",
+  "complexity": "high",
+  "title": "Assumptions Manager Integration - Refactored as Shared Library",
+  "type": "refactor",
+  "priority": "critical",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Refactor Assumptions Manager integration from VS Code extension feature into a shared library that all calculation engines (C++, Python, ESG, Solver) can consume. Each engine independently resolves assumptions at initialization, not as a pipeline step. Library provides JWT auth, caching, and local resolution without being 'chatty' to AM API.",
+  "problem": [
+    "Current design treats AM integration as VS Code feature, but engines need to resolve assumptions independently",
+    "Python engines and user-defined functions need access to assumption resolution",
+    "Assumption lookups must be cached locally to avoid repeated API calls during large runs",
+    "Each engine needs credentials but shouldn't duplicate auth logic"
+  ],
+  "solution": [
+    "Build assumptions-lib as a standalone library (C++ and Python bindings)",
+    "Each engine imports and uses: resolve_assumption(name, version, policy_attrs) → value",
+    "Shared cache layer (versioned, immutable assumptions)",
+    "JWT token management at orchestrator level, passed to engines at startup"
+  ],
+  "dependencies": [
+    {
+      "id": "Assumptions Manager API",
+      "title": "Existing AM API at assumptionsmanager.ddns.net",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "libraryStructure": {
+      "root": "livecalc-assumptions-lib/",
+      "cpp": "src/c++/assumptions_client.hpp",
+      "python": "src/python/assumptions_client.py",
+      "cache": "src/cache/lru_cache.hpp",
+      "auth": "src/auth/jwt_handler.hpp"
+    },
+    "dataFormats": {
+      "transport": "Parquet (external), SharedArrayBuffer (internal)",
+      "cache": "Binary with metadata header"
+    },
+    "keyDesign": "Version-immutable cache keys: 'mortality-standard:v2.1' never changes. 'latest' always fetches fresh."
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "C++ Assumptions Client",
+      "story": "As a C++ engine developer, I need to link against a library that provides assumption resolution so my engine can fetch and cache assumptions independently",
+      "acceptanceCriteria": [
+        "Header: assumptions_client.hpp with class AssumptionsClient",
+        "Constructor: AssumptionsClient(am_url, jwt_token, cache_dir)",
+        "Method: resolve(name, version) → std::vector<double> (for table data)",
+        "Method: resolve_scalar(name, version, policy_attrs) → double (for single value with lookups)",
+        "Method: list_versions(name) → std::vector<std::string>",
+        "Caching: Versioned assumptions cached immutably, 'latest' always fetches fresh",
+        "Error handling: Clear exceptions for auth failure, not found, timeout",
+        "Thread-safe for multi-threaded projection engines"
+      ],
+      "technicalNotes": {
+        "implementation": "livecalc-assumptions-lib/src/c++/assumptions_client.hpp/cpp",
+        "dependencies": ["libcurl", "nlohmann/json"],
+        "exampleUsage": "AssumptionsClient am(\"https://am.ddns.net\", token, \"/cache\"); auto qx = am.resolve_scalar(\"mortality-standard\", \"v2.1\", {age: 50, gender: \"M\", smoker: false});"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Python Assumptions Client",
+      "story": "As a Python engine or UDF developer, I need a Python module that mirrors the C++ client so Python code can resolve assumptions",
+      "acceptanceCriteria": [
+        "Module: assumptions_client.py with class AssumptionsClient",
+        "Constructor: AssumptionsClient(am_url, jwt_token, cache_dir)",
+        "Method: resolve(name, version) → np.ndarray or list",
+        "Method: resolve_scalar(name, version, policy_attrs_dict) → float",
+        "Method: list_versions(name) → list[str]",
+        "Same caching behavior as C++",
+        "Error handling: Clear exceptions matching C++ behavior",
+        "NumPy integration for efficient array handling"
+      ],
+      "technicalNotes": {
+        "implementation": "livecalc-assumptions-lib/src/python/assumptions_client.py",
+        "dependencies": ["requests", "numpy", "platformdirs"],
+        "exampleUsage": "from assumptions_client import AssumptionsClient; am = AssumptionsClient(\"https://am.ddns.net\", token, \"/cache\"); qx = am.resolve_scalar(\"mortality-standard\", \"v2.1\", {\"age\": 50, \"gender\": \"M\"})"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "JWT Token Management",
+      "story": "As a platform architect, I need a shared JWT token handler so all engines use the same credentials without duplicating auth logic",
+      "acceptanceCriteria": [
+        "JWTHandler class manages token lifecycle",
+        "Constructor: JWTHandler(am_url, username, password) or JWTHandler(am_url, token)",
+        "Method: get_token() → std::string (auto-refreshes if expiring)",
+        "Method: token_expires_in() → int (seconds)",
+        "Automatic refresh before expiry (threshold: 5 minutes)",
+        "Tokens never logged or exposed in debug output",
+        "Support for both: username/password login, pre-existing token"
+      ],
+      "technicalNotes": {
+        "implementation": "livecalc-assumptions-lib/src/auth/jwt_handler.hpp/cpp",
+        "storage": "In-memory only, no disk persistence",
+        "refreshLogic": "On get_token() call, check expiry. If < 5min remaining, refresh via AM API"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "LRU Caching with Version Immutability",
+      "story": "As a performance optimizer, I need a cache layer so repeated assumption lookups don't hit the API",
+      "acceptanceCriteria": [
+        "Cache key structure: 'table-name:version' (immutable, never changes)",
+        "'latest' and 'draft' versions are never cached (always fetch fresh)",
+        "Cache location: OS-standard (~/Library/Caches on macOS, %APPDATA% on Windows, ~/.cache on Linux)",
+        "Cache includes: metadata (fetch_time, version_number), data, hash for integrity",
+        "LRU eviction when cache exceeds size limit (configurable, default 500MB)",
+        "Cache hit statistics: hits, misses, bytes stored",
+        "Thread-safe for concurrent reads",
+        "Graceful degradation if cache dir is read-only (warn, continue)"
+      ],
+      "technicalNotes": {
+        "implementation": "livecalc-assumptions-lib/src/cache/lru_cache.hpp",
+        "fileFormat": "Binary: [magic_byte (1)][version (1)][data_len (8)][metadata_json][data_blob]",
+        "hashValidation": "SHA256 of data stored in metadata, checked on load"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Assumption Resolution with Policy Attributes",
+      "story": "As a C++ projection engine, I need to resolve assumptions based on policy characteristics (age, gender, smoker) so I apply the correct assumption values",
+      "acceptanceCriteria": [
+        "resolve_scalar(name, version, policy_attrs) handles lookups internally",
+        "policy_attrs: map<string, variant<int, double, string>>",
+        "Returns scalar assumption value (qx, lapse rate, expense)",
+        "Lookups are based on AM table structure (e.g., mortality table has [age, gender] columns)",
+        "Example: mortality-standard:v2.1 with {age: 50, gender: 'M'} returns qx for 50-year-old male",
+        "Handles boundary cases: age 0, age 120, policy year 1, policy year 50",
+        "Error on missing policy attribute (e.g., age required but not provided)"
+      ],
+      "technicalNotes": {
+        "resolution": "Table is fetched once, cached. Lookups happen locally via binary search or hash map.",
+        "assumption_config": "AM stores column structure with table. Resolver matches policy_attrs to table columns."
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "AM API Client (Retry & Timeout)",
+      "story": "As a library developer, I need robust API communication so transient failures don't break assumption resolution",
+      "acceptanceCriteria": [
+        "HTTP client with exponential backoff: 1s, 2s, 4s (max 3 retries)",
+        "Timeout: 30s default (configurable)",
+        "Retry on: 408 (timeout), 429 (rate limit), 500-599 (server error)",
+        "Don't retry on: 401 (auth), 403 (forbidden), 404 (not found)",
+        "Clear error messages with context: which table, which version, which operation",
+        "Request/response logging in debug mode (tokens redacted)",
+        "Connection pooling for efficiency"
+      ],
+      "technicalNotes": {
+        "implementation": "livecalc-assumptions-lib/src/api/http_client.hpp",
+        "library": "libcurl (C++), requests (Python)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Integration with VS Code Extension",
+      "story": "As a VS Code user, I need the extension to configure AM credentials and pass them to engines so I don't repeat setup per-engine",
+      "acceptanceCriteria": [
+        "VS Code extension stores AM credentials (JWT token or username/password) in SecretStorage",
+        "Engine initialization receives credentials via environment variable: LIVECALC_AM_TOKEN or LIVECALC_AM_CREDS",
+        "Orchestrator (or extension) passes token to each engine at startup",
+        "If no credentials provided, engine fails fast with clear message",
+        "Command: 'LiveCalc: Configure Assumptions Manager' (extension handles auth, stores token)"
+      ],
+      "technicalNotes": {
+        "envVars": {
+          "LIVECALC_AM_URL": "https://assumptionsmanager.ddns.net",
+          "LIVECALC_AM_TOKEN": "JWT token",
+          "LIVECALC_AM_CACHE_DIR": "/path/to/cache"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Library Packaging & Distribution",
+      "story": "As an engine developer, I need to easily link against or import the assumptions library so I can use it without duplicating code",
+      "acceptanceCriteria": [
+        "C++ library packaged as: .a (static) or .so/.dll (dynamic), with headers",
+        "Python module packaged as: pip-installable or importable from local path",
+        "Documentation: how to link (C++), how to import (Python)",
+        "Example projects: C++ engine using library, Python UDF using library",
+        "Build system: CMake for C++, setuptools for Python"
+      ],
+      "technicalNotes": {
+        "cppBuild": "CMakeLists.txt, modern CMake with FetchContent for dependencies",
+        "pythonBuild": "pyproject.toml, setuptools with type hints"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-assumptions-lib/CMakeLists.txt",
+    "livecalc-assumptions-lib/src/c++/assumptions_client.hpp",
+    "livecalc-assumptions-lib/src/c++/assumptions_client.cpp",
+    "livecalc-assumptions-lib/src/auth/jwt_handler.hpp",
+    "livecalc-assumptions-lib/src/auth/jwt_handler.cpp",
+    "livecalc-assumptions-lib/src/cache/lru_cache.hpp",
+    "livecalc-assumptions-lib/src/api/http_client.hpp",
+    "livecalc-assumptions-lib/src/api/http_client.cpp",
+    "livecalc-assumptions-lib/src/python/assumptions_client.py",
+    "livecalc-assumptions-lib/src/python/__init__.py",
+    "livecalc-assumptions-lib/pyproject.toml",
+    "livecalc-assumptions-lib/tests/test_assumptions_client.cpp",
+    "livecalc-assumptions-lib/tests/test_cache.cpp",
+    "livecalc-assumptions-lib/tests/test_python_client.py",
+    "livecalc-assumptions-lib/docs/API.md",
+    "livecalc-assumptions-lib/docs/INTEGRATION.md",
+    "livecalc-assumptions-lib/examples/cpp_engine_usage.cpp",
+    "livecalc-assumptions-lib/examples/python_udf_usage.py"
+  ],
+  "definitionOfDone": [
+    "C++ client links and resolves assumptions from local cache and AM API",
+    "Python client mirrors C++ behavior, NumPy-compatible",
+    "JWT token management is secure (no logging, auto-refresh)",
+    "Cache is LRU-evicted, version-immutable, thread-safe",
+    "All 8 user stories pass acceptance criteria",
+    "Integration tests pass against live AM instance",
+    "Example projects build and run successfully",
+    "Documentation covers setup and usage for both C++ and Python"
+  ],
+  "estimatedSessions": "5-6 FADE sessions",
+  "risks": [
+    {
+      "risk": "Cache invalidation for 'latest' version",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Never cache 'latest', always fetch fresh from API"
+    },
+    {
+      "risk": "Thread safety in multi-threaded projection",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Use mutex for cache access, immutable versioned data"
+    },
+    {
+      "risk": "Large assumption tables (1M rows) in memory",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Document memory footprint, lazy-load if needed, use Parquet compression externally"
+    }
+  ]
+}

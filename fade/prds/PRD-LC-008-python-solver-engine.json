@@ -1,0 +1,258 @@
+{
+  "id": "PRD-LC-008",
+  "complexity": "high",
+  "title": "Python Solver Engine for Parameter Optimization",
+  "type": "feature",
+  "priority": "high",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Build a pluggable Python-based Solver engine that optimizes actuarial parameters (premium, reserve, dividend rates) to meet targets (e.g., 'achieve 10% return, 95% solvency'). Solver calls the projection engine iteratively, receives valuation results, and adjusts parameters. Operates on SharedArrayBuffer for efficiency.",
+  "problem": [
+    "Parameter optimization requires running projections multiple times with different inputs",
+    "C++ solver would be hard-coded to specific optimization logic",
+    "Actuaries need flexibility to change objectives, constraints, and optimization methods",
+    "Python allows rapid experimentation with different solver algorithms (gradient descent, genetic algorithms, etc.)"
+  ],
+  "solution": [
+    "Build Solver as a pluggable Python engine that iterates with the projection engine",
+    "Solver resolves its own assumptions (calibration targets) from Assumptions Manager",
+    "Uses SharedArrayBuffer to pass parameter vectors to projection, receive results",
+    "Implements optimization loop: propose parameters → run projection → compare to targets → adjust",
+    "Supports multiple solver algorithms (configurable)"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-006-REFACTOR",
+      "title": "Assumptions Manager Library",
+      "status": "required",
+      "notes": "Solver resolves calibration target assumptions"
+    },
+    {
+      "id": "PRD-LC-001-REVISED",
+      "title": "C++ Projection Engine",
+      "status": "required",
+      "notes": "Solver calls projection iteratively"
+    },
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "required",
+      "notes": "Solver is a node in the DAG, but with bidirectional communication"
+    }
+  ],
+  "technicalNotes": {
+    "language": "Python 3.11+",
+    "framework": "SciPy.optimize, scikit-optimize, custom algorithms",
+    "interface": "Implements ICalcEngine with iteration callback mechanism",
+    "optimization": "Minimize/maximize objective subject to constraints",
+    "performanceTarget": "Converge in <10 iterations, <5 minutes per solver run",
+    "dataFormat": "Parameters and results via SharedArrayBuffer"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Solver Interface & Orchestration Integration",
+      "story": "As an orchestrator, I need the Solver to implement a callback-based interface so it can iteratively call the projection engine",
+      "acceptanceCriteria": [
+        "Solver class implements: initialize(config), optimize(projection_callback, initial_parameters)",
+        "projection_callback(parameter_vector) → returns ValuationResult from projection engine",
+        "optimize() returns: OptimizationResult with final_parameters, convergence_metrics, iteration_count",
+        "Solver calls projection_callback multiple times (typically 5-20 iterations)",
+        "Error handling: timeout if optimization takes >5 minutes, fail gracefully"
+      ],
+      "technicalNotes": {
+        "callback": "projection_callback is a lambda/closure that writes parameters to SharedArrayBuffer, triggers projection, reads results",
+        "result": "struct OptimizationResult { vector<double> final_params; double objective_value; int iterations; bool converged; }"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Calibration Target Resolution",
+      "story": "As a Solver, I need to resolve calibration targets from Assumptions Manager so I optimize toward governance-approved goals",
+      "acceptanceCriteria": [
+        "Resolve 'calibration-targets:v1.0' from AM (e.g., target_return, min_solvency, max_cost)",
+        "Targets include: objective_function (maximize_return, minimize_cost, hit_target), constraints (solvency > 0.95, return >= 10%)",
+        "Validate that targets are achievable, warn if constraints are conflicting",
+        "Log: 'Resolved calibration-targets:v1.0, optimizing for: maximize_return with solvency >= 0.95'",
+        "Support updating targets via AM version changes"
+      ],
+      "technicalNotes": {
+        "pythonCode": "from assumptions_client import AssumptionsClient; targets = client.resolve('calibration-targets', 'v1.0')",
+        "assumptionStructure": "calibration_targets: { objective: string, constraints: list<{name: string, type: string, value: float}> }"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Parameter Definition & Bounds",
+      "story": "As a solver developer, I need to define which parameters are being optimized and their valid ranges",
+      "acceptanceCriteria": [
+        "Configuration specifies: parameter_names (premium_rate, reserve_factor, dividend_percentage, etc.)",
+        "Each parameter has: lower_bound, upper_bound, initial_value, step_size",
+        "Example config: { parameters: [ {name: 'premium_rate', lower: 0.8, upper: 1.5, initial: 1.0} ] }",
+        "Validate that initial_value is within bounds, fail if not",
+        "Support continuous and discrete parameters"
+      ],
+      "technicalNotes": {
+        "configStructure": {
+          "parameters": [
+            {
+              "name": "string",
+              "type": "continuous | discrete",
+              "lower": "float",
+              "upper": "float",
+              "initial": "float",
+              "step": "float (for discrete)"
+            }
+          ]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Objective Function & Constraints",
+      "story": "As an actuary, I need to specify what I'm optimizing for (e.g., 'maximize return while maintaining solvency') so the solver works on business objectives",
+      "acceptanceCriteria": [
+        "Objective function: maximize/minimize a metric (return, cost, NPV, etc.)",
+        "Constraints: inequality constraints (solvency >= 0.95, cost <= 100m)",
+        "Extract objective and constraint values from projection results (ValuationResult)",
+        "Example: objective = 'mean_npv', constraints = [{'metric': 'cte_95', 'operator': '>=', 'value': 0.5}]",
+        "Support custom metrics computed from result (e.g., 'cost_per_policy = total_cost / num_policies')"
+      ],
+      "technicalNotes": {
+        "objectiveMapping": {
+          "mean_npv": "result.mean_npv",
+          "std_dev": "result.std_dev",
+          "cte_95": "result.cte_95",
+          "custom": "result['custom_metric']"
+        },
+        "constraintEvaluation": "Check all constraints at each iteration"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Solver Algorithm Selection",
+      "story": "As a solver developer, I need to support multiple optimization algorithms so different problems can use appropriate methods",
+      "acceptanceCriteria": [
+        "Support: scipy.optimize.minimize (SLSQP, Nelder-Mead), scipy.optimize.differential_evolution (genetic-like), custom gradient descent",
+        "Config specifies algorithm: { solver: 'slsqp', options: {max_iter: 20} }",
+        "Each algorithm: call projection callback multiple times, converge when objective stops improving",
+        "SLSQP: gradient-based, fast for smooth objectives",
+        "differential_evolution: derivative-free, handles multimodal objectives",
+        "custom: user-defined Python function for specialized problems"
+      ],
+      "technicalNotes": {
+        "algorithms": {
+          "slsqp": "scipy.optimize.minimize with method='SLSQP'",
+          "differential_evolution": "scipy.optimize.differential_evolution",
+          "custom": "User provides custom function"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Iteration Tracking & Convergence",
+      "story": "As a solver operator, I need to track convergence metrics so I know when optimization has completed",
+      "acceptanceCriteria": [
+        "Track: iteration count, objective value at each iteration, constraint violations",
+        "Convergence criteria: objective improves < 0.01% for 3 consecutive iterations, or max_iterations reached",
+        "Log each iteration: 'Iteration 5: objective=1234.5, constraints_violated=0, parameters=[1.1, 0.95]'",
+        "Return final metrics: converged (bool), iterations_used, final_objective, constraint_status"
+      ],
+      "technicalNotes": {
+        "convergenceTracking": "Keep list of objective values, check improvement on each iteration"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Result Output & Parameter Export",
+      "story": "As a user, I need the optimized parameters in a clear format so I can use them in production",
+      "acceptanceCriteria": [
+        "Output format: JSON with optimized parameter values, objective value, convergence metrics",
+        "Example: { final_params: {premium_rate: 1.15, reserve_factor: 0.92}, objective: 1500.0, converged: true, iterations: 12 }",
+        "Parquet export option for tracking optimization history (all iterations)",
+        "Clear documentation of which parameters produced the result"
+      ],
+      "technicalNotes": {
+        "output": {
+          "final_params": "dict<string, float>",
+          "objective_value": "float",
+          "converged": "bool",
+          "iterations": "int",
+          "constraints_satisfied": "bool",
+          "constraint_violations": "dict<string, float>"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Error Handling & Robustness",
+      "story": "As an operator, I need the solver to handle failures gracefully so partial results can be used",
+      "acceptanceCriteria": [
+        "Projection callback fails (exception) → catch, log, try alternative parameters",
+        "Constraint becomes infeasible → relax constraints or fail with explanation",
+        "Timeout (>5 minutes) → return best result found so far, mark as partial",
+        "Divergence detected (objective getting worse) → try different algorithm or restart",
+        "All errors logged with context: iteration, parameters tried, objective value"
+      ],
+      "technicalNotes": {
+        "errorRecovery": "Implement try-except around projection calls, maintain best_result seen"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engines/python-solver/src/solver_engine.py",
+    "livecalc-engines/python-solver/src/solver_algorithms.py",
+    "livecalc-engines/python-solver/src/config.py",
+    "livecalc-engines/python-solver/src/objective_evaluator.py",
+    "livecalc-engines/python-solver/src/result_tracker.py",
+    "livecalc-engines/python-solver/src/calc_engine_interface.py",
+    "livecalc-engines/python-solver/tests/test_solver_engine.py",
+    "livecalc-engines/python-solver/tests/test_algorithms.py",
+    "livecalc-engines/python-solver/examples/solver_config.json",
+    "livecalc-engines/python-solver/examples/run_solver.py",
+    "livecalc-engines/python-solver/README.md"
+  ],
+  "definitionOfDone": [
+    "Solver implements callback-based interface",
+    "Assumption resolution for calibration targets works",
+    "Parameter definition and bounds validated",
+    "Objective function and constraints evaluated correctly",
+    "Multiple solver algorithms implemented and tested",
+    "Iteration tracking and convergence detection work",
+    "Results exported in standard format",
+    "Error handling covers projection failures, infeasibility, timeout",
+    "All 8 user stories pass acceptance criteria",
+    "Examples and documentation complete"
+  ],
+  "estimatedSessions": "5-6 FADE sessions",
+  "risks": [
+    {
+      "risk": "Optimization doesn't converge or takes too many iterations",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Set iteration limit (20 default), try multiple algorithms, document when manual adjustment needed"
+    },
+    {
+      "risk": "Constraints are infeasible (no solution satisfies all)",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Detect early, suggest relaxing constraints, report which constraint is binding"
+    },
+    {
+      "risk": "Projection callback slow, optimization takes too long",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Implement timeout (5 minutes). Document expected runtime. Cache projection results if parameters repeated."
+    }
+  ]
+}

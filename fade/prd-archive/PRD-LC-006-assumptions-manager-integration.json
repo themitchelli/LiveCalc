@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-006",
+  "complexity": "medium",
   "title": "Assumptions Manager Integration",
   "type": "feature",
   "priority": "high",

@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-004",
+  "complexity": "medium",
   "title": "Results Panel and Visualisation",
   "type": "feature",
   "priority": "critical",

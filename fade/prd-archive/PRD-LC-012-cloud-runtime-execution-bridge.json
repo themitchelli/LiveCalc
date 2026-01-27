@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-012",
+  "complexity": "medium",
   "title": "Cloud Runtime & Execution Bridge",
   "type": "feature",
   "priority": "high",

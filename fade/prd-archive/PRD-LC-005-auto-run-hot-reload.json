@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-005",
+  "complexity": "medium",
   "title": "Auto-Run and Hot Reload",
   "type": "feature",
   "priority": "high",

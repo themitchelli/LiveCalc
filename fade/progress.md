@@ -3290,3 +3290,44 @@ For blocked stories, use:
   - livecalc-engine/js/src/engine-worker.ts (added 'pyodide' engine type support)
   - livecalc-engine/js/src/index.ts (exported PyodideEngine and related types)
 - Tests: 20/20 passing, TypeScript compiles without errors
+
+## 2026-01-27 20:02 - US-001: C++ Assumptions Client (PRD-LC-006-REFACTOR) - COMPLETE
+
+- Implemented comprehensive C++ Assumptions Client library for resolving assumptions from Assumptions Manager
+- Created modular architecture with separate components:
+  - HttpClient: HTTP communication with retry logic and timeout
+  - JWTHandler: JWT token management with auto-refresh
+  - LRUCache: Version-immutable caching with LRU eviction
+  - AssumptionsClient: Main interface for assumption resolution
+- Key features implemented:
+  - Version-immutable caching: versioned assumptions cached forever, 'latest'/'draft' always fresh
+  - JWT authentication with automatic token refresh (5 minute threshold)
+  - Exponential backoff retry logic (1s, 2s, 4s, max 3 retries)
+  - Thread-safe operations for multi-threaded projection engines
+  - Policy attribute-based lookups (resolve_scalar with age, gender, etc.)
+  - OS-standard cache directories (macOS, Linux, Windows)
+  - SHA256 integrity checking for cached data
+  - Clear error handling with specific exception types
+- Files created:
+  - livecalc-assumptions-lib/CMakeLists.txt (build configuration with Catch2)
+  - livecalc-assumptions-lib/src/api/http_client.hpp/cpp (HTTP client with retry)
+  - livecalc-assumptions-lib/src/auth/jwt_handler.hpp/cpp (JWT management)
+  - livecalc-assumptions-lib/src/cache/lru_cache.hpp/cpp (LRU cache)
+  - livecalc-assumptions-lib/src/c++/assumptions_client.hpp/cpp (main client)
+  - livecalc-assumptions-lib/tests/test_assumptions_client.cpp (unit tests)
+  - livecalc-assumptions-lib/tests/test_cache.cpp (cache tests)
+  - livecalc-assumptions-lib/README.md (comprehensive documentation)
+- All acceptance criteria met:
+  - ✓ Header: assumptions_client.hpp with class AssumptionsClient
+  - ✓ Constructor: AssumptionsClient(am_url, jwt_token, cache_dir)
+  - ✓ Method: resolve(name, version) → std::vector<double>
+  - ✓ Method: resolve_scalar(name, version, policy_attrs) → double
+  - ✓ Method: list_versions(name) → std::vector<std::string>
+  - ✓ Caching: Versioned assumptions cached immutably, 'latest' always fetches fresh
+  - ✓ Error handling: Clear exceptions for auth failure, not found, timeout
+  - ✓ Thread-safe for multi-threaded projection engines
+- Build system: CMake with automatic dependency fetching (nlohmann/json, Catch2)
+- Dependencies: libcurl, nlohmann/json
+- Tests: Comprehensive unit tests for all components (integration tests require live AM instance)
+- Documentation: Complete API reference, usage examples, integration guide
+

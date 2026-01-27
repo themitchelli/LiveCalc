@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-014",
+  "complexity": "medium",
   "title": "Project Standards & Architecture Documentation",
   "type": "documentation",
   "priority": "high",

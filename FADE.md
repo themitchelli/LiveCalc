@@ -331,3 +331,17 @@ npm run benchmark          # Performance benchmarks
 - **PRD-LC-008**: Cloud execution infrastructure with Azure Batch for large-scale runs (100K+ policies)
 - **PRD-LC-012**: Remote debugging API for step-through debugging of cloud-executed models
 - **Production deployment**: Monitoring, alerting, and operational readiness for cloud services
+
+---
+
+## Fragile Areas
+
+<!--
+Known problem spots. Exercise extra caution here - smaller commits, more
+verification, ask before major refactoring. Remove when cleaned up.
+-->
+
+| Area | Why it's fragile |
+|------|------------------|
+| `example/path/` | Example: Changes cascade unpredictably |
+| `another/module.py` | Example: Looks simple, always takes 5x longer |

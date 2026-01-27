@@ -1,0 +1,284 @@
+{
+  "id": "PRD-LC-001-REVISED",
+  "complexity": "high",
+  "title": "C++ Projection Engine Core - With Python UDF Extensibility",
+  "type": "feature",
+  "priority": "critical",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Build a realistic nested stochastic projection engine in C++ that demonstrates actuarial calculations at scale, with extensibility for Python user-defined functions (UDFs). Actuaries write Python scripts to customize calculation logic (e.g., adjust_mortality, apply_shock) without recompiling C++. Engine compiles to WASM for browser and server execution.",
+  "problem": [
+    "Actuaries wait 15-45 minutes per iteration when testing assumption changes or custom logic",
+    "C++ is mandatory for scale but inflexible for rapid iteration",
+    "No way to inject custom calculation logic without recompiling",
+    "Development velocity limited to 10-15 iterations per day"
+  ],
+  "solution": [
+    "Build C++ projection engine with pluggable Python UDF support",
+    "Actuaries write Python functions called during projection (e.g., for mortality adjustments)",
+    "Python functions receive: policy data, assumptions, scenario state",
+    "Python functions return: scalars used in projection calculations",
+    "Local Python execution, not browser-based (for speed and ecosystem)"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-006-REFACTOR",
+      "title": "Assumptions Manager Library",
+      "status": "required",
+      "notes": "Engine uses assumptions_client.hpp to resolve assumptions"
+    }
+  ],
+  "technicalNotes": {
+    "language": "C++17",
+    "buildSystem": "CMake",
+    "targetPlatforms": ["Native (testing)", "WASM (production via Emscripten)"],
+    "testFramework": "Catch2",
+    "pythonRuntime": "Embedded Python 3.11+ or subprocess-based",
+    "performanceTargets": {
+      "1M_policies_1K_scenarios_native": "<120 seconds",
+      "10K_policies_1K_scenarios_wasm": "<5 seconds",
+      "100K_policies_1K_scenarios_native": "<30 seconds"
+    },
+    "pythonOverhead": {
+      "udf_call_timeout": "1 second per call",
+      "budget": "UDF calls must not exceed 10% of total projection time"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Policy Data Structure",
+      "story": "As a developer, I need a data structure to represent insurance policies so the engine can process realistic actuarial data",
+      "acceptanceCriteria": [
+        "Policy struct contains: policy_id, age, gender, sum_assured, premium, term, product_type, underwriting_class (smoker, health, etc.)",
+        "Support for at least 1,000,000 policies in memory",
+        "Policies can be loaded from Parquet format",
+        "Policies can be serialized to/from binary format for WASM",
+        "Memory footprint documented (bytes per policy)",
+        "Unit tests validate struct serialization round-trip"
+      ],
+      "technicalNotes": {
+        "struct": "Policy { uint64_t policy_id; uint8_t age; uint8_t gender; double sum_assured; double premium; uint8_t term; uint8_t product_type; std::map<std::string, std::string> attributes; }",
+        "estimatedSize": "~64 bytes per policy (with flexible attributes)",
+        "parquetIntegration": "Use Apache Arrow C++ for efficient Parquet loading"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Assumption Tables & Resolution",
+      "story": "As a developer, I need assumption structures so the engine can apply mortality, lapse, and expense assumptions resolved from Assumptions Manager",
+      "acceptanceCriteria": [
+        "AssumptionSet struct holds resolved assumptions: mortality, lapse, expenses",
+        "Mortality: lookup by (age, gender) → qx",
+        "Lapse: lookup by (policy_year) → lapse rate",
+        "Expenses: per-policy and percentage-of-premium",
+        "Integration with assumptions_client.hpp (PRD-LC-006-REFACTOR)",
+        "Engine initializes: AssumptionSet am = client.resolve('mortality:v2.1', 'lapse:v1.0', ...)",
+        "All assumptions must be resolved before projection starts",
+        "Unit tests validate table lookups at boundaries"
+      ],
+      "technicalNotes": {
+        "resolution": "At engine startup, call assumptions_client.resolve() for each assumption",
+        "structure": "std::map<string, Table> where Table is vector<vector<double>> or similar",
+        "validation": "Check that required assumptions are present, fail fast if missing"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Economic Scenario Structure",
+      "story": "As a developer, I need economic scenario structures so the engine can run stochastic projections with varying interest rates",
+      "acceptanceCriteria": [
+        "Scenario struct contains interest rates by year (1-50)",
+        "ScenarioSet contains multiple scenarios (1,000 - 100,000)",
+        "Scenarios can be generated programmatically (random walk with drift)",
+        "Scenarios can be loaded from Parquet",
+        "Seed-based generation for reproducibility",
+        "Unit tests validate scenario generation produces expected distribution"
+      ],
+      "technicalNotes": {
+        "generator": "Geometric Brownian Motion with configurable drift and volatility",
+        "parameters": "initial_rate, drift, volatility, seed"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Single Policy Projection with UDF Integration",
+      "story": "As a developer, I need to project a single policy under a single scenario with Python UDF support so custom calculation logic can be injected",
+      "acceptanceCriteria": [
+        "project_policy() function takes Policy, AssumptionSet, Scenario, UDF_Context",
+        "Projects cash flows year-by-year for policy term",
+        "At each time step, calls UDFs if defined (e.g., adjust_mortality_hook, apply_expense_shock)",
+        "UDF receives: (policy, assumptions, current_year, scenario, current_state) → adjustment_factor",
+        "UDF returns scalar (e.g., 1.1x multiplier for mortality)",
+        "UDF timeout: 1 second, fails gracefully if exceeded",
+        "Calculates: premium income, death benefits, surrender benefits, expenses",
+        "Applies mortality decrements (adjusted by UDF if applicable)",
+        "Applies lapse decrements",
+        "Discounts cash flows at scenario interest rates",
+        "Returns NPV of cash flows + metadata (execution_time, udfs_called, etc.)",
+        "Unit tests cover: edge cases (age 0, age 120), UDF success, UDF timeout, UDF error"
+      ],
+      "technicalNotes": {
+        "signature": "ProjectionResult project_policy(const Policy&, const AssumptionSet&, const Scenario&, const UDFContext&)",
+        "returnType": "struct ProjectionResult { double npv; std::vector<double> cashflows; int udfs_called; double udf_time_ms; }",
+        "udfHooks": ["on_year_start", "adjust_mortality", "adjust_lapse", "apply_shock"],
+        "pythonIntegration": "See US-007"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Nested Stochastic Valuation",
+      "story": "As a developer, I need a function to run nested stochastic valuation (scenarios × policies) so the engine can produce statistical results",
+      "acceptanceCriteria": [
+        "run_valuation() iterates: outer loop (scenarios), inner loop (policies)",
+        "Parallelizes inner loop (policies) using OpenMP or std::thread",
+        "Aggregates NPV per scenario (sum across all policies)",
+        "Calculates statistics: mean, std dev, percentiles (P50, P75, P90, P95, P99)",
+        "Calculates CTE (Conditional Tail Expectation) at 95%",
+        "Returns distribution of scenario results for charting",
+        "Execution time logged",
+        "1M policies × 1K scenarios completes in <120 seconds (native)",
+        "Results match expected values for known test case",
+        "Handles partial failures: if one scenario fails, logs and continues"
+      ],
+      "technicalNotes": {
+        "signature": "ValuationResult run_valuation(const std::vector<Policy>&, const AssumptionSet&, const ScenarioSet&, const UDFContext&)",
+        "returnType": "struct ValuationResult { double mean_npv; double std_dev; double percentiles[5]; double cte_95; std::vector<double> scenario_npvs; double execution_time_ms; int scenarios_failed; }",
+        "parallelization": "OpenMP: #pragma omp parallel for"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Command Line Interface",
+      "story": "As a developer, I need a CLI to run projections from the command line so I can validate the engine before deployment",
+      "acceptanceCriteria": [
+        "CLI accepts: policies Parquet, assumptions config (JSON), scenario config, UDF script (Python)",
+        "CLI outputs: JSON results (statistics + distribution)",
+        "CLI supports flags: --policies, --assumptions-config, --scenarios, --seed, --udfs, --output, --cache-dir",
+        "CLI validates inputs and reports clear errors",
+        "CLI prints execution time and UDF metrics",
+        "Example invocation documented in README",
+        "Integration test runs full valuation via CLI with and without UDFs"
+      ],
+      "technicalNotes": {
+        "example": "./livecalc-engine --policies data/policies.parquet --assumptions-config assumptions.json --scenarios 1000 --seed 42 --udfs scripts/adjustments.py --output results.json"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Python UDF Execution Environment",
+      "story": "As an actuary, I want to write Python scripts that customize calculations (e.g., apply smoker multiplier to mortality) so I can iterate without recompiling C++",
+      "acceptanceCriteria": [
+        "Engine embeds Python 3.11+ interpreter (or launches subprocess)",
+        "UDF scripts are Python files with function signatures: on_year_start(), adjust_mortality(), adjust_lapse(), apply_shock()",
+        "UDF functions receive: policy (dict), assumptions (dict), year (int), scenario_state (dict) → float",
+        "Example UDF: 'if policy[smoker] == true: return 1.2 else: return 1.0'",
+        "UDFs can import: numpy, scipy, pandas (pre-installed in environment)",
+        "UDF execution: single-threaded per policy (no GIL contention issues)",
+        "UDF timeout: 1 second per call, fail gracefully",
+        "UDF errors: caught and logged with line number, policy_id, scenario_id",
+        "No UDF changes require C++ recompilation",
+        "Documentation: UDF template, examples, API reference"
+      ],
+      "technicalNotes": {
+        "implementation": "Use pybind11 for C++-Python binding, or subprocess-based execution",
+        "pythonEnv": "Isolated virtual environment with pre-installed packages",
+        "udfTemplate": "See examples/udf_template.py",
+        "performanceTarget": "UDF overhead < 10% of total projection time"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Data Format: Parquet Input/Output",
+      "story": "As a data engineer, I need Parquet support for policies and results so large datasets can be efficiently loaded and exported",
+      "acceptanceCriteria": [
+        "Policies loaded from Parquet (Apache Arrow C++ library)",
+        "Results exported to Parquet (scenario NPVs, cash flows per scenario)",
+        "Parquet schema documented: column names, types, required fields",
+        "Supports 1M+ row datasets efficiently",
+        "Parquet loading is fast and memory-efficient (columnar)",
+        "Integration test: load Parquet → project → export Parquet"
+      ],
+      "technicalNotes": {
+        "library": "Apache Arrow C++",
+        "schema": {
+          "policies": ["policy_id (uint64)", "age (uint8)", "gender (uint8)", "sum_assured (float64)", "premium (float64)", "term (uint8)", "product_type (uint8)"],
+          "results": ["scenario_id (uint32)", "npv (float64)", "cashflows (list<float64>)"]
+        }
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/CMakeLists.txt",
+    "livecalc-engine/src/main.cpp",
+    "livecalc-engine/src/policy.hpp",
+    "livecalc-engine/src/policy.cpp",
+    "livecalc-engine/src/assumptions.hpp",
+    "livecalc-engine/src/assumptions.cpp",
+    "livecalc-engine/src/scenario.hpp",
+    "livecalc-engine/src/scenario.cpp",
+    "livecalc-engine/src/projection.hpp",
+    "livecalc-engine/src/projection.cpp",
+    "livecalc-engine/src/valuation.hpp",
+    "livecalc-engine/src/valuation.cpp",
+    "livecalc-engine/src/udf/udf_context.hpp",
+    "livecalc-engine/src/udf/udf_executor.hpp",
+    "livecalc-engine/src/udf/udf_executor.cpp",
+    "livecalc-engine/src/io/parquet_reader.hpp",
+    "livecalc-engine/src/io/parquet_reader.cpp",
+    "livecalc-engine/src/io/parquet_writer.hpp",
+    "livecalc-engine/src/io/parquet_writer.cpp",
+    "livecalc-engine/src/io/json_writer.hpp",
+    "livecalc-engine/src/io/json_writer.cpp",
+    "livecalc-engine/tests/test_policy.cpp",
+    "livecalc-engine/tests/test_assumptions.cpp",
+    "livecalc-engine/tests/test_projection.cpp",
+    "livecalc-engine/tests/test_valuation.cpp",
+    "livecalc-engine/tests/test_udf_execution.cpp",
+    "livecalc-engine/examples/udf_template.py",
+    "livecalc-engine/examples/udf_smoker_adjustment.py",
+    "livecalc-engine/examples/assumptions.json",
+    "livecalc-engine/README.md"
+  ],
+  "definitionOfDone": [
+    "All 8 user stories pass acceptance criteria",
+    "Unit tests pass with >85% coverage on core logic",
+    "Integration test: 1M policies × 1K scenarios runs in <120 seconds",
+    "UDF execution works: Python scripts modify calculations without C++ changes",
+    "Results validated against hand-calculated example",
+    "CLI builds and runs successfully",
+    "Performance metrics documented: execution time, UDF overhead",
+    "Code compiles with -Wall -Werror (no warnings)"
+  ],
+  "estimatedSessions": "6-7 FADE sessions",
+  "risks": [
+    {
+      "risk": "Python interpreter startup overhead",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Embed interpreter rather than subprocess. Lazy-load only if UDFs present."
+    },
+    {
+      "risk": "UDF errors crash projection",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Robust exception handling, timeout protection, clear error messages"
+    },
+    {
+      "risk": "Parquet library dependency adds complexity",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Use Apache Arrow, well-maintained library. JSON fallback for small datasets."
+    }
+  ]
+}

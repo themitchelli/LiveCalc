@@ -1,0 +1,254 @@
+{
+  "id": "PRD-LC-011",
+  "complexity": "high",
+  "title": "Go/No-Go Demo - Proof of Horsepower & Architecture",
+  "type": "feature",
+  "priority": "critical",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 3,
+  "description": "Build a demonstration that proves LiveCalc's core thesis: pluggable calculation engines (C++ + Python) that scale without GPU, resolve assumptions independently, and deliver cost-effective horsepower. Demo shows: 1M policy projection in <2 minutes, Python UDF execution during projection, multi-engine orchestration (ESG → Projection → Solver), all with auditable assumption governance from Assumptions Manager.",
+  "problem": [
+    "The market believes GPU is required for actuarial scale (Pathwise, others make this claim)",
+    "Need to prove cost-effective horsepower is achievable with better engineering, not specialized hardware",
+    "Need to demonstrate architecture actually works end-to-end before committing to scaling"
+  ],
+  "solution": [
+    "Build a complete end-to-end demo: load policies → generate scenarios → run projection with Python UDFs → optimize parameters",
+    "Benchmark against comparable workloads (1M policies, 1K scenarios, 40-year projection)",
+    "Show cost-per-calculation advantage over cloud alternatives",
+    "Document actual runtimes, memory usage, and architecture decisions"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-006-REFACTOR",
+      "title": "Assumptions Manager Library",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-001-REVISED",
+      "title": "C++ Projection Engine",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-007",
+      "title": "Python ESG Engine",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-008",
+      "title": "Python Solver Engine",
+      "status": "required"
+    },
+    {
+      "id": "PRD-LC-010-REVISED",
+      "title": "Modular Orchestration Layer",
+      "status": "required"
+    }
+  ],
+  "technicalNotes": {
+    "testData": "1M realistic policies, 1K scenarios, 40-year projection",
+    "assumptionsSource": "Assumptions Manager (assumptionsmanager.ddns.net)",
+    "pythonUdf": "Smoker mortality adjustment (1.2x for smokers)",
+    "demoWorkflow": "ESG → Projection with UDF → Solver for optimal premium",
+    "platform": "Native C++ (Raspberry Pi 5 or comparable), then WASM version",
+    "successCriteria": "1M policies + 1K scenarios < 2 minutes, all engines working, assumptions auditable"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Demo Data Setup",
+      "story": "As a demo operator, I need realistic test data so the demo shows credible performance",
+      "acceptanceCriteria": [
+        "1,000,000 policies with realistic attributes: age 20-75, gender, smoker status, various products",
+        "Policies distributed across reasonable segments (e.g., term life, whole life)",
+        "1,000 economic scenarios pre-generated using ESG",
+        "Assumptions pre-loaded in Assumptions Manager (mortality, lapse, expenses)",
+        "Data format: Parquet for efficiency",
+        "Documentation: how to regenerate test data with different seeds"
+      ],
+      "technicalNotes": {
+        "policy_generation": "Python script to create synthetic but realistic policies",
+        "scenario_generation": "Use PRD-LC-007 (ESG) to generate scenarios",
+        "am_setup": "Upload assumptions to assumptionsmanager.ddns.net with known versions"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Projection-Only Benchmark",
+      "story": "As a performance analyst, I need a baseline projection benchmark so I can measure horsepower",
+      "acceptanceCriteria": [
+        "Run 1M policies × 1K scenarios × 40 years projection natively (C++)",
+        "No Python UDFs, no solver, just core projection",
+        "Measure: total execution time, memory peak, calculations per second",
+        "Target: <120 seconds on modern hardware (Intel i7 equivalent)",
+        "Output: JSON results with timing breakdown (I/O, projection, post-processing)",
+        "Reproducibility: fixed seed for all randomness"
+      ],
+      "technicalNotes": {
+        "timing": "Use std::chrono for precise measurements",
+        "memory": "Peak RSS via /proc/self/status (Linux) or similar",
+        "calculation_rate": "num_scenarios * num_policies * num_years / execution_time_seconds"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Python UDF Execution in Projection",
+      "story": "As a demo operator, I want to show Python UDFs work so actuaries see extensibility",
+      "acceptanceCriteria": [
+        "Projection runs with a Python UDF: adjust_mortality_for_smoker(policy, assumption, base_qx) → adjusted_qx",
+        "UDF applies 1.2x multiplier if policy.smoker == true",
+        "Measure: UDF execution time as percentage of total (target: <10%)",
+        "Show that results differ from projection-only (smoking-adjusted mortality evident in results)",
+        "Document: UDF execution overhead"
+      ],
+      "technicalNotes": {
+        "udfScript": "examples/demo_smoker_adjustment.py",
+        "performance": "Should add <10% overhead to total projection time"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "End-to-End Multi-Engine Orchestration",
+      "story": "As a product manager, I want to demonstrate the full pipeline (ESG → Projection → Solver) so stakeholders see the architecture in action",
+      "acceptanceCriteria": [
+        "ESG engine generates 10 outer paths × 100 inner paths each (1K total scenarios)",
+        "Projection engine processes 1M policies × 1K scenarios with Python UDF",
+        "Solver engine optimizes premium rate to hit target NPV (e.g., 1200.0)",
+        "All engines run via orchestrator (PRD-LC-010), data flows via SharedArrayBuffer",
+        "Total time: <10 minutes for full pipeline",
+        "Document: which assumptions each engine resolved"
+      ],
+      "technicalNotes": {
+        "daGConfig": "examples/demo_full_pipeline.json",
+        "workflow": "ESG (10s) → Projection (100s) → Solver (300s target)",
+        "outputs": "Final premium rate, achieved NPV, solver convergence metrics"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Assumption Governance Audit Trail",
+      "story": "As a compliance officer, I want to see which assumptions were used so I can verify governance",
+      "acceptanceCriteria": [
+        "Demo output includes: exact versions of all assumptions resolved (e.g., 'mortality-standard:v2.1, lapse-standard:v1.0')",
+        "Each assumption resolution logged with timestamp, AM URL, and cache hit/miss",
+        "Results include metadata: assumption versions, generator seed, projection parameters",
+        "Can re-run demo with exact same assumptions and get identical results (reproducibility)",
+        "Document: assumptions used in demo, why those versions were chosen"
+      ],
+      "technicalNotes": {
+        "metadataOutput": "JSON with assumptions_used, parameters, seed, output_hash",
+        "auditTrail": "Detailed logs of assumption resolution"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Cost-Per-Calculation Reporting",
+      "story": "As a CFO, I want to know the cost advantage over cloud alternatives so I can make ROI decisions",
+      "acceptanceCriteria": [
+        "Measure: total execution time and hardware used (CPU, RAM)",
+        "Calculate: cost_per_calculation = (hardware_cost + electricity_cost) / num_calculations",
+        "Compare: demo results vs. equivalent cloud (e.g., Azure Batch, GPU vendor claims)",
+        "Example output: '1B calculations in 16 hours on Pi 5 (£80 hardware + £0.50 electricity) = £5.3e-9 per calculation'",
+        "Assume cloud pricing: vary by option (Azure Batch, AWS, competitor claims)"
+      ],
+      "technicalNotes": {
+        "costModel": {
+          "hardware_cost": "Raspberry Pi 5 8GB = £80",
+          "hardware_amortization": "5 years = £0.04/month",
+          "electricity": "Estimate from measured watts",
+          "benchmark": "Compare to cloud pricing (as of demo date)"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Live Demo Script & Walkthrough",
+      "story": "As a presenter, I need a structured demo script so I can show the system working smoothly",
+      "acceptanceCriteria": [
+        "Script: step-by-step walkthrough (5-10 minutes to run)",
+        "Shows: loading policies, generating scenarios, running projection, executing Python UDF, optimizing, viewing results",
+        "Real-time output: progress indicators, execution times, results as they complete",
+        "Commentary: explain what's happening at each step, highlight key capabilities",
+        "Graceful handling: if any step fails, have fallback (pre-recorded results, cached outputs)"
+      ],
+      "technicalNotes": {
+        "script": "examples/demo_script.sh with inline commentary",
+        "visibility": "Use progress bars, real-time output to show execution"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Comparison Report: LiveCalc vs. Alternatives",
+      "story": "As a stakeholder, I want to see how we stack up against GPU, cloud, and competitors",
+      "acceptanceCriteria": [
+        "Comparison table: execution time, cost, code complexity, flexibility for Python logic",
+        "Include: MG Alpha baseline (if known), Pathwise claims (vs. demo measured), Azure Batch pricing",
+        "Highlight: where LiveCalc excels (cost, Python flexibility) and where it doesn't (raw GPU peak)",
+        "Honest assessment: limitations and future improvements",
+        "Document: assumptions in comparison (workload, hardware, pricing)"
+      ],
+      "technicalNotes": {
+        "report": "docs/comparison_report.md with tables and graphs"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-demo/data/generate_policies.py",
+    "livecalc-demo/data/policies_1m.parquet",
+    "livecalc-demo/scripts/demo_script.sh",
+    "livecalc-demo/scripts/run_projection_benchmark.sh",
+    "livecalc-demo/scripts/run_full_pipeline.sh",
+    "livecalc-demo/config/assumptions.json",
+    "livecalc-demo/config/esg_config.json",
+    "livecalc-demo/config/solver_config.json",
+    "livecalc-demo/config/dag_full_pipeline.json",
+    "livecalc-demo/udfs/smoker_adjustment.py",
+    "livecalc-demo/results/sample_results.json",
+    "livecalc-demo/docs/demo_walkthrough.md",
+    "livecalc-demo/docs/cost_analysis.md",
+    "livecalc-demo/docs/comparison_report.md",
+    "livecalc-demo/README.md"
+  ],
+  "definitionOfDone": [
+    "Demo data (1M policies, 1K scenarios) generated and ready",
+    "Projection-only benchmark runs in <120 seconds, metrics reported",
+    "Python UDF executes during projection with <10% overhead",
+    "Full pipeline (ESG → Projection → Solver) completes in <10 minutes",
+    "Assumption governance trail documented (versions, timestamps)",
+    "Cost analysis shows advantage vs. cloud/GPU alternatives",
+    "Demo script runs smoothly, can be presented live",
+    "Comparison report honest and well-documented",
+    "All 8 user stories pass acceptance criteria"
+  ],
+  "estimatedSessions": "4-5 FADE sessions",
+  "risks": [
+    {
+      "risk": "Performance targets not met (projection > 2 minutes)",
+      "likelihood": "low",
+      "impact": "critical",
+      "mitigation": "Profile and optimize hot loops. Fall back to smaller dataset if needed. Document findings honestly."
+    },
+    {
+      "risk": "Assumptions Manager unavailable during demo",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Have cached assumptions ready. Pre-load credentials. Test connectivity before demo."
+    },
+    {
+      "risk": "Python UDF execution is slow",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Optimize embedding. Use native Python, not Pyodide. Profile overhead carefully."
+    }
+  ]
+}

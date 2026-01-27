@@ -1,5 +1,5 @@
 # FADE Project Export
-# Generated: 2026-01-24 20:21:39
+# Generated: 2026-01-26 23:09:41
 
 ## Versions
 
@@ -9,6 +9,10 @@
 ## Folder Structure
 
 ```
+./ANALYSIS-SUMMARY.txt
+./complexity-estimation-analysis.md
+./ESTIMATION-ANALYSIS-INDEX.md
+./estimation-improvement-strategy.md
 ./fade-export.txt
 ./fade/discoveries/README.md
 ./fade/discoveries/SPIKE-LC-007-US-S01-multithreading-regression.md
@@ -20,21 +24,16 @@
 ./fade/prd-archive/PRD-LC-005-auto-run-hot-reload.json
 ./fade/prd-archive/PRD-LC-006-assumptions-manager-integration.json
 ./fade/prd-archive/PRD-LC-010-modular-orchestration-layer.json
+./fade/prd-archive/PRD-LC-012-cloud-runtime-execution-bridge.json
+./fade/prd-archive/PRD-LC-013-cloud-platform-management.json
+./fade/prd-archive/PRD-LC-014-standards-documentation.json
 ./fade/prd-archive/SPIKE-LC-007-engine-performance-infrastructure.json
 ./fade/prd-archive/SPIKE-SPIKE-LC-007-calcengine.json
 ./fade/progress 2.md
-./fade/tests/PRD-LC-005/SKIP_us001_05_model_reruns_on_config_save.md
-./fade/tests/PRD-LC-005/SKIP_us002_06_handle_file_rename.md
-./fade/tests/PRD-LC-005/SKIP_us004_05_negative_delta_styled.md
-./fade/tests/PRD-LC-005/SKIP_us005_01_triggered_by_shown.md
-./fade/tests/PRD-LC-005/SKIP_us006_04_click_history_shows_results.md
-./fade/tests/PRD-LC-005/SKIP_us008_02_assumption_file_change.md
-./fade/tests/PRD-LC-005/test_us008_08_enable_caching_setting.sh
 ./fade/tests/SPIKE-LC-007/run_all_tests.sh
 ./fade/tests/SPIKE-LC-007/SKIP_us-s01_02_document_root_cause.md
 ./fade/tests/SPIKE-LC-007/SKIP_us-s02_05_documentation.md
 ./fade/tests/SPIKE-LC-007/SKIP_us-s03_05_cpu_utilization.md
-./fade/tests/SPIKE-LC-007/SKIP_us-s04_04_alignment_docs.md
 ./fade/tests/SPIKE-LC-007/test_us-s01_01_profile_worker_overhead.sh
 ./fade/tests/SPIKE-LC-007/test_us-s01_03_8workers_4x_faster.sh
 ./fade/tests/SPIKE-LC-007/test_us-s01_04_benchmark_validates.sh
@@ -44,7 +43,6 @@
 ./fade/tests/SPIKE-LC-007/test_us-s02_04_mock_engine.sh
 ./fade/tests/SPIKE-LC-007/test_us-s03_01_workstealingpool_class.sh
 ./fade/tests/SPIKE-LC-007/test_us-s03_02_lifo_local.sh
-./fade/tests/SPIKE-LC-007/test_us-s03_03_fifo_steal.sh
 ./fade/tests/SPIKE-LC-007/test_us-s03_04_lockfree_sab.sh
 ./fade/tests/SPIKE-LC-007/test_us-s03_06_longtail_elimination.sh
 ./fade/tests/SPIKE-LC-007/test_us-s03_07_fallback_static.sh
@@ -59,6 +57,8 @@
 ./fade/tests/SPIKE-LC-007/test_us-s05_04_report_metrics.sh
 ./fade/tests/SPIKE-LC-007/test_us-s05_05_recommendation.sh
 ./fade/tests/SPIKE-LC-007/test_us-s05_06_fade_compatible.sh
+./MOCK-HEALING-REPORT-PRD-LC-013.md
+./prd-estimation-data.csv
 ```
 
 ## FADE.md
@@ -397,6 +397,20 @@ npm run benchmark          # Performance benchmarks
 - **PRD-LC-008**: Cloud execution infrastructure with Azure Batch for large-scale runs (100K+ policies)
 - **PRD-LC-012**: Remote debugging API for step-through debugging of cloud-executed models
 - **Production deployment**: Monitoring, alerting, and operational readiness for cloud services
+
+---
+
+## Fragile Areas
+
+<!--
+Known problem spots. Exercise extra caution here - smaller commits, more
+verification, ask before major refactoring. Remove when cleaned up.
+-->
+
+| Area | Why it's fragile |
+|------|------------------|
+| `example/path/` | Example: Changes cascade unpredictably |
+| `another/module.py` | Example: Looks simple, always takes 5x longer |
 ```
 
 ## Standards
@@ -1651,458 +1665,864 @@ Read this document when:
 
 ## PRD Queue
 
-### PRD-LC-012-cloud-runtime-execution-bridge.json
+### PRD-LC-015-polyglot-python-pyodide.json
 
 ```json
 {
-  "id": "PRD-LC-012",
-  "title": "Cloud Runtime & Execution Bridge",
+  "id": "PRD-LC-015",
+  "complexity": "medium",
+  "title": "Polyglot Logic & Python/Pyodide Local Integration",
   "type": "feature",
-  "priority": "high",
-  "status": "planned",
+  "priority": "medium",
+  "status": "proposed",
   "created": "2026-01-24",
   "project": "LiveCalc",
-  "phase": 3,
-  "description": "Establish the foundational bridge between the local VS Code workbench and the AKS cloud grid. Enables packaging local model assets and executing them on a remote containerized WASM/Python runtime with results streamed back to the IDE.",
+  "phase": 4,
+  "description": "Enable Tier 2 research flexibility by integrating the Pyodide (WASM) runtime into the modular pipeline. Allows actuaries to write Python-based calculation engines that interact with C++ engines via the Shared Data Bus with minimal copying overhead.",
   "problem": [
-    "No functional bridge between local experimentation and cloud scale",
-    "Cloud runtime parity with local WASM/SIMD is not yet proven",
-    "Model assets are fragmented (WASM, Python scripts, config) and need a standard packaging format for upload",
-    "The 'Run in Cloud' command in VS Code is currently a non-functional placeholder"
+    "C++ is mandatory for 1B+ runs but slow for rapid research iteration and statistical prototyping.",
+    "Data scientists and actuaries prefer Python for complex scenario shocks and experience analysis.",
+    "Context switching between local Python scripts and the calculation engine introduces manual CSV/JSON serialization overhead."
   ],
   "solution": [
-    "Create a Dockerized cloud worker that mirrors the local Emscripten/Pyodide environment",
-    "Implement a packaging utility to bundle model code, configurations, and assumption references",
-    "Build the core Job API to handle upload, remote initialization, and execution",
-    "Stream binary results from the cloud worker directly to the existing local Results Panel"
+    "Implement a Pyodide-based worker host that satisfies the ICalcEngine interface.",
+    "Enable Python scripts to map SharedArrayBuffer data into NumPy arrays with minimal overhead.",
+    "Support high-speed handoff (<1ms) between C++ and Python nodes in the pipeline DAG.",
+    "Provide a robust package management and error reporting system for Python logic."
   ],
   "dependencies": [
     {
       "id": "PRD-LC-010",
       "title": "Modular Orchestration Layer",
-      "status": "in-progress",
-      "notes": "Requires the bus:// protocol and pipeline DAG structure to be finalized."
+      "status": "complete",
+      "notes": "The bus:// protocol and DAG orchestrator are archived and stable."
     }
   ],
+  "technicalNotes": {
+    "runtime": "Pyodide v0.25+ (WASM-based Python)",
+    "interop": "SharedArrayBuffer data is mapped into Pyodide's WASM memory space via NumPy.frombuffer/memoryview. While technically a memory-to-memory transfer, it bypasses string serialization.",
+    "memoryAlignment": "All bus:// allocations maintain 16-byte alignment. The Python wrapper ensures NumPy views respect these alignment constraints to prevent SIMD traps.",
+    "isolation": "Web Worker based execution to prevent blocking the VS Code UI.",
+    "performanceTarget": "Handoff overhead < 1ms; Python transformation of 10K scenarios in < 100ms."
+  },
   "userStories": [
     {
-      "id": "US-BRIDGE-01",
-      "title": "Cloud Worker Container (Parity Runtime)",
-      "story": "As a platform engineer, I want a containerized runtime that mirrors my local machine so I can guarantee byte-identical results.",
+      "id": "US-POLY-01",
+      "title": "Pyodide CalcEngine Adapter",
+      "story": "As a developer, I want a Python-based engine host that looks exactly like a C++ engine to the Orchestrator.",
       "acceptanceCriteria": [
-        "Dockerfile builds a Debian-based image with Emscripten and Pyodide runtimes.",
-        "Runtime supports WASM SIMD128 and 16-byte memory alignment.",
-        "Proof: A local 10K policy run yields the same result hash as the cloud container run.",
-        "Resource limits are enforceable (CPU/RAM) via K8s manifest."
+        "Implement PyodideEngine class implementing initialize(), runChunk(), and dispose().",
+        "Orchestrator can instantiate a .py node alongside a .wasm node in the same DAG.",
+        "Worker host correctly loads the Pyodide environment in a background thread."
       ],
-      "tech_stack": ["Docker", "Emscripten", "Pyodide"],
+      "tech_stack": [
+        "Pyodide",
+        "TypeScript",
+        "Web Workers"
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-POLY-02",
+      "title": "NumPy Memory Mapping",
+      "story": "As an actuary, I want to manipulate the raw Data Bus using standard Python arrays.",
+      "acceptanceCriteria": [
+        "Python script receives the SharedArrayBuffer and an OffsetMap.",
+        "NumPy maps the buffer using memoryview/frombuffer with minimal copy overhead.",
+        "Success metric: A 10K scenario interest rate shock applied in Python is visible to the next C++ node in < 1ms."
+      ],
+      "tech_stack": [
+        "NumPy",
+        "SharedArrayBuffer",
+        "Python"
+      ],
       "passes": false
     },
     {
-      "id": "US-BRIDGE-02",
-      "title": "Model Asset Packaging",
-      "story": "As an actuary, I want the system to automatically bundle all my model files for upload so I don't have to manage dependencies manually.",
+      "id": "US-POLY-03",
+      "title": "Polyglot Pipeline Validation",
+      "story": "As a modeler, I want the system to ensure my C++ and Python nodes speak the same 'language'.",
       "acceptanceCriteria": [
-        "Utility creates a .zip or .tar bundle containing: livecalc.config.json, all .wasm binaries, .py scripts, and assumption metadata.",
-        "Bundle includes a SHA-256 manifest of all assets for integrity checking.",
-        "Validation: Reject upload if mandatory assets defined in config are missing."
+        "Pipeline validator checks that Python output buffer size matches C++ input buffer size.",
+        "Validation logic detects and warns if a Python node attempts to resize the pre-allocated SAB.",
+        "Integration test: Chain C++ ESG -> Python Shocker -> C++ Liability engine."
       ],
-      "tech_stack": ["TypeScript", "JSZip"],
+      "tech_stack": [
+        "TypeScript",
+        "JSON Schema"
+      ],
       "passes": false
     },
     {
-      "id": "US-BRIDGE-03",
-      "title": "Local-to-Cloud Bridge API",
-      "story": "As a developer, I want a standard API to hand off my local model to the cloud grid.",
+      "id": "US-POLY-04",
+      "title": "Error Handling & Diagnostic Logging",
+      "story": "As a researcher, I want to see Python print() statements and detailed error tracebacks in my IDE.",
       "acceptanceCriteria": [
-        "FastAPI endpoint: POST /v1/jobs/submit (Multipart upload).",
-        "Endpoint triggers the 'Initialization' of a cloud worker instance.",
-        "Returns a unique JobID and a WebSocket URL for progress/results streaming.",
-        "Authentication: Scopes the job to the user's JWT from Assumptions Manager."
+        "Python syntax errors fail fast with clear pointers in the VS Code Output channel.",
+        "Runtime errors provide a full traceback including line numbers and EngineID.",
+        "Timeout protection: Configurable worker timeout (default 30s) prevents infinite loops.",
+        "Manual Breakpoints: Calling livecalc.breakpoint() in Python triggers the 'Pause' state in the Results Panel."
       ],
-      "tech_stack": ["FastAPI", "Python", "Redis (Job State)"],
+      "tech_stack": [
+        "VS Code API",
+        "Pyodide Streams"
+      ],
       "passes": false
     },
     {
-      "id": "US-BRIDGE-04",
-      "title": "Cloud Pipeline Reconstruction",
-      "story": "As a system, I need to rebuild the SharedArrayBuffer pipeline in the cloud exactly as it was configured locally.",
+      "id": "US-POLY-05",
+      "title": "Python Package Management",
+      "story": "As an actuary, I want to use standard Python libraries like Pandas and SciPy in my scripts.",
       "acceptanceCriteria": [
-        "Cloud worker parses the uploaded livecalc.config.json.",
-        "Allocates a matching SharedArrayBuffer Data Bus in the container memory.",
-        "Initializes the pipeline nodes (C++/Python) according to the PRD-LC-010 Bus Protocol."
+        "Environment pre-loads core libraries: NumPy, Pandas, SciPy.",
+        "Config support: 'pythonPackages' field in livecalc.config.json allows defining additional requirements.",
+        "Dynamic install: Use micropip to install missing packages at engine initialization.",
+        "Caching: Package installations are persisted in the VS Code globalStorageUri."
       ],
-      "tech_stack": ["Node.js (Worker Host)", "SharedArrayBuffer"],
-      "passes": false
-    },
-    {
-      "id": "US-BRIDGE-05",
-      "title": "Cloud Result Streaming",
-      "story": "As an actuary, I want to see cloud results appear in my local Results Panel as if they were running locally.",
-      "acceptanceCriteria": [
-        "Job API streams binary result chunks over WebSocket using raw Uint8Arrays.",
-        "Local Results Panel consumes cloud stream and updates the visualization in real-time.",
-        "Handoff verification: 'Total NPV' matches between local and cloud runs."
+      "tech_stack": [
+        "micropip",
+        "VS Code Storage API"
       ],
-      "tech_stack": ["WebSockets", "ResultsPanel API"],
       "passes": false
     }
   ],
   "filesToCreate": [
-    "livecalc-cloud/Dockerfile.worker",
-    "livecalc-cloud/worker/package.json",
-    "livecalc-cloud/worker/src/main.ts",
-    "livecalc-cloud/worker/src/pipeline-loader.ts",
-    "livecalc-cloud/api/Dockerfile",
-    "livecalc-cloud/api/requirements.txt",
-    "livecalc-cloud/api/main.py",
-    "livecalc-cloud/api/routers/jobs.py",
-    "livecalc-cloud/api/models/job.py",
-    "livecalc-cloud/api/services/packaging.py",
-    "livecalc-vscode/src/cloud/model-packager.ts",
-    "livecalc-vscode/src/cloud/cloud-client.ts",
-    "livecalc-vscode/src/cloud/result-streamer.ts",
-    "livecalc-vscode/src/commands/run-cloud.ts"
+    "livecalc-engine/js/src/engines/pyodide-engine.ts",
+    "livecalc-engine/js/src/workers/python-worker-host.js",
+    "livecalc-engine/js/tests/pyodide-engine.test.ts",
+    "livecalc-engine/js/tests/python-worker-host.test.js",
+    "examples/polyglot-pipeline/shock_rates.py",
+    "examples/polyglot-pipeline/test_shock_rates.py",
+    "examples/polyglot-pipeline/livecalc.config.json"
   ],
   "filesToModify": [
     {
-      "file": "livecalc-vscode/src/commands/index.ts",
-      "changes": "Replace placeholder 'livecalc.runCloud' command with actual implementation"
+      "file": "livecalc-engine/js/src/orchestrator.ts",
+      "changes": "Add factory support for Pyodide engines and runtime detection logic."
     },
     {
       "file": "livecalc-vscode/src/ui/results-panel.ts",
-      "changes": "Add support for consuming cloud WebSocket result stream"
+      "changes": "Add support for pausing on Python-triggered manual breakpoints."
+    }
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "risks": [
+    {
+      "risk": "Pyodide cold-start latency",
+      "likelihood": "high",
+      "impact": "low",
+      "mitigation": "Lazy-load Pyodide only when a Python node is detected; cache package installs."
+    },
+    {
+      "risk": "Memory alignment traps",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Strict enforcement of 16-byte alignment in the bridge layer between SAB and NumPy."
     }
   ],
   "definitionOfDone": [
-    "Clicking 'Run in Cloud' in VS Code successfully executes the 1B/36s pipeline on a remote node.",
-    "Results from cloud are visually identical to local runs in the Results Panel.",
-    "All model assets are correctly packaged, hashed, and verified on the worker.",
-    "The cloud worker runtime supports SIMD math without performance degradation compared to local.",
-    "API documentation updated to reflect the new Bridge endpoints."
-  ],
-  "estimatedSessions": "3-4 FADE sessions",
-  "risks": [
-    {
-      "risk": "SIMD performance differs between local and cloud",
-      "likelihood": "low",
-      "impact": "medium",
-      "mitigation": "Benchmark early with identical WASM binary on both environments"
-    },
-    {
-      "risk": "SharedArrayBuffer unavailable in Node.js container",
-      "likelihood": "low",
-      "impact": "high",
-      "mitigation": "Node.js 16+ supports SAB, verify during container build"
-    },
-    {
-      "risk": "WebSocket streaming introduces latency for large result sets",
-      "likelihood": "medium",
-      "impact": "low",
-      "mitigation": "Stream summary stats first, full results on-demand"
-    }
+    "Python logic successfully manipulates SharedArrayBuffer data without string serialization.",
+    "Handoff time between C++ and Python nodes is measured at < 1ms.",
+    "Pure C++ pipelines maintain 1B/36s performance targets (0 regression).",
+    "Python performance target: 10K scenarios processed in < 100ms for standard shocks.",
+    "Package management (micropip) successfully installs and caches external dependencies."
   ]
 }
 ```
 
-### PRD-LC-014-standards-documentation.json
+### PRD-LC-018-local-artifact-sinks.json
 
 ```json
 {
-  "id": "PRD-LC-014",
-  "title": "Project Standards & Architecture Documentation",
-  "type": "documentation",
+  "id": "PRD-LC-018",
+  "complexity": "medium",
+  "title": "Local Artifact Sinks & Persistence",
+  "type": "feature",
   "priority": "high",
-  "status": "planned",
-  "created": "2026-01-24",
+  "status": "proposed",
+  "created": "2026-01-25",
   "project": "LiveCalc",
-  "phase": 1,
-  "description": "Establish comprehensive project standards, coding conventions, and architectural documentation in FADE.md and standards/ directory. Ensures all future PRDs and development sessions have clear, unambiguous guidance on LiveCalc-specific principles, constraints, and patterns.",
+  "phase": 3,
+  "description": "Solves the volatility of WASM SharedArrayBuffer memory by providing dedicated 'Sink' nodes in the modular pipeline. Enables automated persistence of bus:// resources to the local workspace in high-performance formats like Parquet and CSV.",
   "problem": [
-    "FADE.md contains generic placeholder content, not LiveCalc-specific context",
-    "No standards/*.md files exist despite being referenced in FADE.md",
-    "Critical architectural constraints (16-byte alignment, vanilla JS, API-first) not documented",
-    "New developers and AI agents lack clear guidance on project conventions",
-    "Risk of conflicting standards between documentation sources"
+    "WASM RAM is volatile; closing VS Code or a worker crash results in immediate data loss.",
+    "Actuaries currently have to manually export results via the UI, which is not repeatable or auditable.",
+    "Downstream analytical tools (PowerBI, Excel, Python scripts) cannot access results unless they are persisted to the physical file system."
   ],
   "solution": [
-    "Update FADE.md with LiveCalc project overview, tech stack, and architecture",
-    "Create standards/coding.md with language-specific conventions and comment philosophy",
-    "Create standards/api-security.md with security-by-design principles",
-    "Create standards/infrastructure.md with 'X as code' requirements",
-    "Create standards/testing.md with performance benchmarking requirements",
-    "Create standards/git.md with commit conventions and branch strategy",
-    "Document all architectural constraints discovered in PRD-LC-001 through PRD-LC-010"
+    "Introduce a new 'sink' node type to the livecalc.config.json DAG schema.",
+    "Implement an automated File Persistence Service that writes bus:// memory segments to disk at the end of a run.",
+    "Support Apache Parquet via parquet-wasm as the primary high-performance storage format.",
+    "Provide a command to load persisted results back into the Results Panel for audit and comparison."
   ],
-  "dependencies": [],
+  "dependencies": [
+    {
+      "id": "PRD-LC-010",
+      "title": "Modular Orchestration Layer",
+      "status": "complete",
+      "notes": "Requires the bus:// protocol to identify which memory blocks to persist."
+    },
+    {
+      "id": "PRD-LC-015",
+      "title": "Polyglot Logic",
+      "status": "proposed",
+      "optional": true,
+      "notes": "Enables Python transformations to be persisted. Sinks will work with C++ engines initially."
+    }
+  ],
   "technicalNotes": {
-    "fileFormat": "Markdown with YAML frontmatter for discoverability",
-    "structure": "Principle → Rationale → Examples pattern for each standard",
-    "references": "Link to external standards (Google Style Guide, PEP 8) rather than duplicate",
-    "validation": "Ensure no conflicting guidance between files"
+    "persistenceEngine": "Extension Host (Node.js) via vscode.workspace.fs API.",
+    "parquetLibrary": "parquet-wasm (Rust-based, ~2MB bundle, SNAPPY compression).",
+    "trigger": "Execution Lifecycle Hook (onPipelineComplete).",
+    "naming": "results_{timestamp}_{jobId}.parquet",
+    "sinkConfigExample": {
+      "id": "persist-npv",
+      "type": "sink",
+      "input": "bus://liability_results",
+      "format": "parquet",
+      "path": "./results/npv_{timestamp}.parquet",
+      "schema": {
+        "columns": ["policyId", "scenario", "npv"],
+        "types": ["int32", "int32", "float64"]
+      }
+    }
   },
   "userStories": [
     {
-      "id": "US-STD-01",
-      "title": "LiveCalc-Specific FADE.md",
-      "story": "As a developer or AI agent, I want FADE.md to accurately describe LiveCalc's architecture so I understand project context before working.",
+      "id": "US-SINK-01",
+      "title": "Declarative Sink Nodes with Schema",
+      "story": "As a modeler, I want to define the structure of data saved to disk so that downstream tools can parse it correctly.",
       "acceptanceCriteria": [
-        "Project Overview section describes LiveCalc's purpose: instant actuarial model feedback with WASM engine",
-        "Tech Stack section lists: C++ (engine), TypeScript (extension), Python (cloud API), WASM (Emscripten)",
-        "Architecture diagram shows: VS Code Extension → WASM Engine ← SharedArrayBuffer → Worker Pool",
-        "Repository link points to github.com/themitchelli/LiveCalc",
-        "Target Architecture section includes: API-first design, bus:// protocol, CalcEngine interface, zero-copy parallelism",
-        "Fragile Areas section removed (no known fragile code yet)",
-        "Off-Limits Modules section includes: livecalc-engine/cpp/build/ (generated), node_modules/ (dependencies)",
-        "Session Boundaries clarified: allowed (create features, tests, docs), requires approval (cloud infrastructure changes), never (commit secrets, modify vendor code)"
+        "livecalc.config.json supports 'sink' nodes with a mandatory 'schema' field.",
+        "Schema validation fails fast if column counts or types do not align with bus:// resource size.",
+        "Support for multiple sinks per pipeline (e.g., raw cashflows and summary stats)."
       ],
-      "passes": true
+      "tech_stack": ["JSON Schema", "TypeScript"],
+      "passes": false
     },
     {
-      "id": "US-STD-02",
-      "title": "Coding Standards",
-      "story": "As a developer, I want clear coding standards so my code is consistent with the project style.",
+      "id": "US-SINK-02",
+      "title": "Compressed Parquet Persistence",
+      "story": "As an actuary, I want my results saved in a compressed format that supports high-speed querying.",
       "acceptanceCriteria": [
-        "standards/coding.md created",
-        "References external style guides: Google TypeScript Guide, PEP 8, C++ Core Guidelines",
-        "Comment philosophy documented: 'Leave clear comments for ambiguous or non-obvious code. Do not over-comment self-documenting code. Respect human developers by assuming competence.'",
-        "LiveCalc-specific conventions:",
-        "  - TypeScript: camelCase for functions/variables, PascalCase for classes, UPPER_CASE for constants",
-        "  - C++: snake_case for functions/variables (matches actuarial convention), PascalCase for classes",
-        "  - Python: PEP 8 snake_case throughout",
-        "  - Naming: Use domain terms (policies, assumptions, projections) not generic terms (items, data, values)",
-        "SIMD alignment requirement documented: 'All SharedArrayBuffer allocations must be 16-byte aligned (not 8-byte) for SIMD compatibility. Use alignas(16) in C++.'",
-        "CalcEngine interface requirement: 'All calculation engines must implement CalcEngine interface (initialize, runChunk, dispose)'",
-        "Error handling: 'Throw exceptions with descriptive messages in C++/TypeScript. Return error codes in hot-path WASM functions for performance.'",
-        "File organization: 'Group by feature (pipeline/, assumptions-manager/) not by type (models/, services/)'",
-        "No conflicting guidance with other standards files"
+        "Sink node converts SAB binary data to Parquet using SNAPPY compression.",
+        "Parquet metadata includes embedded Job ID, Model Hash, and Timestamp.",
+        "Performance: Persisting 1M policies × 10 scenarios (summary stats) takes < 5s."
       ],
-      "passes": true
+      "tech_stack": ["parquet-wasm", "SharedArrayBuffer"],
+      "passes": false
     },
     {
-      "id": "US-STD-03",
-      "title": "API & Security Standards",
-      "story": "As a developer, I want security-by-design principles documented so all APIs are built securely from the start.",
+      "id": "US-SINK-03",
+      "title": "Success Notification & Explorer Integration",
+      "story": "As a user, I want a clear confirmation that my results have been saved to my workspace.",
       "acceptanceCriteria": [
-        "standards/api-security.md created",
-        "API-First Strategy documented: 'Design OpenAPI/Swagger specification before implementation. All cloud services expose REST APIs. VS Code integration consumes these APIs.'",
-        "Security by Design principle: 'Privacy and security are architectural requirements, not afterthoughts. All data flows must consider: authentication, authorization, encryption, audit logging.'",
-        "Authentication requirements:",
-        "  - JWT Bearer tokens for cloud API",
-        "  - Token validation against Assumptions Manager JWKS endpoint",
-        "  - Short-lived tokens (1 hour max)",
-        "  - Refresh token rotation",
-        "Authorization requirements:",
-        "  - Tenant isolation: users can only access their own data",
-        "  - Resource scoping: SAS tokens limited to tenant prefix",
-        "  - Quota enforcement: prevent resource exhaustion",
-        "Data protection:",
-        "  - TLS 1.3 for all network traffic",
-        "  - Encryption at rest for blob storage",
-        "  - No secrets in code/config (use Azure Key Vault)",
-        "  - Audit logging for all tenant actions",
-        "Input validation: 'Validate at system boundaries (API endpoints, file uploads). Trust internal interfaces. Fail fast with clear error messages.'",
-        "Error handling: 'Never expose stack traces or internal paths in API responses. Log detailed errors server-side, return generic messages to clients.'",
-        "Rate limiting: 'Implement per-tenant rate limits to prevent abuse'",
-        "CORS policy: 'Explicitly allow VS Code extension origin, deny all others'"
+        "Success notification appears on completion showing the file path.",
+        "Notification includes 'Open in Explorer' and 'View in Results Panel' buttons.",
+        "The system creates the 'results/' directory automatically if missing."
       ],
-      "passes": true
+      "tech_stack": ["VS Code API"],
+      "passes": false
     },
     {
-      "id": "US-STD-04",
-      "title": "Infrastructure as Code Standards",
-      "story": "As a platform engineer, I want infrastructure-as-code standards so all environments are reproducible and auditable.",
+      "id": "US-SINK-04",
+      "title": "Streaming CSV Export for Large Datasets",
+      "story": "As an actuary, I want to export massive datasets to CSV without crashing my IDE.",
       "acceptanceCriteria": [
-        "standards/infrastructure.md created",
-        "'Everything as Code' principle documented: 'All changeable components must be defined as code and deployed through automation. This includes: infrastructure (Terraform), configuration (JSON/YAML), secrets (Key Vault references), monitoring (Prometheus rules), documentation (Markdown).'",
-        "Terraform requirements:",
-        "  - Use Terraform for all Azure infrastructure",
-        "  - State stored in Azure Storage with locking",
-        "  - Separate state files per environment (dev, staging, prod)",
-        "  - Modules for reusable components (AKS cluster, storage account)",
-        "  - Variables for environment-specific values (no hardcoding)",
-        "  - Outputs for resource IDs needed by downstream tools",
-        "Configuration management:",
-        "  - Environment config in values-{env}.yaml files",
-        "  - Secrets referenced from Key Vault (never inline)",
-        "  - Feature flags in config files (not environment variables)",
-        "  - Schema validation for all config files (JSON Schema)",
-        "Deployment automation:",
-        "  - GitHub Actions for CI/CD",
-        "  - Helm charts for Kubernetes deployments",
-        "  - Automated testing before deployment (linting, unit tests, integration tests)",
-        "  - Blue/green or rolling updates (zero downtime)",
-        "Immutable infrastructure: 'Replace, do not modify. Container images are immutable. Infrastructure changes create new resources.'",
-        "Version control: 'All code, config, and IaC in Git. Tag releases with semantic versioning.'",
-        "Documentation as Code: 'API specs in OpenAPI YAML. Architecture diagrams in Mermaid/PlantUML. Keep docs in repo, not external wiki.'"
+        "Support type: 'sink' with format: 'csv' using Node.js streaming.",
+        "Capacity: Successfully stream-writes up to 10GB of data from SAB to disk.",
+        "Progress reporting: VS Code status bar shows 'Persisting: X% complete' during write."
       ],
-      "passes": true
+      "tech_stack": ["Node.js Streams"],
+      "passes": false
     },
     {
-      "id": "US-STD-05",
-      "title": "Testing & Performance Standards",
-      "story": "As a developer, I want testing standards that include performance benchmarks so regressions are caught automatically.",
+      "id": "US-SINK-05",
+      "title": "Load Persisted Results for Comparison",
+      "story": "As a modeler, I want to load a previously persisted .parquet file to compare against new runs.",
       "acceptanceCriteria": [
-        "standards/testing.md created",
-        "Test pyramid documented: 'Many unit tests (70%), some integration tests (25%), few E2E tests (5%)'",
-        "Unit test requirements:",
-        "  - Co-located with source: same directory as *.test.ts or *_test.py",
-        "  - AAA pattern: Arrange, Act, Assert",
-        "  - Descriptive names: test_scenario_expectedBehavior or 'should do X when Y'",
-        "  - Fast: unit tests complete in <100ms each",
-        "  - Isolated: no shared state, no external dependencies",
-        "Integration test requirements:",
-        "  - Test component interactions (API → worker, extension → engine)",
-        "  - Use test doubles for slow/flaky external services",
-        "  - Tests in tests/ directory at project root",
-        "Performance benchmark requirements:",
-        "  - All performance-sensitive PRDs include benchmark targets in Definition of Done",
-        "  - Regression tests protect established benchmarks",
-        "  - Current benchmarks (from SPIKE-LC-007):",
-        "    * 10K × 1K multi-thread: ~370ms (5.4x speedup)",
-        "    * 100K × 1K multi-thread: ~3s (32M proj/sec)",
-        "    * 1M × 1K multi-thread: ~36s (27M proj/sec)",
-        "  - New features must not regress these targets by >10%",
-        "  - Benchmark script: npm run benchmark in livecalc-engine/js",
-        "Regression test requirements:",
-        "  - All PRDs must maintain passing tests from previous PRDs",
-        "  - Test suite runs on every commit (GitHub Actions)",
-        "  - Failed regression tests block merge to main",
-        "Coverage requirements:",
-        "  - Target: 80% line coverage for new code",
-        "  - Not a hard requirement: prefer meaningful tests over coverage percentage",
-        "  - Exclude generated code (WASM bindings, Protobuf) from coverage",
-        "Test organization:",
-        "  - Unit tests: same directory as source",
-        "  - Integration tests: tests/integration/",
-        "  - E2E tests: tests/e2e/",
-        "  - Benchmark tests: tests/benchmarks/",
-        "Mocking strategy: 'Mock at boundaries (file system, network). Do not mock internal business logic.'"
+        "Command 'LiveCalc: Load Results from File' allows picking local .parquet files.",
+        "Parquet reader reconstructs the ResultsPanel state from file metadata.",
+        "Loaded results are marked with a [FROM FILE] badge in the UI.",
+        "Comparison mode allows using the loaded file as the 'Baseline' for delta calculations."
       ],
-      "passes": true
-    },
-    {
-      "id": "US-STD-06",
-      "title": "Git & Documentation Standards",
-      "story": "As a team member, I want Git and documentation standards so commit history is clear and docs stay up-to-date.",
-      "acceptanceCriteria": [
-        "standards/git.md created",
-        "Commit message format: 'Use Conventional Commits: feat: / fix: / chore: / docs: / test: / refactor:'",
-        "Commit message examples:",
-        "  - 'feat: add remote step-through debugging API (PRD-LC-012 US-API-04)'",
-        "  - 'fix: prevent race condition in SAB offset allocation (PRD-LC-010 US-002)'",
-        "  - 'chore: upgrade TypeScript to 5.3.2'",
-        "  - 'docs: update FADE.md with architecture diagram'",
-        "Commit atomicity: 'One logical change per commit. If you can't describe it in one sentence, split it.'",
-        "Branch naming:",
-        "  - feature/PRD-LC-XXX-short-description",
-        "  - fix/issue-description",
-        "  - spike/exploration-topic",
-        "  - chore/maintenance-task",
-        "Branch lifecycle:",
-        "  - Create feature branch from main",
-        "  - Develop and test locally",
-        "  - Push to origin, create PR",
-        "  - Merge to main after review/tests pass",
-        "  - Delete branch after merge",
-        "PR requirements:",
-        "  - Title references PRD ID (if applicable)",
-        "  - Description summarizes changes and rationale",
-        "  - All tests pass",
-        "  - Code review from human (if available) or AI validation",
-        "FADE-specific conventions:",
-        "  - Co-authored commits: 'Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>'",
-        "  - PRD completion commits: 'feat: complete PRD-LC-XXX - Title (reference)'",
-        "  - Never commit to main directly (except initial setup)",
-        "standards/documentation.md created",
-        "Documentation philosophy: 'Documentation is code. It lives in the repo, versioned with the code it describes.'",
-        "README requirements:",
-        "  - Every package has README.md with: purpose, quick start, development setup, testing, deployment",
-        "  - Project root README: high-level overview, monorepo structure, getting started",
-        "API documentation:",
-        "  - OpenAPI/Swagger specs for all REST APIs",
-        "  - Generated from spec, not manually written",
-        "  - Kept in sync via CI validation",
-        "Code comments:",
-        "  - When to comment: 'Why' (rationale, constraints, non-obvious decisions)",
-        "  - When not to comment: 'What' (self-documenting code, obvious logic)",
-        "  - Example of good comment: '// 16-byte alignment required for SIMD compatibility'",
-        "  - Example of bad comment: '// Increment counter by one' (obvious)",
-        "Architecture docs:",
-        "  - High-level in FADE.md",
-        "  - Detailed design in docs/ directory",
-        "  - Diagrams in Mermaid or ASCII art (not binary images)",
-        "PRD documentation:",
-        "  - Canonical source in fade/prds/",
-        "  - Completed PRDs archived to fade/prd-archive/",
-        "  - Definition of Done includes 'Documentation updated'",
-        "Changelog: 'Maintain CHANGELOG.md at project root following Keep a Changelog format'"
-      ],
-      "passes": true
+      "tech_stack": ["parquet-wasm", "ResultsPanel API"],
+      "passes": false
     }
   ],
   "filesToCreate": [
-    "standards/coding.md",
-    "standards/api-security.md",
-    "standards/infrastructure.md",
-    "standards/testing.md",
-    "standards/git.md",
-    "standards/documentation.md"
+    "livecalc-engine/js/src/sinks/file-sink-manager.ts",
+    "livecalc-engine/js/src/sinks/parquet-adapter.ts",
+    "livecalc-engine/js/tests/persistence.test.ts"
   ],
   "filesToModify": [
     {
-      "file": "FADE.md",
-      "changes": "Update with LiveCalc-specific project overview, tech stack, architecture, target patterns, and session boundaries"
+      "file": "livecalc-engine/js/src/orchestrator.ts",
+      "changes": "Add onPipelineComplete hook and sink node factory."
+    },
+    {
+      "file": "livecalc-vscode/src/commands/index.ts",
+      "changes": "Add 'livecalc.loadResultsFromFile' command implementation."
+    }
+  ],
+  "estimatedSessions": "3 FADE sessions",
+  "risks": [
+    {
+      "risk": "Large file writes causing UI lag",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Offload disk I/O to a dedicated worker thread or utilize the VS Code filesystem background throughput."
+    },
+    {
+      "risk": "Parquet-WASM bundle size",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Lazy-load the parquet-wasm module only when a Parquet sink is initialized."
     }
   ],
   "definitionOfDone": [
-    "FADE.md accurately describes LiveCalc project (not generic template)",
-    "All 6 standards/*.md files created with comprehensive guidance",
-    "No conflicting standards between files (validated by reading all files)",
-    "Architecture diagram in FADE.md shows current system (VS Code + WASM + Workers)",
-    "All critical constraints documented (16-byte alignment, CalcEngine interface, API-first)",
-    "Security-by-design principles clearly stated",
-    "Everything-as-code requirements documented",
-    "Performance benchmark requirements included in testing standards",
-    "Comment philosophy clearly explained (clear for ambiguous, don't over-comment)",
-    "Git commit conventions documented with examples",
+    "A pipeline run generates a valid, compressed .parquet file containing embedded metadata.",
+    "Persisted results can be loaded back into the IDE and match the original SAB state bit-for-bit.",
+    "The 1B/36s compute benchmark is maintained (persistence time is reported separately).",
+    "Audit trail: Manifest links the Job ID to the physical file on disk."
+  ]
+}
+```
+
+### PRD-LC-019A-platform-connectors.json
+
+```json
+{
+  "id": "PRD-LC-019A",
+  "complexity": "medium",
+  "title": "Analytic Platform Connectors (Snowflake/Databricks)",
+  "type": "feature",
+  "priority": "medium",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 4,
+  "description": "Enables minimal-hop streaming from the WASM Shared Data Bus to Snowflake Stages and Databricks Unity Catalog. Reuses the schema definitions from PRD-LC-018 to automate table creation and data loading.",
+  "dependencies": [
+    {
+      "id": "PRD-LC-018",
+      "title": "Local Artifact Sinks",
+      "status": "queued",
+      "notes": "Reuses the schema-mapping and parquet-wasm adapter logic."
+    },
+    {
+      "id": "PRD-LC-012",
+      "title": "Cloud Runtime & Execution Bridge",
+      "status": "in-progress",
+      "notes": "Requires the cloud worker environment to be functional."
+    }
+  ],
+  "technicalNotes": {
+    "authModel": "Azure Key Vault + Managed Identity for secret retrieval; OAuth 2.0 Client Credentials for platform handshakes.",
+    "streamingStrategy": "SAB binary segments -> parquet-wasm -> HTTP Multipart stream to Snowflake Stage / Databricks Volume.",
+    "schemaReuse": "Maps 'bus://' schema fields directly to Snowflake/Databricks DDL (e.g., float64 -> DOUBLE).",
+    "errorHandling": "Exponential backoff for 5xx errors; partial success logging; JobID-linked delivery receipts."
+  },
+  "userStories": [
+    {
+      "id": "US-CONN-01",
+      "title": "Snowflake Direct-to-Stage Sink",
+      "story": "As a data engineer, I want to stream results directly into Snowflake without intermediate blob storage hop.",
+      "acceptanceCriteria": [
+        "Config support: platform: 'snowflake', stage: 'internal_stage_name'.",
+        "Orchestrator reuses schema from PRD-LC-018 to verify column compatibility.",
+        "Automatic generation of 'COPY INTO' command upon stream completion.",
+        "Managed Identity: Cloud worker retrieves Snowflake secrets from Azure Key Vault automatically."
+      ],
+      "tech_stack": ["Snowflake SQL API", "Azure Key Vault"],
+      "passes": false
+    },
+    {
+      "id": "US-CONN-02",
+      "title": "Databricks Unity Catalog Integration",
+      "story": "As a researcher, I want results to land in a Databricks Volume for instant notebook analysis.",
+      "acceptanceCriteria": [
+        "Config support: platform: 'databricks', volume: 'unity_volume_path'.",
+        "Direct PUT to Databricks REST API using Unity Catalog tokens.",
+        "Success metric: 100M records (5GB total) uploaded and queryable in < 90s (intra-region).",
+        "Auto-Discovery: New Parquet artifacts appear in Databricks Catalog immediately."
+      ],
+      "tech_stack": ["Databricks SDK", "parquet-wasm"],
+      "passes": false
+    },
+    {
+      "id": "US-CONN-03",
+      "title": "Cost & Budget Guardrails",
+      "story": "As a CFO, I want a cost estimate before I trigger a multi-terabyte stream to an external partner.",
+      "acceptanceCriteria": [
+        "UI displays: 'Estimated Transfer: ~X GB, Estimated Egress Cost: $Y'.",
+        "System enforces configurable 'Hard Budget' limits per SinkID.",
+        "Egress telemetry is logged to cloud monitoring with tenant/project tags."
+      ],
+      "tech_stack": ["Azure Monitor", "React"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/api/sinks/snowflake_adapter.py",
+    "livecalc-cloud/api/sinks/databricks_adapter.py",
+    "livecalc-cloud/api/services/secret_manager.py"
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "definitionOfDone": [
+    "Verified minimal-hop streaming (no disk write) to Snowflake and Databricks endpoints.",
+    "Credentials retrieved securely via Managed Identity (0 hardcoded secrets).",
+    "Schema validation prevents 'Bad Data' from entering the analytic platform.",
+    "Egress costs are estimated and logged for every run."
+  ]
+}
+```
+
+### PRD-LC-019B-recompute-relay-system.json
+
+```json
+{
+  "id": "PRD-LC-019B",
+  "complexity": "medium",
+  "title": "Re-compute Relay System (Just-in-Time Data Spawning)",
+  "type": "feature",
+  "priority": "medium",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 5,
+  "description": "Codifies the 'Compute-as-Bandwidth' paradigm. Enables the Universal API to reconstruct historical runs from the Secure Manifest and stream them directly to a destination sink, bypassing the need for expensive cold-storage rehydration.",
+  "dependencies": [
+    {
+      "id": "PRD-LC-019A",
+      "title": "Analytic Platform Connectors",
+      "status": "proposed",
+      "notes": "Uses the platform-specific streaming adapters."
+    },
+    {
+      "id": "PRD-LC-013",
+      "title": "Cloud Platform Management",
+      "status": "proposed",
+      "notes": "Requires the Manifest Service to retrieve historical model/assumption hashes."
+    }
+  ],
+  "technicalNotes": {
+    "relayFlow": "User requests JobID -> API pulls Manifest -> AKS Worker Re-Hydrates WASM -> Compute -> Direct Stream to Sink.",
+    "statisticalParity": {
+      "tolerance": "0.01% for Mean NPV, StdDev, and tail percentiles (P95/P99).",
+      "rationale": "Floating-point determinism cannot be guaranteed across compiler/runtime versions over multi-year spans."
+    },
+    "versionCompatibility": "Supports a compatibility matrix where current engines can replay older manifests using logic shims or legacy Docker images.",
+    "cachingStrategy": "Uses node-local emptyDir volumes for LRU caching of hashed model bundles to reduce re-hydration latency."
+  },
+  "userStories": [
+    {
+      "id": "US-RELAY-01",
+      "title": "Headless Manifest-to-Stream Command",
+      "story": "As an auditor, I want to re-generate a historical run securely and send it to a new platform without manual intervention.",
+      "acceptanceCriteria": [
+        "API endpoint: POST /v1/relay/{jobId}?targetSink={sinkId}.",
+        "Authorization: Requesting user must have 'read' permissions on the original Job's tenant scope.",
+        "Tenant Isolation: Relay requests are strictly scoped to the user's tenant context.",
+        "Lifecycle: Transient namespace is auto-deleted after completion or a 1-hour hard timeout.",
+        "Audit Log: Record relay event linking original JobID, requesting User, and destination Sink."
+      ],
+      "tech_stack": ["FastAPI", "JWT Scopes", "K8s Client"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-02",
+      "title": "Statistical Parity Verification",
+      "story": "As a regulator, I want proof that re-computed results are actuarially equivalent to the original signed-off values.",
+      "acceptanceCriteria": [
+        "Relay worker calculates summary stats (Mean, StdDev, P99) in real-time.",
+        "Verification Sequence: (1) Attempt exact hash match, (2) Fallback to statistical comparison if runtime/compiler differs.",
+        "Success: Result is within 0.01% tolerance of the original 'Seal of Authenticity' metadata.",
+        "Failure: Fail-fast if statistical divergence indicates a model logic regression."
+      ],
+      "tech_stack": ["NumPy Statistics", "Manifest Service"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-03",
+      "title": "Dependency & Version Validation",
+      "story": "As a system, I want to ensure all historical components are available before starting a relay compute.",
+      "acceptanceCriteria": [
+        "Pre-flight: Verify all manifest dependencies (assumption versions, ESG seeds) are retrievable.",
+        "Engine Check: Validate that the manifest version is supported by the current runtime compatibility matrix.",
+        "Failure Handling: Return clear error if assumptions were deleted: 'Cannot relay: mortality_v2.1.0 unavailable'."
+      ],
+      "tech_stack": ["FastAPI", "Assumptions Manager API"],
+      "passes": false
+    },
+    {
+      "id": "US-RELAY-04",
+      "title": "Historical Model Bundle Caching",
+      "story": "As a platform lead, I want relay jobs to start instantly by caching historical bundles on the node.",
+      "acceptanceCriteria": [
+        "AKS worker checks node-local emptyDir cache using manifest hash as the key.",
+        "LRU Eviction: Automatically purge oldest bundles when cache size exceeds 10GB.",
+        "Performance: Cache hit achieves < 10s relay cold start vs < 60s for cache miss."
+      ],
+      "tech_stack": ["K8s emptyDir", "LRU Cache"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-cloud/api/services/relay_orchestrator.py",
+    "livecalc-cloud/api/services/parity_validator.py",
+    "tests/integration/test_historical_reproducibility.py"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-cloud/api/main.py",
+      "changes": "Mount /v1/relay/ endpoints and background task manager."
+    },
+    {
+      "file": "livecalc-cloud/api/services/manifest_service.py",
+      "changes": "Add historical retrieval and version compatibility logic."
+    }
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "definitionOfDone": [
+    "A 100K policy x 10 scenario historical run is relayed and streamed in < 120s.",
+    "Verification: Relay result passes the 0.01% statistical parity check against original metadata.",
+    "Security: Non-authorized relay requests are rejected with 403 Forbidden.",
+    "Cost analysis: Compute cycles for relay are documented as < 50% of cold storage rehydration cost."
+  ]
+}
+```
+
+### PRD-LC-019C-parallel-multi-sink-streaming.json
+
+```json
+{
+  "id": "PRD-LC-019C",
+  "complexity": "medium",
+  "title": "Parallel Multi-Sink Streaming",
+  "type": "feature",
+  "priority": "low",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 5,
+  "description": "Extends the Sink Manager to support simultaneous, non-blocking streaming to multiple endpoints from a single SharedArrayBuffer pointer. Optimized for high-bandwidth cloud egress within the AKS worker runtime.",
+  "dependencies": [
+    {
+      "id": "PRD-LC-018",
+      "title": "Local Artifact Sinks",
+      "status": "proposed",
+      "notes": "Provides the base sink interface and schema validation logic."
+    },
+    {
+      "id": "PRD-LC-019A",
+      "title": "Analytic Platform Connectors",
+      "status": "proposed",
+      "notes": "Utilizes the specific authentication and transport adapters for Snowflake/Databricks."
+    }
+  ],
+  "standardsReferences": [
+    "standards/coding.md",
+    "standards/api-security.md",
+    "standards/infrastructure.md"
+  ],
+  "technicalNotes": {
+    "executionLocation": "Cloud Worker (Server-side) to minimize client-side egress and leverage high-speed data center backplanes.",
+    "concurrencyModel": "Uses Python AsyncIO (Cloud) or Node.js Worker Threads (Local) to manage N simultaneous network streams.",
+    "referenceCountingImpl": "Atomic counter stored in the SAB header (Offset +24). Each parallel sink increments on start; manager zeros memory only when counter reaches 0.",
+    "backpressure": "Slowest-Sink Governor: Ensures memory remains resident until the slowest endpoint completes or hit a 300s timeout.",
+    "timeoutPolicy": "Configurable max retention (default: 300s). Slow sinks receive a cancellation error after the deadline to prevent memory exhaustion.",
+    "alignmentCompliance": "Strict adherence to PRD-LC-014: All fan-out buffers must maintain 16-byte alignment to support SIMD-enabled Parquet writers."
+  },
+  "userStories": [
+    {
+      "id": "US-PAR-01",
+      "title": "Simultaneous Multi-Cloud Egress",
+      "story": "As a CFO, I want my results to land in my AWS S3 archive and Snowflake BI tool at the same time.",
+      "acceptanceCriteria": [
+        "Config allows a list of 'sinks' (e.g., ['s3-archive', 'snowflake-prod']) for a single output node.",
+        "Zero-Copy Handoff: Workers share the same SAB pointer with no internal memory replication.",
+        "Performance: Total time matches the slowest network link (non-additive).",
+        "Resilience: A timeout or 5xx error in Sink B does not interrupt the successful completion of Sink A."
+      ],
+      "tech_stack": ["AsyncIO", "SAB Pointers", "Python/TypeScript"],
+      "passes": false
+    },
+    {
+      "id": "US-PAR-02",
+      "title": "Parallel Sink Observability & Telemetry",
+      "story": "As a platform engineer, I want to track the performance of individual sinks in a parallel run.",
+      "acceptanceCriteria": [
+        "Per-sink delivery receipts logged with SinkID, JobID, and total bytes transferred.",
+        "Reference counter state transitions (Inc/Dec) are logged for memory leak auditing.",
+        "Timeout events are flagged with 'Slow Sink' metadata for infrastructure tuning."
+      ],
+      "tech_stack": ["Azure Monitor", "OpenTelemetry"],
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-engine/js/src/sinks/parallel-sink-manager.ts",
+    "livecalc-cloud/worker/src/sinks/parallel_sink_manager.py",
+    "livecalc-cloud/worker/src/sinks/reference_counter.py",
+    "tests/performance/test_multi_sink_overhead.ts",
+    "tests/integration/test_reference_counting.py"
+  ],
+  "filesToModify": [
+    {
+      "file": "livecalc-engine/js/src/orchestrator.ts",
+      "changes": "Add logic to detect multiple sinks and initialize the Reference Counter in the SAB header."
+    }
+  ],
+  "estimatedSessions": "4 FADE sessions",
+  "definitionOfDone": [
+    "Measured overhead of adding a second parallel sink is < 5% CPU/Time in cloud environments.",
+    "Memory Leak Test: 1,000 iterations with random simulated sink failures show 0 memory growth.",
+    "Timeout Test: A simulated slow sink (10min) is cancelled after 300s without blocking fast sinks.",
+    "Standards Verification: Automated test suite verifies 16-byte alignment of all fan-out buffers."
+  ]
+}
+```
+
+### PRD-LC-030-standards-enhancements.json
+
+```json
+{
+  "id": "PRD-LC-030",
+  "complexity": "medium",
+  "title": "Standards Documentation Enhancements & Templates",
+  "type": "documentation",
+  "priority": "low",
+  "status": "proposed",
+  "created": "2026-01-25",
+  "project": "LiveCalc",
+  "phase": 1,
+  "description": "Enhance existing standards documentation with additional patterns, best practices, and reusable templates. Moves standards from 'gold' to 'platinum' level with comprehensive examples and tooling.",
+  "problem": [
+    "Standards documentation is comprehensive but could benefit from more code examples",
+    "No templates exist for common tasks (ADRs, PRs, security checklists, runbooks)",
+    "Some advanced patterns are not yet documented (async/await, SAB best practices, WASM memory management)",
+    "Azure-specific infrastructure patterns need documentation",
+    "Test data generation strategies not documented"
+  ],
+  "solution": [
+    "Add advanced patterns to existing standards (async/await, SharedArrayBuffer, WASM)",
+    "Create standards/templates/ directory with reusable templates",
+    "Add more code examples throughout standards files",
+    "Document Azure-specific patterns for infrastructure",
+    "Add test data generation and snapshot testing guidance"
+  ],
+  "dependencies": [],
+  "technicalNotes": {
+    "approach": "Incremental enhancement - each user story adds value independently",
+    "templates": "Follow industry standards where they exist (ADR format, GitHub PR templates)",
+    "examples": "Real code from LiveCalc codebase, not synthetic examples",
+    "priority": "Low priority - existing standards are already comprehensive and functional"
+  },
+  "userStories": [
+    {
+      "id": "US-ENH-01",
+      "title": "Enhanced Coding Standards Patterns",
+      "story": "As a developer, I want advanced patterns documented so I can handle complex scenarios correctly.",
+      "acceptanceCriteria": [
+        "Add async/await best practices section to standards/coding.md",
+        "Document SharedArrayBuffer best practices (allocation, lifecycle, cleanup)",
+        "Add WASM-specific conventions (memory management, function exports, Module pattern)",
+        "Document Promise.all vs sequential await patterns",
+        "Add error handling patterns for async code",
+        "Include real code examples from livecalc-engine and livecalc-vscode"
+      ],
+      "tech_stack": ["Markdown"],
+      "passes": false,
+      "estimatedEffort": "2 hours"
+    },
+    {
+      "id": "US-ENH-02",
+      "title": "Security Enhancement - OAuth Flows & API Versioning",
+      "story": "As a platform engineer, I want detailed security patterns documented so I can implement APIs correctly.",
+      "acceptanceCriteria": [
+        "Add OAuth 2.0 flow diagrams to standards/api-security.md (Authorization Code, Client Credentials)",
+        "Document API versioning strategy (URL-based: /v1/, /v2/ vs header-based)",
+        "Create security checklist template in standards/templates/security-checklist.md",
+        "Add threat modeling template with STRIDE categories",
+        "Document API deprecation communication strategy (warnings, timelines, migration guides)",
+        "Include example API security review checklist"
+      ],
+      "tech_stack": ["Markdown", "Mermaid"],
+      "passes": false,
+      "estimatedEffort": "3 hours"
+    },
+    {
+      "id": "US-ENH-03",
+      "title": "Infrastructure Enhancements - Azure Patterns & DR",
+      "story": "As a platform engineer, I want Azure-specific patterns documented so I can deploy infrastructure confidently.",
+      "acceptanceCriteria": [
+        "Add Azure-specific patterns to standards/infrastructure.md:",
+        "  - AKS cluster configuration (node pools, autoscaling, networking)",
+        "  - Azure Blob Storage lifecycle policies",
+        "  - Azure Batch pool configuration",
+        "  - Azure Key Vault secret rotation",
+        "Document cost monitoring requirements (budgets, alerts, cost allocation tags)",
+        "Create disaster recovery runbook template in standards/templates/dr-runbook.md",
+        "Add infrastructure change review checklist",
+        "Document blue/green deployment strategy for AKS"
+      ],
+      "tech_stack": ["Markdown", "Terraform", "Kubernetes"],
+      "passes": false,
+      "estimatedEffort": "3 hours"
+    },
+    {
+      "id": "US-ENH-04",
+      "title": "Testing Enhancements - Snapshots, Data Generation, Fuzzing",
+      "story": "As a developer, I want advanced testing strategies documented so I can test complex scenarios effectively.",
+      "acceptanceCriteria": [
+        "Add snapshot testing guidance to standards/testing.md:",
+        "  - When to use snapshots (UI output, serialization formats)",
+        "  - How to review snapshot diffs",
+        "  - Tools: Jest snapshots for TypeScript, pytest-snapshot for Python",
+        "Document test data generation strategies:",
+        "  - Faker.js for realistic data",
+        "  - Property-based testing with fast-check",
+        "  - Seed-based reproducibility for stochastic tests",
+        "Add fuzzing requirements for critical paths (policy parsing, WASM input validation)",
+        "Document performance testing patterns (warmup, statistical significance)",
+        "Include test data management best practices (fixtures, builders, factories)"
+      ],
+      "tech_stack": ["Markdown", "Jest", "pytest"],
+      "passes": false,
+      "estimatedEffort": "2 hours"
+    },
+    {
+      "id": "US-ENH-05",
+      "title": "Git Enhancements - Rebase, Hotfix, Hooks",
+      "story": "As a developer, I want advanced Git workflows documented so I can handle complex scenarios.",
+      "acceptanceCriteria": [
+        "Add rebase vs merge guidance to standards/git.md:",
+        "  - When to rebase (feature branches, cleaning up history)",
+        "  - When to merge (preserving context, main/release branches)",
+        "  - Interactive rebase for commit cleanup",
+        "Document hotfix workflow:",
+        "  - Branch from main: hotfix/critical-issue",
+        "  - Fast-track review process",
+        "  - Merge to main and backport to active branches",
+        "Add git hooks examples:",
+        "  - pre-commit: linting, formatting, test file co-location check",
+        "  - commit-msg: conventional commit validation",
+        "  - pre-push: run unit tests",
+        "Document conflict resolution strategies",
+        "Add git bisect usage for debugging regressions"
+      ],
+      "tech_stack": ["Markdown", "Bash"],
+      "passes": false,
+      "estimatedEffort": "2 hours"
+    },
+    {
+      "id": "US-ENH-06",
+      "title": "Documentation Templates & ADRs",
+      "story": "As a developer, I want reusable templates so I don't have to reinvent documentation structure.",
+      "acceptanceCriteria": [
+        "Create standards/templates/ directory structure:",
+        "  - adr-template.md (Architecture Decision Record)",
+        "  - pr-description-template.md (Pull Request template)",
+        "  - security-checklist.md (API security review checklist)",
+        "  - dr-runbook-template.md (Disaster recovery runbook)",
+        "  - incident-postmortem-template.md (Post-incident review)",
+        "ADR template includes: Title, Status, Context, Decision, Consequences, Alternatives Considered",
+        "PR template includes: Summary, Changes, Testing, Deployment Notes, Rollback Plan",
+        "Document ADR numbering scheme (ADR-001, ADR-002, etc.)",
+        "Add video/screenshot guidelines to standards/documentation.md:",
+        "  - Preferred formats (MP4 for video, PNG for screenshots)",
+        "  - Annotations: use red boxes/arrows, avoid text unless necessary",
+        "  - Storage: commit small images (<500KB), link to external for large files",
+        "Update standards/documentation.md to reference templates directory"
+      ],
+      "tech_stack": ["Markdown"],
+      "passes": false,
+      "estimatedEffort": "2 hours"
+    }
+  ],
+  "filesToCreate": [
+    "standards/templates/adr-template.md",
+    "standards/templates/pr-description-template.md",
+    "standards/templates/security-checklist.md",
+    "standards/templates/dr-runbook-template.md",
+    "standards/templates/incident-postmortem-template.md",
+    "standards/templates/README.md"
+  ],
+  "filesToModify": [
+    {
+      "file": "standards/coding.md",
+      "changes": "Add async/await patterns, SharedArrayBuffer best practices, WASM-specific conventions"
+    },
+    {
+      "file": "standards/api-security.md",
+      "changes": "Add OAuth flow diagrams, API versioning strategy, deprecation process"
+    },
+    {
+      "file": "standards/infrastructure.md",
+      "changes": "Add Azure-specific patterns (AKS, Blob, Batch, Key Vault), cost monitoring, DR strategy"
+    },
+    {
+      "file": "standards/testing.md",
+      "changes": "Add snapshot testing, test data generation, fuzzing, performance testing patterns"
+    },
+    {
+      "file": "standards/git.md",
+      "changes": "Add rebase vs merge guidance, hotfix workflow, git hooks examples, bisect usage"
+    },
+    {
+      "file": "standards/documentation.md",
+      "changes": "Add video/screenshot guidelines, reference templates directory, ADR numbering"
+    }
+  ],
+  "definitionOfDone": [
+    "All 6 user stories complete with enhanced content and examples",
+    "standards/templates/ directory created with all 5 templates",
+    "Each template includes clear instructions and real examples",
+    "All modified standards files updated with new sections",
+    "Cross-references between standards files updated where needed",
+    "No conflicting guidance introduced",
     "Documentation reviewed for clarity and completeness"
   ],
   "successCriteria": {
     "mustHave": [
-      "FADE.md project overview complete",
-      "All referenced standards files exist",
-      "API-first strategy documented",
-      "Security-by-design principles documented",
-      "Everything-as-code requirements documented",
-      "No conflicting guidance"
+      "Templates directory with ADR, PR, security checklist, DR runbook",
+      "Async/await and SharedArrayBuffer patterns documented",
+      "Azure-specific infrastructure patterns documented",
+      "Advanced testing strategies documented"
     ],
     "niceToHave": [
-      "ADR (Architecture Decision Record) template",
-      "Onboarding checklist for new developers",
-      "Troubleshooting guide for common issues"
+      "Video/screenshot guidelines with examples",
+      "Git hooks examples tested and verified",
+      "Threat modeling template with real LiveCalc examples"
     ]
   },
-  "estimatedSessions": "1 FADE session",
+  "estimatedSessions": "1 FADE session (or split across multiple sessions)",
   "risks": [
     {
-      "risk": "Standards too prescriptive, inhibit innovation",
-      "likelihood": "low",
-      "impact": "medium",
-      "mitigation": "Focus on principles over rules. Use 'prefer X' not 'must X' for non-critical items"
+      "risk": "Templates become outdated as project evolves",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Include 'last updated' date in each template. Review templates quarterly."
     },
     {
-      "risk": "Standards conflict with external guides (Google, PEP 8)",
+      "risk": "Too many examples make standards overwhelming",
       "likelihood": "low",
       "impact": "low",
-      "mitigation": "Reference external guides, only override when LiveCalc-specific constraint requires it"
+      "mitigation": "Keep examples concise. Link to real code in repo for detailed examples."
     },
     {
-      "risk": "Documentation becomes stale as code evolves",
-      "likelihood": "medium",
-      "impact": "medium",
-      "mitigation": "Include 'Update documentation' in Definition of Done for all PRDs. Treat docs as code (review, version control)"
+      "risk": "Azure-specific patterns limit cloud portability",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Document cloud-agnostic principles alongside Azure specifics. Note where patterns are Azure-specific."
     }
+  ],
+  "notes": [
+    "This PRD is intentionally low priority - existing standards (PRD-LC-014) are comprehensive and functional",
+    "User stories can be implemented independently - pick high-value items first",
+    "Estimated total effort: 14 hours (can be split across multiple sessions)",
+    "Consider implementing US-ENH-06 (templates) first as it provides immediate value"
   ]
 }
 ```
@@ -2116,6 +2536,9 @@ Read this document when:
 - PRD-LC-005-auto-run-hot-reload.json
 - PRD-LC-006-assumptions-manager-integration.json
 - PRD-LC-010-modular-orchestration-layer.json
+- PRD-LC-012-cloud-runtime-execution-bridge.json
+- PRD-LC-013-cloud-platform-management.json
+- PRD-LC-014-standards-documentation.json
 - SPIKE-LC-007-engine-performance-infrastructure.json
 - SPIKE-SPIKE-LC-007-calcengine.json
 

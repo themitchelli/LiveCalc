@@ -1,5 +1,6 @@
 {
   "id": "PRD-LC-002",
+  "complexity": "medium",
   "title": "WASM Compilation and Web Worker Threading",
   "type": "feature",
   "priority": "critical",
