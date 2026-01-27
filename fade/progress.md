@@ -3655,3 +3655,33 @@ For blocked stories, use:
 - Files modified:
   - README.md (added Python documentation)
 - Tests: Module structure verified, comprehensive test suite created (requires dependencies for runtime execution)
+
+## 2026-01-27 22:45 - US-003: JWT Token Management (PRD-LC-006-REFACTOR) - COMPLETE
+
+- Verified JWTHandler class implementation meets all acceptance criteria
+- Created comprehensive test suite (test_jwt_handler.cpp) with 25 assertions in 6 test cases
+- Tests cover:
+  - Constructor with token (valid and invalid formats)
+  - Token expiry tracking with time-based assertions
+  - get_token() auto-refresh functionality
+  - Auto-refresh threshold behavior (5 minute threshold)
+  - Thread safety with concurrent get_token() calls
+  - Token security (tokens never logged or exposed in error messages)
+- All acceptance criteria verified:
+  - ✓ JWTHandler class manages token lifecycle
+  - ✓ Constructor: JWTHandler(am_url, username, password) or JWTHandler(am_url, token)
+  - ✓ Method: get_token() → std::string (auto-refreshes if expiring)
+  - ✓ Method: token_expires_in() → int (seconds)
+  - ✓ Automatic refresh before expiry (threshold: 5 minutes)
+  - ✓ Tokens never logged or exposed in debug output
+  - ✓ Support for both: username/password login, pre-existing token
+  - ✓ Thread-safe for multi-threaded projection engines
+- Fixed test_assumptions_client.cpp to use properly formatted JWT token
+- Created .gitignore for livecalc-assumptions-lib
+- Added JWT test target to CMakeLists.txt
+- Files changed:
+  - livecalc-assumptions-lib/.gitignore (new)
+  - livecalc-assumptions-lib/tests/test_jwt_handler.cpp (new - 6 test cases, 25 assertions)
+  - livecalc-assumptions-lib/CMakeLists.txt (added test_jwt_handler target)
+  - livecalc-assumptions-lib/tests/test_assumptions_client.cpp (fixed token format)
+- Tests: All 3 test suites pass (test_assumptions_client, test_cache, test_jwt_handler)

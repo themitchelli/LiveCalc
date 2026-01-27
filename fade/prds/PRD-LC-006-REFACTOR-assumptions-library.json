@@ -103,7 +103,7 @@
         "storage": "In-memory only, no disk persistence",
         "refreshLogic": "On get_token() call, check expiry. If < 5min remaining, refresh via AM API"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
