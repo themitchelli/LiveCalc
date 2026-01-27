@@ -3838,3 +3838,21 @@ For blocked stories, use:
 - Tests: TypeScript compilation successful, no errors
 - Integration: VS Code extension now seamlessly provides AM credentials to all calculation engines without code duplication
 
+## 2026-01-27 - US-008: Library Packaging & Distribution - COMPLETE
+
+- Completed packaging and distribution for livecalc-assumptions-lib (C++ and Python)
+- Fixed CMake packaging issue with nlohmann_json dependency (changed to header-only INTERFACE approach)
+- Created comprehensive integration documentation (docs/INTEGRATION.md - 533 lines)
+- Created complete C++ projection engine example (examples/cpp_engine_usage.cpp - 256 lines)
+- Created detailed API reference documentation (docs/API.md - 742 lines)
+- Updated README.md with links to documentation and example build instructions
+- Files changed:
+  - livecalc-assumptions-lib/CMakeLists.txt (enhanced with modern CMake packaging, GNUInstallDirs, CMakePackageConfigHelpers)
+  - livecalc-assumptions-lib/LiveCalcAssumptionsLibConfig.cmake.in (new file - CMake package config template)
+  - livecalc-assumptions-lib/docs/INTEGRATION.md (new file - comprehensive integration guide)
+  - livecalc-assumptions-lib/docs/API.md (new file - complete API reference)
+  - livecalc-assumptions-lib/examples/cpp_engine_usage.cpp (new file - working C++ projection engine example)
+  - livecalc-assumptions-lib/README.md (updated with documentation links and example instructions)
+  - fade/prds/PRD-LC-006-REFACTOR-assumptions-library.json (marked US-008 passes: true)
+- Tests: CMake build successful, library installs correctly with find_package() support, C++ example compiles successfully
+- All acceptance criteria met: C++ library packaged as .a with headers, Python module pip-installable, documentation complete, example projects functional, build system verified

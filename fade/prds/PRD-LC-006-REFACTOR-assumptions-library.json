@@ -199,7 +199,7 @@
         "cppBuild": "CMakeLists.txt, modern CMake with FetchContent for dependencies",
         "pythonBuild": "pyproject.toml, setuptools with type hints"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [

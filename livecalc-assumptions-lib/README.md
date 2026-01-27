@@ -129,8 +129,8 @@ target_link_libraries(your_target PRIVATE /path/to/livecalc-assumptions-lib/buil
 ## Documentation
 
 - **[Cache Documentation](docs/CACHE.md)**: LRU cache implementation details, thread safety, version immutability
-- **[API Documentation](docs/API.md)**: Full API reference (coming soon)
-- **[Integration Guide](docs/INTEGRATION.md)**: How to integrate with engines (coming soon)
+- **[API Reference](docs/API.md)**: Complete C++ and Python API documentation
+- **[Integration Guide](docs/INTEGRATION.md)**: How to integrate with projection engines (C++ and Python)
 
 ## API Reference
 
@@ -276,6 +276,53 @@ export LIVECALC_AM_CACHE_DIR="/path/to/cache"
 ```
 
 Or pass credentials programmatically from the extension.
+
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+### C++ Projection Engine
+
+`examples/cpp_engine_usage.cpp` - Complete actuarial projection engine demonstrating:
+- Initialization with environment variables
+- Batch assumption resolution at startup
+- Policy-specific scalar lookups during projection
+- Cache statistics reporting
+
+**Build and run:**
+```bash
+cd livecalc-assumptions-lib
+mkdir build && cd build
+cmake ..
+make
+
+# Compile example
+g++ -std=c++17 -I../src ../examples/cpp_engine_usage.cpp \
+    -L. -lassumptions_lib -lcurl \
+    -o engine_example
+
+# Run (requires AM credentials)
+export LIVECALC_AM_URL="https://assumptionsmanager.ddns.net"
+export LIVECALC_AM_TOKEN="your-jwt-token"
+./engine_example
+```
+
+### Python UDF
+
+`examples/python_udf_usage.py` - Python user-defined function demonstrating:
+- NumPy integration for efficient table handling
+- UDF-based mortality adjustments (e.g., smoker multipliers)
+- Error handling and fallback logic
+
+**Run:**
+```bash
+cd livecalc-assumptions-lib
+pip install -e .
+
+export LIVECALC_AM_URL="https://assumptionsmanager.ddns.net"
+export LIVECALC_AM_TOKEN="your-jwt-token"
+python examples/python_udf_usage.py
+```
 
 ## License
 

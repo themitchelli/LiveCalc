@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(CURL REQUIRED)
+
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json 3.2.0 QUIET)
+    if(NOT nlohmann_json_FOUND)
+        message(STATUS "nlohmann_json not found, will be fetched by downstream projects")
+    endif()
+endif()
+
+# Include targets file
+include("${CMAKE_CURRENT_LIST_DIR}/LiveCalcAssumptionsLibTargets.cmake")
+
+check_required_components(LiveCalcAssumptionsLib)

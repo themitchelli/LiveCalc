@@ -47,10 +47,15 @@ target_include_directories(assumptions_lib
         $<INSTALL_INTERFACE:include>
 )
 
+# nlohmann_json is header-only - just add include path
+target_include_directories(assumptions_lib
+    PRIVATE
+        $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
 target_link_libraries(assumptions_lib
     PUBLIC
         CURL::libcurl
-        nlohmann_json::nlohmann_json
 )
 
 # Tests
@@ -81,11 +86,41 @@ if(BUILD_TESTS)
 endif()
 
 # Installation
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 install(TARGETS assumptions_lib
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    EXPORT LiveCalcAssumptionsLibTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 install(FILES ${LIB_HEADERS}
-    DESTINATION include/livecalc-assumptions
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/livecalc-assumptions
+)
+
+# Generate and install CMake package config files
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/LiveCalcAssumptionsLibConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/LiveCalcAssumptionsLibConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/LiveCalcAssumptionsLibConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LiveCalcAssumptionsLib
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/LiveCalcAssumptionsLibConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/LiveCalcAssumptionsLibConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LiveCalcAssumptionsLib
+)
+
+install(EXPORT LiveCalcAssumptionsLibTargets
+    FILE LiveCalcAssumptionsLibTargets.cmake
+    NAMESPACE LiveCalcAssumptionsLib::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/LiveCalcAssumptionsLib
 )
