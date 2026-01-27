@@ -169,8 +169,14 @@ class PythonESGEngine(ICalcEngine):
         """
         Resolve yield curve parameters from Assumptions Manager.
 
+        Expected structure from AM:
+        - initial_yield_curve: vector of rates by tenor (e.g., 20 tenors for 1Y-20Y)
+        - volatility_matrix: square matrix of volatilities (NxN for N tenors)
+        - drift_rates: vector of drift parameters by tenor
+        - mean_reversion: scalar mean reversion parameter
+
         Raises:
-            InitializationError: If resolution fails
+            InitializationError: If resolution fails or required fields missing
         """
         if not self._assumptions_client:
             logger.warning("No assumptions client available for yield curve resolution")
@@ -178,24 +184,172 @@ class PythonESGEngine(ICalcEngine):
 
         try:
             # Resolve yield curve parameters
-            # Expected structure: initial_yield_curve (vector by tenor),
-            # volatility_matrix, drift_rates, mean_reversion
+            # Note: assumptions_client.resolve() returns the raw data from AM
+            # For structured assumptions, this would be a nested dict/array
             params = self._assumptions_client.resolve(
                 'yield-curve-parameters',
                 self._config.assumptions_version
             )
 
-            # For now, store as dict placeholder
-            # Real implementation would parse structured data
-            self._yield_curve_params = {
-                'data': params,
-                'version': self._config.assumptions_version
-            }
+            # Parse the assumption structure
+            # Real AM would return structured data; for now we handle both
+            # raw arrays and structured dicts
+            if isinstance(params, dict):
+                # Structured format from AM
+                parsed_params = self._parse_yield_curve_structure(params)
+            elif isinstance(params, (list, np.ndarray)):
+                # Legacy flat array format - convert to structure
+                parsed_params = self._parse_flat_yield_curve(params)
+            else:
+                raise InitializationError(
+                    f"Unexpected yield curve parameter format: {type(params)}"
+                )
 
-            logger.info(f"Resolved yield-curve-parameters:{self._config.assumptions_version}")
+            # Validate all required fields are present
+            self._validate_yield_curve_parameters(parsed_params)
+
+            # Store parsed parameters
+            self._yield_curve_params = parsed_params
+
+            # Log version resolution (handles 'latest' → actual version mapping)
+            resolved_version = parsed_params.get('resolved_version', self._config.assumptions_version)
+            if self._config.assumptions_version == 'latest':
+                logger.info(f"Resolved yield-curve-parameters:latest → {resolved_version}")
+            else:
+                logger.info(f"Resolved yield-curve-parameters:{resolved_version}")
 
         except Exception as e:
             raise InitializationError(f"Failed to resolve yield curve assumptions: {str(e)}")
+
+    def _parse_yield_curve_structure(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse structured yield curve parameters from AM.
+
+        Args:
+            params: Dict from AM with yield curve structure
+
+        Returns:
+            Parsed dict with required fields as numpy arrays
+
+        Raises:
+            InitializationError: If parsing fails
+        """
+        try:
+            parsed = {
+                'initial_yield_curve': np.array(params.get('initial_yield_curve', [])),
+                'volatility_matrix': np.array(params.get('volatility_matrix', [])),
+                'drift_rates': np.array(params.get('drift_rates', [])),
+                'mean_reversion': float(params.get('mean_reversion', 0.0)),
+                'resolved_version': params.get('version', self._config.assumptions_version),
+                'tenors': params.get('tenors', list(range(1, 21)))  # Default 1-20 years
+            }
+            return parsed
+        except (ValueError, TypeError) as e:
+            raise InitializationError(f"Failed to parse yield curve structure: {str(e)}")
+
+    def _parse_flat_yield_curve(self, params: Any) -> Dict[str, Any]:
+        """
+        Parse legacy flat array format into structured parameters.
+
+        This is a fallback for simple assumption tables that return flat arrays.
+        Assumes: [initial_rates..., volatility_values..., drift_values..., mean_reversion]
+
+        Args:
+            params: Flat array of parameters
+
+        Returns:
+            Parsed dict with required fields
+
+        Raises:
+            InitializationError: If array is wrong size
+        """
+        params_array = np.array(params).flatten()
+
+        # For a 20-tenor curve:
+        # - 20 initial rates
+        # - 400 volatility values (20x20 matrix)
+        # - 20 drift rates
+        # - 1 mean reversion
+        # Total: 441 values
+
+        if len(params_array) == 441:
+            # Standard 20-tenor format
+            num_tenors = 20
+            initial_curve = params_array[:num_tenors]
+            vol_start = num_tenors
+            vol_end = vol_start + (num_tenors * num_tenors)
+            volatility_matrix = params_array[vol_start:vol_end].reshape((num_tenors, num_tenors))
+            drift_start = vol_end
+            drift_end = drift_start + num_tenors
+            drift_rates = params_array[drift_start:drift_end]
+            mean_reversion = params_array[drift_end]
+
+            return {
+                'initial_yield_curve': initial_curve,
+                'volatility_matrix': volatility_matrix,
+                'drift_rates': drift_rates,
+                'mean_reversion': mean_reversion,
+                'resolved_version': self._config.assumptions_version,
+                'tenors': list(range(1, num_tenors + 1))
+            }
+        else:
+            raise InitializationError(
+                f"Unexpected flat array size: {len(params_array)}. Expected 441 for 20-tenor curve."
+            )
+
+    def _validate_yield_curve_parameters(self, params: Dict[str, Any]) -> None:
+        """
+        Validate that all required yield curve fields are present and valid.
+
+        Args:
+            params: Parsed yield curve parameters
+
+        Raises:
+            InitializationError: If validation fails
+        """
+        # Check required fields exist
+        required_fields = ['initial_yield_curve', 'volatility_matrix', 'drift_rates', 'mean_reversion']
+        missing_fields = [f for f in required_fields if f not in params or params[f] is None]
+
+        if missing_fields:
+            raise InitializationError(
+                f"Missing required yield curve parameters: {', '.join(missing_fields)}"
+            )
+
+        # Validate dimensions
+        initial_curve = params['initial_yield_curve']
+        vol_matrix = params['volatility_matrix']
+        drift = params['drift_rates']
+
+        if len(initial_curve) == 0:
+            raise InitializationError("initial_yield_curve is empty")
+
+        num_tenors = len(initial_curve)
+
+        # Volatility matrix should be square and match tenor count
+        if vol_matrix.ndim != 2:
+            raise InitializationError(f"volatility_matrix must be 2D, got {vol_matrix.ndim}D")
+
+        if vol_matrix.shape != (num_tenors, num_tenors):
+            raise InitializationError(
+                f"volatility_matrix shape {vol_matrix.shape} doesn't match "
+                f"initial_yield_curve length {num_tenors}"
+            )
+
+        # Drift rates should match tenor count
+        if len(drift) != num_tenors:
+            raise InitializationError(
+                f"drift_rates length {len(drift)} doesn't match "
+                f"initial_yield_curve length {num_tenors}"
+            )
+
+        # Mean reversion should be a scalar
+        if not isinstance(params['mean_reversion'], (int, float)):
+            raise InitializationError(
+                f"mean_reversion must be numeric, got {type(params['mean_reversion'])}"
+            )
+
+        logger.debug(f"Validated yield curve parameters: {num_tenors} tenors")
 
     def get_info(self) -> EngineInfo:
         """

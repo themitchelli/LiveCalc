@@ -217,6 +217,35 @@ on relevant tasks. Add your own project-specific standards as needed.
 
 ---
 
+## Session Termination Protocol
+
+After outputting a completion signal, Claude Code MUST STOP IMMEDIATELY.
+
+### After STORY_DONE: US-XXX
+- Output ONLY the signal line: `STORY_DONE: US-XXX`
+- Do NOT continue processing
+- Do NOT output "Starting next iteration"
+- Do NOT process another story
+- The fade orchestrator will restart with fresh context for the next story
+
+### After ALL_COMPLETE
+- Output ONLY the signal line: `ALL_COMPLETE`
+- Do NOT continue processing
+- Fade will trigger regression test generation automatically
+- Do NOT attempt to run tests yourself
+
+### After BLOCKED: [reason]
+- Output ONLY the signal line: `BLOCKED: [reason]`
+- Ensure progress.md has been updated with block documentation
+- Do NOT continue processing
+- Fade will exit and wait for human intervention
+
+**CRITICAL:** Any output after a completion signal will break the orchestrator's signal detection. Stop immediately after outputting the signal. The fade script uses exact line-based matching.
+
+---
+
+---
+
 ## System Context
 
 ### Current Challenges

@@ -314,5 +314,219 @@ class TestPythonESGEngine(unittest.TestCase):
         self.engine.dispose()
 
 
+class TestYieldCurveResolution(unittest.TestCase):
+    """Test yield curve assumption resolution (US-002)"""
+
+    def setUp(self):
+        """Create engine instance for testing"""
+        self.engine = PythonESGEngine()
+
+    def tearDown(self):
+        """Dispose engine after each test"""
+        if self.engine.is_initialized:
+            self.engine.dispose()
+
+    def test_parse_structured_yield_curve(self):
+        """Test parsing structured yield curve parameters from AM"""
+        # Simulate structured response from AM
+        structured_params = {
+            'initial_yield_curve': [0.02, 0.025, 0.03, 0.032, 0.034],
+            'volatility_matrix': [
+                [0.01, 0.005, 0.003, 0.002, 0.001],
+                [0.005, 0.01, 0.005, 0.003, 0.002],
+                [0.003, 0.005, 0.01, 0.005, 0.003],
+                [0.002, 0.003, 0.005, 0.01, 0.005],
+                [0.001, 0.002, 0.003, 0.005, 0.01]
+            ],
+            'drift_rates': [0.001, 0.0012, 0.0015, 0.0016, 0.0018],
+            'mean_reversion': 0.15,
+            'version': 'v2.1',
+            'tenors': [1, 2, 3, 5, 10]
+        }
+
+        parsed = self.engine._parse_yield_curve_structure(structured_params)
+
+        # Verify all fields parsed correctly
+        self.assertEqual(len(parsed['initial_yield_curve']), 5)
+        self.assertEqual(parsed['volatility_matrix'].shape, (5, 5))
+        self.assertEqual(len(parsed['drift_rates']), 5)
+        self.assertEqual(parsed['mean_reversion'], 0.15)
+        self.assertEqual(parsed['resolved_version'], 'v2.1')
+
+    def test_parse_flat_yield_curve_20_tenors(self):
+        """Test parsing flat array format (20 tenors)"""
+        # Create a flat array: 20 rates + 400 vol values + 20 drift + 1 mean_rev = 441
+        flat_params = []
+
+        # Initial yield curve (20 values)
+        flat_params.extend([0.02 + i * 0.001 for i in range(20)])
+
+        # Volatility matrix (20x20 = 400 values)
+        for i in range(20):
+            for j in range(20):
+                if i == j:
+                    flat_params.append(0.01)  # Diagonal
+                else:
+                    flat_params.append(0.005)  # Off-diagonal
+
+        # Drift rates (20 values)
+        flat_params.extend([0.001 + i * 0.0001 for i in range(20)])
+
+        # Mean reversion (1 value)
+        flat_params.append(0.15)
+
+        parsed = self.engine._parse_flat_yield_curve(flat_params)
+
+        # Verify structure
+        self.assertEqual(len(parsed['initial_yield_curve']), 20)
+        self.assertEqual(parsed['volatility_matrix'].shape, (20, 20))
+        self.assertEqual(len(parsed['drift_rates']), 20)
+        self.assertEqual(parsed['mean_reversion'], 0.15)
+        self.assertEqual(len(parsed['tenors']), 20)
+
+    def test_parse_flat_yield_curve_wrong_size(self):
+        """Test that flat array with wrong size raises error"""
+        # Wrong size array (not 441)
+        flat_params = [0.02] * 100
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._parse_flat_yield_curve(flat_params)
+        self.assertIn("Unexpected flat array size", str(ctx.exception))
+
+    def test_validate_yield_curve_success(self):
+        """Test successful validation of complete yield curve parameters"""
+        params = {
+            'initial_yield_curve': np.array([0.02, 0.025, 0.03]),
+            'volatility_matrix': np.array([
+                [0.01, 0.005, 0.003],
+                [0.005, 0.01, 0.005],
+                [0.003, 0.005, 0.01]
+            ]),
+            'drift_rates': np.array([0.001, 0.0012, 0.0015]),
+            'mean_reversion': 0.15
+        }
+
+        # Should not raise
+        self.engine._validate_yield_curve_parameters(params)
+
+    def test_validate_missing_initial_yield_curve(self):
+        """Test validation fails when initial_yield_curve is missing"""
+        params = {
+            'volatility_matrix': np.array([[0.01]]),
+            'drift_rates': np.array([0.001]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("Missing required yield curve parameters", str(ctx.exception))
+        self.assertIn("initial_yield_curve", str(ctx.exception))
+
+    def test_validate_missing_volatility_matrix(self):
+        """Test validation fails when volatility_matrix is missing"""
+        params = {
+            'initial_yield_curve': np.array([0.02]),
+            'drift_rates': np.array([0.001]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("volatility_matrix", str(ctx.exception))
+
+    def test_validate_missing_drift_rates(self):
+        """Test validation fails when drift_rates is missing"""
+        params = {
+            'initial_yield_curve': np.array([0.02]),
+            'volatility_matrix': np.array([[0.01]]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("drift_rates", str(ctx.exception))
+
+    def test_validate_missing_mean_reversion(self):
+        """Test validation fails when mean_reversion is missing"""
+        params = {
+            'initial_yield_curve': np.array([0.02]),
+            'volatility_matrix': np.array([[0.01]]),
+            'drift_rates': np.array([0.001])
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("mean_reversion", str(ctx.exception))
+
+    def test_validate_empty_initial_curve(self):
+        """Test validation fails when initial_yield_curve is empty"""
+        params = {
+            'initial_yield_curve': np.array([]),
+            'volatility_matrix': np.array([[0.01]]),
+            'drift_rates': np.array([0.001]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("initial_yield_curve is empty", str(ctx.exception))
+
+    def test_validate_volatility_not_square(self):
+        """Test validation fails when volatility matrix is not 2D"""
+        params = {
+            'initial_yield_curve': np.array([0.02, 0.025]),
+            'volatility_matrix': np.array([0.01, 0.005]),  # 1D instead of 2D
+            'drift_rates': np.array([0.001, 0.0012]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("volatility_matrix must be 2D", str(ctx.exception))
+
+    def test_validate_volatility_wrong_shape(self):
+        """Test validation fails when volatility matrix shape doesn't match curve"""
+        params = {
+            'initial_yield_curve': np.array([0.02, 0.025, 0.03]),
+            'volatility_matrix': np.array([[0.01, 0.005], [0.005, 0.01]]),  # 2x2 instead of 3x3
+            'drift_rates': np.array([0.001, 0.0012, 0.0015]),
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("volatility_matrix shape", str(ctx.exception))
+
+    def test_validate_drift_wrong_length(self):
+        """Test validation fails when drift_rates length doesn't match curve"""
+        params = {
+            'initial_yield_curve': np.array([0.02, 0.025, 0.03]),
+            'volatility_matrix': np.array([
+                [0.01, 0.005, 0.003],
+                [0.005, 0.01, 0.005],
+                [0.003, 0.005, 0.01]
+            ]),
+            'drift_rates': np.array([0.001, 0.0012]),  # Only 2 instead of 3
+            'mean_reversion': 0.15
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("drift_rates length", str(ctx.exception))
+
+    def test_validate_mean_reversion_not_numeric(self):
+        """Test validation fails when mean_reversion is not numeric"""
+        params = {
+            'initial_yield_curve': np.array([0.02]),
+            'volatility_matrix': np.array([[0.01]]),
+            'drift_rates': np.array([0.001]),
+            'mean_reversion': "not_a_number"
+        }
+
+        with self.assertRaises(InitializationError) as ctx:
+            self.engine._validate_yield_curve_parameters(params)
+        self.assertIn("mean_reversion must be numeric", str(ctx.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -196,6 +196,12 @@ Current test coverage includes:
 - Scenario generation (5 tests)
 - Error handling (4 tests)
 - Determinism verification (1 test)
+- Yield curve assumption resolution (16 tests)
+  - Structured parameter parsing
+  - Flat array parsing
+  - Field validation
+  - Dimension checking
+  - Error handling
 
 **Total: 23 tests**
 
@@ -284,7 +290,18 @@ except ExecutionError as e:
 
 ## Assumptions Manager Integration
 
-When AM credentials are provided, the engine resolves yield curve assumptions:
+When AM credentials are provided, the engine resolves yield curve assumptions from the Assumptions Manager:
+
+### Required Yield Curve Structure
+
+The engine expects yield curve parameters with the following structure:
+
+- **`initial_yield_curve`**: Vector of interest rates by tenor (e.g., 20 tenors for 1Y-20Y)
+- **`volatility_matrix`**: Square matrix of volatilities (NxN for N tenors)
+- **`drift_rates`**: Vector of drift parameters by tenor
+- **`mean_reversion`**: Scalar mean reversion parameter
+
+### Example Usage
 
 ```python
 credentials = {
@@ -300,15 +317,33 @@ config = {
 }
 
 engine.initialize(config, credentials)
-# Logs: "Resolved yield-curve-parameters:latest → v2.1"
+# Logs: "Resolved yield-curve-parameters:v2.1"
+# Or: "Resolved yield-curve-parameters:latest → v2.1"
 ```
+
+### Version Resolution
+
+- **Specific version** (e.g., `'v2.1'`): Fetches and caches that exact version
+- **`'latest'`**: Always fetches the current approved version from AM
+- **`'draft'`**: Fetches current draft version (if permissions allow)
+
+### Validation
+
+The engine validates all required fields are present and properly dimensioned:
+- Volatility matrix must be square and match curve length
+- Drift rates must match curve length
+- Mean reversion must be numeric
+
+If validation fails, initialization raises `InitializationError` with details.
+
+### Fallback Behavior
 
 Without credentials, the engine uses default parameters (for testing/development).
 
 ## Roadmap
 
 - [x] **US-001**: ICalcEngine Interface Implementation
-- [ ] **US-002**: Yield Curve Assumption Resolution
+- [x] **US-002**: Yield Curve Assumption Resolution
 - [ ] **US-003**: Outer Path Generation (Deterministic skeleton)
 - [ ] **US-004**: Inner Path Generation (Monte Carlo on-the-fly)
 - [ ] **US-005**: Scenario Output Format

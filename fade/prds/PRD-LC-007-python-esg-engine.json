@@ -82,7 +82,7 @@
         "pythonCode": "from assumptions_client import AssumptionsClient; client = AssumptionsClient(...); params = client.resolve('yield-curve-parameters', 'v2.1')",
         "assumptionStructure": "yield_curve: np.ndarray(shape=(20,)), volatility: np.ndarray(shape=(20,20)), drift: np.ndarray(shape=(20,)), mean_reversion: float"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
