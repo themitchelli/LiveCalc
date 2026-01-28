@@ -20,6 +20,7 @@ ESG Engine → Projection Engine → Solver Engine
 - **Credential Management**: Centralized AM JWT passing to engines
 - **DAG Configuration**: JSON-based workflow definition
 - **Error Handling**: Graceful failure with partial results, auto-retry support
+- **Structured Logging**: JSON-formatted logs with execution tracking, performance metrics, and debugging
 
 ---
 
@@ -883,6 +884,293 @@ std::cout << "Total execution time: " << stats.total_execution_time_ms << "ms" <
 // Reset statistics
 manager.reset_stats();
 ```
+
+---
+
+## Structured Logging
+
+The orchestrator includes a comprehensive structured logging system with JSON-formatted output for easy parsing by monitoring systems.
+
+**Header:** `src/logger.hpp`
+
+### Features
+
+- **Multiple Log Levels**: DEBUG, INFO, WARN, ERROR with configurable filtering
+- **JSON Output**: Structured logs for parsing and analysis
+- **Execution Tracking**: Engine initialization, execution start/complete, state transitions
+- **Performance Metrics**: Execution time, throughput, memory usage
+- **Debug Mode**: Buffer content dumping with hex output
+- **Security**: Automatic token masking for credentials
+- **Multiple Outputs**: Console (stderr) and/or file logging
+
+### Configuration
+
+```cpp
+#include "logger.hpp"
+
+LoggerConfig config;
+config.min_level = LogLevel::DEBUG;        // Minimum level to output
+config.enable_console = true;              // Log to stderr
+config.enable_file = true;                 // Log to file
+config.log_file_path = "orchestrator.log"; // File path
+config.enable_json = true;                 // JSON format (vs plain text)
+config.enable_buffer_dump = true;          // Enable buffer hex dumps (DEBUG only)
+config.max_buffer_dump_bytes = 1024;       // Max bytes per buffer dump
+
+Logger& logger = Logger::get_instance();
+logger.configure(config);
+```
+
+### Log Levels
+
+```cpp
+LogLevel::DEBUG   // Detailed debugging (buffer contents, intermediate values)
+LogLevel::INFO    // Informational (engine init, execution start/end)
+LogLevel::WARN    // Warnings (non-fatal issues, performance warnings)
+LogLevel::ERROR   // Errors (failures, exceptions)
+```
+
+### Execution Context
+
+All logging methods require an `ExecutionContext` to track the execution environment:
+
+```cpp
+ExecutionContext ctx("proj_1", "projection");
+ctx.iteration = 5;              // Optional: current iteration number
+ctx.phase = "compute";          // Optional: execution phase
+```
+
+### Logging Methods
+
+#### Engine Initialization
+
+```cpp
+EngineInfo info = engine->get_info();
+std::map<std::string, std::string> config = {
+    {"num_scenarios", "1000"},
+    {"projection_years", "50"}
+};
+AMCredentials creds(am_url, am_token, cache_dir);
+
+logger.log_engine_init(ctx, info, config, &creds);
+```
+
+**JSON Output:**
+```json
+{
+  "timestamp": "2025-01-28 06:12:34.567",
+  "level": "INFO",
+  "event": "engine_init",
+  "engine_id": "proj_1",
+  "engine_type": "projection",
+  "engine_name": "C++ Projection Engine",
+  "engine_version": "1.0.0",
+  "supports_am": "true",
+  "config.num_scenarios": "1000",
+  "config.projection_years": "50",
+  "am_url": "https://am.example.com",
+  "am_token": "very...5678",
+  "cache_dir": "/tmp/cache"
+}
+```
+
+#### Execution Tracking
+
+```cpp
+// Log execution start
+logger.log_execution_start(ctx, input_size, output_size);
+
+// Execute engine
+ExecutionResult result = engine->runChunk(input_buffer, input_size,
+                                         output_buffer, output_size);
+
+// Log execution complete with metrics
+PerformanceMetrics metrics;
+metrics.init_time_ms = 100.0;
+metrics.load_time_ms = 200.0;
+metrics.compute_time_ms = 900.0;
+metrics.memory_used_mb = 512;
+
+logger.log_execution_complete(ctx, result, metrics);
+```
+
+**JSON Output (Success):**
+```json
+{
+  "timestamp": "2025-01-28 06:12:35.123",
+  "level": "INFO",
+  "event": "execution_complete",
+  "engine_id": "proj_1",
+  "engine_type": "projection",
+  "iteration": "5",
+  "phase": "compute",
+  "success": "true",
+  "execution_time_ms": "1234.5",
+  "rows_processed": "10000",
+  "bytes_written": "400000",
+  "init_time_ms": "100.0",
+  "load_time_ms": "200.0",
+  "compute_time_ms": "900.0",
+  "memory_used_mb": "512",
+  "throughput_rows_per_sec": "8100.0"
+}
+```
+
+**JSON Output (Failure):**
+```json
+{
+  "timestamp": "2025-01-28 06:12:35.456",
+  "level": "ERROR",
+  "event": "execution_complete",
+  "success": "false",
+  "execution_time_ms": "500.0",
+  "error": "Out of memory"
+}
+```
+
+#### Error Logging
+
+```cpp
+try {
+    // Engine execution
+} catch (const std::exception& e) {
+    logger.log_error(ctx, e.what(), stack_trace);
+}
+```
+
+**JSON Output:**
+```json
+{
+  "timestamp": "2025-01-28 06:12:36.789",
+  "level": "ERROR",
+  "event": "error",
+  "engine_id": "proj_1",
+  "error_message": "Solver did not converge",
+  "stack_trace": "..."
+}
+```
+
+#### Warning Logging
+
+```cpp
+if (execution_time_ms > threshold) {
+    logger.log_warning(ctx, "Execution time exceeded threshold");
+}
+```
+
+#### State Transitions
+
+```cpp
+logger.log_state_transition(ctx, EngineState::READY, EngineState::RUNNING);
+```
+
+**JSON Output:**
+```json
+{
+  "timestamp": "2025-01-28 06:12:37.123",
+  "level": "DEBUG",
+  "event": "state_transition",
+  "engine_id": "proj_1",
+  "old_state": "READY",
+  "new_state": "RUNNING"
+}
+```
+
+#### Assumptions Resolved
+
+```cpp
+logger.log_assumption_resolved(ctx, "mortality-standard", "v2.1", 242);
+```
+
+**JSON Output:**
+```json
+{
+  "timestamp": "2025-01-28 06:12:38.456",
+  "level": "INFO",
+  "event": "assumption_resolved",
+  "engine_id": "proj_1",
+  "assumption_name": "mortality-standard",
+  "resolved_version": "v2.1",
+  "rows_loaded": "242"
+}
+```
+
+#### Buffer Content Debugging
+
+```cpp
+// Only outputs if enable_buffer_dump = true and min_level = DEBUG
+logger.log_buffer_content(ctx, "input", input_buffer, input_size);
+```
+
+**JSON Output:**
+```json
+{
+  "timestamp": "2025-01-28 06:12:39.789",
+  "level": "DEBUG",
+  "event": "buffer_dump",
+  "engine_id": "proj_1",
+  "buffer_name": "input",
+  "buffer_size": "1024",
+  "dumped_bytes": "1024",
+  "hex_data": "000102030405060708090a0b0c0d0e0f...",
+  "truncated": "false"
+}
+```
+
+### Integration with EngineLifecycleManager
+
+The logger integrates seamlessly with the lifecycle manager:
+
+```cpp
+LoggerConfig log_config;
+log_config.min_level = LogLevel::INFO;
+log_config.enable_file = true;
+Logger::get_instance().configure(log_config);
+
+LifecycleConfig lifecycle_config;
+lifecycle_config.timeout_seconds = 300;
+
+EngineLifecycleManager manager(create_engine(), lifecycle_config);
+ExecutionContext ctx("proj_1", "projection");
+
+// Lifecycle events are automatically logged
+auto result = manager.run_chunk(ctx, input_buffer, input_size,
+                                output_buffer, output_size);
+
+// Check logs for execution details
+logger.flush();
+```
+
+### Security: Token Masking
+
+JWT tokens and other credentials are automatically masked in logs:
+
+```cpp
+// Input token: "very_long_secret_token_12345"
+// Logged as:   "very...2345"
+```
+
+Only the first 4 and last 4 characters are shown. Tokens shorter than 8 characters are replaced with `***`.
+
+### Example Output
+
+Complete example showing typical log sequence:
+
+```json
+{"timestamp":"2025-01-28 06:12:34.567","level":"INFO","event":"engine_init","engine_id":"proj_1","engine_type":"projection"}
+{"timestamp":"2025-01-28 06:12:34.890","level":"INFO","event":"assumption_resolved","assumption_name":"mortality-standard","resolved_version":"v2.1","rows_loaded":"242"}
+{"timestamp":"2025-01-28 06:12:35.012","level":"DEBUG","event":"state_transition","old_state":"READY","new_state":"RUNNING"}
+{"timestamp":"2025-01-28 06:12:35.123","level":"INFO","event":"execution_start","input_size_bytes":"1048576","output_size_bytes":"524288"}
+{"timestamp":"2025-01-28 06:12:36.357","level":"INFO","event":"execution_complete","success":"true","rows_processed":"10000","execution_time_ms":"1234.5","throughput_rows_per_sec":"8100.0"}
+{"timestamp":"2025-01-28 06:12:36.400","level":"DEBUG","event":"state_transition","old_state":"RUNNING","new_state":"READY"}
+```
+
+### Performance Considerations
+
+- **Low Overhead**: JSON formatting is efficient; minimal impact on execution time
+- **Buffered I/O**: Logs are buffered and flushed periodically
+- **Configurable Verbosity**: Set min_level to reduce output volume
+- **Buffer Dump Limits**: max_buffer_dump_bytes prevents excessive debug output
 
 ---
 
