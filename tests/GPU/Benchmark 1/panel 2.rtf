@@ -1,0 +1,149 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue255;\red255\green255\blue255;\red0\green0\blue0;
+\red86\green65\blue25;\red0\green0\blue109;\red19\green85\blue52;\red144\green1\blue18;\red131\green0\blue165;
+\red15\green112\blue1;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c100000;\cssrgb\c100000\c100000\c100000;\cssrgb\c0\c0\c0;
+\cssrgb\c41569\c32157\c12941;\cssrgb\c0\c6275\c50196;\cssrgb\c6667\c40000\c26667;\cssrgb\c63922\c8235\c8235;\cssrgb\c59216\c13725\c70588;
+\cssrgb\c0\c50196\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs28 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 def\cf0 \strokec4  \cf5 \strokec5 run_gpu_projection\cf0 \strokec4 (\cf6 \cb3 \strokec6 num_policies\cf0 \cb3 \strokec4 , \cf6 \cb3 \strokec6 num_scenarios\cf0 \cb3 \strokec4 , \cf6 \cb3 \strokec6 projection_years\cf0 \cb3 \strokec4 =\cf7 \strokec7 20\cf0 \strokec4 , \cf6 \cb3 \strokec6 monthly\cf0 \cb3 \strokec4 =\cf2 \strokec2 False\cf0 \strokec4 ):\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf0 \cb3     \cf8 \strokec8 """\cf0 \cb1 \strokec4 \
+\pard\pardeftab720\partightenfactor0
+\cf8 \cb3 \strokec8     Run LiveCalc projection on GPU with optional monthly granularity\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8     \cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8     Args:\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8         num_policies: Number of policies to project\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8         num_scenarios: Number of economic scenarios\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8         projection_years: Number of years to project\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8         monthly: If True, use monthly time steps (12x more expensive)\cf0 \cb1 \strokec4 \
+\cf8 \cb3 \strokec8     """\cf0 \cb1 \strokec4 \
+\pard\pardeftab720\partightenfactor0
+\cf0 \cb3     \cb1 \
+\cb3     time_steps = projection_years * \cf7 \strokec7 12\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  monthly \cf9 \strokec9 else\cf0 \strokec4  projection_years\cb1 \
+\cb3     step_label = \cf8 \strokec8 "monthly"\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  monthly \cf9 \strokec9 else\cf0 \strokec4  \cf8 \strokec8 "yearly"\cf0 \cb1 \strokec4 \
+\cb3     \cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "\\nRunning: \cf0 \strokec4 \{num_policies\cf7 \strokec7 :,\cf0 \strokec4 \}\cf8 \strokec8  policies \'d7 \cf0 \strokec4 \{num_scenarios\cf7 \strokec7 :,\cf0 \strokec4 \}\cf8 \strokec8  scenarios \'d7 \cf0 \strokec4 \{projection_years\}\cf8 \strokec8  years (\cf0 \strokec4 \{step_label\}\cf8 \strokec8 )"\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Time steps per projection: \cf0 \strokec4 \{time_steps\}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Generate test data matching your policy structure\cf0 \cb1 \strokec4 \
+\cb3     np.random.seed(\cf7 \strokec7 42\cf0 \strokec4 )\cb1 \
+\cb3     policies_age = np.random.randint(\cf7 \strokec7 25\cf0 \strokec4 , \cf7 \strokec7 65\cf0 \strokec4 , num_policies, dtype=np.uint8)\cb1 \
+\cb3     policies_term = np.full(num_policies, projection_years, dtype=np.uint8)\cb1 \
+\cb3     policies_sum_assured = np.random.uniform(\cf7 \strokec7 100_000\cf0 \strokec4 , \cf7 \strokec7 500_000\cf0 \strokec4 , num_policies).astype(np.float32)\cb1 \
+\cb3     policies_premium = (policies_sum_assured * \cf7 \strokec7 0.01\cf0 \strokec4 ).astype(np.float32)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Mortality table (simple Gompertz)\cf0 \cb1 \strokec4 \
+\cb3     mortality_table = np.array([\cb1 \
+\cb3         \cf5 \strokec5 min\cf0 \strokec4 (\cf7 \strokec7 0.001\cf0 \strokec4  * (\cf7 \strokec7 1.08\cf0 \strokec4  ** \cf5 \strokec5 max\cf0 \strokec4 (\cf7 \strokec7 0\cf0 \strokec4 , age - \cf7 \strokec7 30\cf0 \strokec4 )), \cf7 \strokec7 1.0\cf0 \strokec4 ) \cb1 \
+\cb3         \cf9 \strokec9 for\cf0 \strokec4  age \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (\cf7 \strokec7 121\cf0 \strokec4 )\cb1 \
+\cb3     ], dtype=np.float32)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Lapse table - now with monthly granularity option\cf0 \cb1 \strokec4 \
+\cb3     \cf9 \strokec9 if\cf0 \strokec4  monthly:\cb1 \
+\cb3         \cf10 \strokec10 # Convert to monthly lapse rates (1 - (1 - annual_rate)^(1/12))\cf0 \cb1 \strokec4 \
+\cb3         lapse_table = np.array([\cb1 \
+\cb3             \cf7 \strokec7 1\cf0 \strokec4  - (\cf7 \strokec7 1\cf0 \strokec4  - (\cf7 \strokec7 0.15\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  year == \cf7 \strokec7 0\cf0 \strokec4  \cf9 \strokec9 else\cf0 \strokec4  \cf7 \strokec7 0.10\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  year == \cf7 \strokec7 1\cf0 \strokec4  \cf9 \strokec9 else\cf0 \strokec4  \cf7 \strokec7 0.05\cf0 \strokec4 ))**(\cf7 \strokec7 1\cf0 \strokec4 /\cf7 \strokec7 12\cf0 \strokec4 )\cb1 \
+\cb3             \cf9 \strokec9 for\cf0 \strokec4  year \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (projection_years * \cf7 \strokec7 12\cf0 \strokec4 )\cb1 \
+\cb3         ], dtype=np.float32)\cb1 \
+\cb3     \cf9 \strokec9 else\cf0 \strokec4 :\cb1 \
+\cb3         lapse_table = np.array([\cb1 \
+\cb3             \cf7 \strokec7 0.15\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  year == \cf7 \strokec7 0\cf0 \strokec4  \cf9 \strokec9 else\cf0 \strokec4  \cf7 \strokec7 0.10\cf0 \strokec4  \cf9 \strokec9 if\cf0 \strokec4  year == \cf7 \strokec7 1\cf0 \strokec4  \cf9 \strokec9 else\cf0 \strokec4  \cf7 \strokec7 0.05\cf0 \cb1 \strokec4 \
+\cb3             \cf9 \strokec9 for\cf0 \strokec4  year \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (projection_years)\cb1 \
+\cb3         ], dtype=np.float32)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Scenario rates - extend to monthly if needed\cf0 \cb1 \strokec4 \
+\cb3     \cf9 \strokec9 if\cf0 \strokec4  monthly:\cb1 \
+\cb3         scenario_rates = np.zeros((num_scenarios, projection_years * \cf7 \strokec7 12\cf0 \strokec4 ), dtype=np.float32)\cb1 \
+\cb3         \cf9 \strokec9 for\cf0 \strokec4  s \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (num_scenarios):\cb1 \
+\cb3             \cf10 \strokec10 # Annual rates\cf0 \cb1 \strokec4 \
+\cb3             annual_rates = [\cf7 \strokec7 0.03\cf0 \strokec4 ]\cb1 \
+\cb3             \cf9 \strokec9 for\cf0 \strokec4  year \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (projection_years - \cf7 \strokec7 1\cf0 \strokec4 ):\cb1 \
+\cb3                 annual_rates.append(\cf5 \strokec5 max\cf0 \strokec4 (\cf7 \strokec7 0.001\cf0 \strokec4 , annual_rates[\cf7 \strokec7 -1\cf0 \strokec4 ] + np.random.normal(\cf7 \strokec7 0\cf0 \strokec4 , \cf7 \strokec7 0.005\cf0 \strokec4 )))\cb1 \
+\cb3             \cb1 \
+\cb3             \cf10 \strokec10 # Convert to monthly (approximate)\cf0 \cb1 \strokec4 \
+\cb3             \cf9 \strokec9 for\cf0 \strokec4  year \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (projection_years):\cb1 \
+\cb3                 monthly_rate = annual_rates[year] / \cf7 \strokec7 12\cf0 \cb1 \strokec4 \
+\cb3                 \cf9 \strokec9 for\cf0 \strokec4  month \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (\cf7 \strokec7 12\cf0 \strokec4 ):\cb1 \
+\cb3                     scenario_rates[s, year * \cf7 \strokec7 12\cf0 \strokec4  + month] = monthly_rate\cb1 \
+\cb3     \cf9 \strokec9 else\cf0 \strokec4 :\cb1 \
+\cb3         scenario_rates = np.zeros((num_scenarios, projection_years), dtype=np.float32)\cb1 \
+\cb3         \cf9 \strokec9 for\cf0 \strokec4  s \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (num_scenarios):\cb1 \
+\cb3             rates = [\cf7 \strokec7 0.03\cf0 \strokec4 ]\cb1 \
+\cb3             \cf9 \strokec9 for\cf0 \strokec4  year \cf2 \strokec2 in\cf0 \strokec4  \cf5 \strokec5 range\cf0 \strokec4 (projection_years - \cf7 \strokec7 1\cf0 \strokec4 ):\cb1 \
+\cb3                 rates.append(\cf5 \strokec5 max\cf0 \strokec4 (\cf7 \strokec7 0.001\cf0 \strokec4 , rates[\cf7 \strokec7 -1\cf0 \strokec4 ] + np.random.normal(\cf7 \strokec7 0\cf0 \strokec4 , \cf7 \strokec7 0.005\cf0 \strokec4 )))\cb1 \
+\cb3             scenario_rates[s, :] = rates\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Expense parameters\cf0 \cb1 \strokec4 \
+\cb3     first_year_expense_rate = \cf7 \strokec7 0.50\cf0 \cb1 \strokec4 \
+\cb3     renewal_expense_rate = \cf7 \strokec7 0.05\cf0 \cb1 \strokec4 \
+\cb3     claim_expense = \cf7 \strokec7 100.0\cf0 \cb1 \strokec4 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Output array\cf0 \cb1 \strokec4 \
+\cb3     results = np.zeros((num_policies, num_scenarios), dtype=np.float32)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf8 \strokec8 "Copying data to GPU..."\cf0 \strokec4 )\cb1 \
+\cb3     \cf10 \strokec10 # Copy to GPU\cf0 \cb1 \strokec4 \
+\cb3     d_policies_age = cuda.to_device(policies_age)\cb1 \
+\cb3     d_policies_term = cuda.to_device(policies_term)\cb1 \
+\cb3     d_policies_sum = cuda.to_device(policies_sum_assured)\cb1 \
+\cb3     d_policies_prem = cuda.to_device(policies_premium)\cb1 \
+\cb3     d_mortality = cuda.to_device(mortality_table)\cb1 \
+\cb3     d_lapse = cuda.to_device(lapse_table)\cb1 \
+\cb3     d_scenarios = cuda.to_device(scenario_rates)\cb1 \
+\cb3     d_results = cuda.to_device(results)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Configure grid\cf0 \cb1 \strokec4 \
+\cb3     threads_per_block = (\cf7 \strokec7 16\cf0 \strokec4 , \cf7 \strokec7 16\cf0 \strokec4 )\cb1 \
+\cb3     blocks_x = (num_policies + threads_per_block[\cf7 \strokec7 0\cf0 \strokec4 ] - \cf7 \strokec7 1\cf0 \strokec4 ) // threads_per_block[\cf7 \strokec7 0\cf0 \strokec4 ]\cb1 \
+\cb3     blocks_y = (num_scenarios + threads_per_block[\cf7 \strokec7 1\cf0 \strokec4 ] - \cf7 \strokec7 1\cf0 \strokec4 ) // threads_per_block[\cf7 \strokec7 1\cf0 \strokec4 ]\cb1 \
+\cb3     blocks_per_grid = (blocks_x, blocks_y)\cb1 \
+\cb3     \cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Grid config: \cf0 \strokec4 \{blocks_per_grid\}\cf8 \strokec8  blocks \'d7 \cf0 \strokec4 \{threads_per_block\}\cf8 \strokec8  threads"\cf0 \strokec4 )\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Warm-up run\cf0 \cb1 \strokec4 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf8 \strokec8 "Warming up (kernel compilation)..."\cf0 \strokec4 )\cb1 \
+\cb3     livecalc_projection_kernel[blocks_per_grid, threads_per_block](\cb1 \
+\cb3         d_policies_age, d_policies_term, d_policies_sum, d_policies_prem,\cb1 \
+\cb3         d_mortality, d_lapse, d_scenarios,\cb1 \
+\cb3         first_year_expense_rate, renewal_expense_rate, claim_expense,\cb1 \
+\cb3         d_results, monthly\cb1 \
+\cb3     )\cb1 \
+\cb3     cuda.synchronize()\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Timed run\cf0 \cb1 \strokec4 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf8 \strokec8 "Running timed benchmark..."\cf0 \strokec4 )\cb1 \
+\cb3     start = time.perf_counter()\cb1 \
+\cb3     livecalc_projection_kernel[blocks_per_grid, threads_per_block](\cb1 \
+\cb3         d_policies_age, d_policies_term, d_policies_sum, d_policies_prem,\cb1 \
+\cb3         d_mortality, d_lapse, d_scenarios,\cb1 \
+\cb3         first_year_expense_rate, renewal_expense_rate, claim_expense,\cb1 \
+\cb3         d_results, monthly\cb1 \
+\cb3     )\cb1 \
+\cb3     cuda.synchronize()\cb1 \
+\cb3     elapsed = time.perf_counter() - start\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Copy results back\cf0 \cb1 \strokec4 \
+\cb3     results = d_results.copy_to_host()\cb1 \
+\cb3     \cb1 \
+\cb3     \cf10 \strokec10 # Calculate metrics - count actual calculations (time_steps per projection)\cf0 \cb1 \strokec4 \
+\cb3     total_calculations = num_policies * num_scenarios * time_steps\cb1 \
+\cb3     throughput = total_calculations / elapsed\cb1 \
+\cb3     \cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "\\n\cf0 \strokec4 \{\cf8 \strokec8 '='\cf0 \strokec4 *\cf7 \strokec7 60\cf0 \strokec4 \}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "RESULTS"\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "\cf0 \strokec4 \{\cf8 \strokec8 '='\cf0 \strokec4 *\cf7 \strokec7 60\cf0 \strokec4 \}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Time:              \cf0 \strokec4 \{elapsed\cf7 \strokec7 :.4f\cf0 \strokec4 \}\cf8 \strokec8  seconds"\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Total calculations: \cf0 \strokec4 \{total_calculations\cf7 \strokec7 :,\cf0 \strokec4 \}\cf8 \strokec8  (\cf0 \strokec4 \{total_calculations/\cf7 \strokec7 1e9:.2f\cf0 \strokec4 \}\cf8 \strokec8 B)"\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Throughput:        \cf0 \strokec4 \{throughput/\cf7 \strokec7 1e6:.1f\cf0 \strokec4 \}\cf8 \strokec8 M calculations/sec"\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Sample NPV:        \'a3\cf0 \strokec4 \{results[\cf7 \strokec7 0\cf0 \strokec4 , \cf7 \strokec7 0\cf0 \strokec4 ]\cf7 \strokec7 :,.2f\cf0 \strokec4 \}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     \cf5 \strokec5 print\cf0 \strokec4 (\cf2 \strokec2 f\cf8 \strokec8 "Mean NPV:          \'a3\cf0 \strokec4 \{results.mean()\cf7 \strokec7 :,.2f\cf0 \strokec4 \}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     \cb1 \
+\cb3     \cf9 \strokec9 return\cf0 \strokec4  elapsed, throughput, results\cb1 \
+\
+}

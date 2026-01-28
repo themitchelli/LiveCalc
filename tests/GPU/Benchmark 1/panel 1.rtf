@@ -1,0 +1,40 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fmodern\fcharset0 Courier;}
+{\colortbl;\red255\green255\blue255;\red15\green112\blue1;\red255\green255\blue255;\red0\green0\blue0;
+\red0\green0\blue255;\red131\green0\blue165;\red86\green65\blue25;\red144\green1\blue18;\red19\green85\blue52;
+}
+{\*\expandedcolortbl;;\cssrgb\c0\c50196\c0;\cssrgb\c100000\c100000\c100000;\cssrgb\c0\c0\c0;
+\cssrgb\c0\c0\c100000;\cssrgb\c59216\c13725\c70588;\cssrgb\c41569\c32157\c12941;\cssrgb\c63922\c8235\c8235;\cssrgb\c6667\c40000\c26667;
+}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs28 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 # Install Numba for CUDA support\cf0 \cb1 \strokec4 \
+\pard\pardeftab720\partightenfactor0
+\cf5 \cb3 \strokec5 !\cf0 \strokec4 pip install numba -q\cb1 \
+\
+\pard\pardeftab720\partightenfactor0
+\cf2 \cb3 \strokec2 # Check GPU availability\cf0 \cb1 \strokec4 \
+\pard\pardeftab720\partightenfactor0
+\cf6 \cb3 \strokec6 import\cf0 \strokec4  numpy \cf6 \strokec6 as\cf0 \strokec4  np\cb1 \
+\cf6 \cb3 \strokec6 from\cf0 \strokec4  numba \cf6 \strokec6 import\cf0 \strokec4  cuda\cb1 \
+\cf6 \cb3 \strokec6 import\cf0 \strokec4  time\cb1 \
+\
+\pard\pardeftab720\partightenfactor0
+\cf7 \cb3 \strokec7 print\cf0 \strokec4 (\cf8 \strokec8 "="\cf0 \strokec4 *\cf9 \strokec9 60\cf0 \strokec4 )\cb1 \
+\cf7 \cb3 \strokec7 print\cf0 \strokec4 (\cf8 \strokec8 "GPU AVAILABILITY CHECK"\cf0 \strokec4 )\cb1 \
+\cf7 \cb3 \strokec7 print\cf0 \strokec4 (\cf8 \strokec8 "="\cf0 \strokec4 *\cf9 \strokec9 60\cf0 \strokec4 )\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf6 \cb3 \strokec6 if\cf0 \strokec4  cuda.is_available():\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf0 \cb3     \cf7 \strokec7 print\cf0 \strokec4 (\cf5 \strokec5 f\cf8 \strokec8 "\uc0\u10003  CUDA available"\cf0 \strokec4 )\cb1 \
+\cb3     \cf7 \strokec7 print\cf0 \strokec4 (\cf5 \strokec5 f\cf8 \strokec8 "\uc0\u10003  GPU: \cf0 \strokec4 \{cuda.get_current_device().name.decode()\}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\cb3     cc = cuda.get_current_device().compute_capability\cb1 \
+\cb3     \cf7 \strokec7 print\cf0 \strokec4 (\cf5 \strokec5 f\cf8 \strokec8 "\uc0\u10003  Compute Capability: \cf0 \strokec4 \{cc[\cf9 \strokec9 0\cf0 \strokec4 ]\}\cf8 \strokec8 .\cf0 \strokec4 \{cc[\cf9 \strokec9 1\cf0 \strokec4 ]\}\cf8 \strokec8 "\cf0 \strokec4 )\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf6 \cb3 \strokec6 else\cf0 \strokec4 :\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf0 \cb3     \cf7 \strokec7 print\cf0 \strokec4 (\cf8 \strokec8 "\uc0\u10007  No GPU available - check Runtime \u8594  Change runtime type \u8594  GPU"\cf0 \strokec4 )\cb1 \
+}

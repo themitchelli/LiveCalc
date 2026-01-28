@@ -1,0 +1,23 @@
+# LiveCalc GPU Engine Requirements
+#
+# Install with: pip install -r requirements.txt
+#
+# Note: CuPy installation depends on your CUDA version
+# See: https://docs.cupy.dev/en/stable/install.html
+
+# Core dependencies
+numpy>=1.24.0
+numba>=0.58.0
+cupy-cuda11x>=12.0.0  # Use cupy-cuda12x for CUDA 12.x
+
+# Testing
+pytest>=7.4.0
+pytest-benchmark>=4.0.0
+
+# Optional: for data loading
+pandas>=2.0.0
+pyarrow>=13.0.0  # For Parquet support
+
+# Optional: for visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0

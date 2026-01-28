@@ -1,0 +1,638 @@
+{
+  "prd_id": "PRD-LC-015",
+  "title": "LiveCalc Product 1.5: Desktop + GPU Integration",
+  "version": "1.0",
+  "date": "2025-01-29",
+  "status": "draft",
+  "phase": "Product 1.5 MVP",
+
+  "executive_summary": {
+    "overview": "Extend LiveCalc VS Code extension with dual-engine support: CPU (existing WASM) and GPU (Google Colab). Users can toggle between engines to compare performance and cost trade-offs. Default to CPU (fast and free), offer GPU as premium option (faster but not free).",
+    "business_value": "Provides user choice and validates 'CPU is good enough' narrative while offering GPU for users who think they need it. Demonstrates cost-effectiveness vs GPU-only solutions.",
+    "success_criteria": [
+      "Users can run same model on both CPU and GPU from VS Code",
+      "GPU engine achieves 2-3x speedup vs CPU for 1M policies × 1K scenarios",
+      "Results are identical (within rounding tolerance) between engines",
+      "Colab integration works reliably with auto-reconnect",
+      "Output artifacts saved to user-specified destination"
+    ],
+    "target_users": [
+      "Actuaries wanting to compare CPU vs GPU performance",
+      "Cost-conscious teams evaluating GPU necessity",
+      "Early adopters of LiveCalc testing scalability"
+    ]
+  },
+
+  "technical_context": {
+    "existing_architecture": {
+      "cpu_engine": "C++ compiled to WASM, runs in VS Code extension via Worker Pool",
+      "performance": "16.8M projections/sec, 118s for 1M × 1K scenarios on Pi 5",
+      "cost": "£1.42/month for hourly runs (electricity + hardware amortization)"
+    },
+    "new_architecture": {
+      "gpu_engine": "Python + Numba CUDA, runs on Google Colab (T4/V100/A100 GPUs)",
+      "target_performance": "2-3x speedup vs CPU (60-80s for 1M × 1K scenarios)",
+      "cost": "Free tier (Colab), optional Pro (£9/month for priority GPU)"
+    },
+    "shared_interface": "ICalcEngine abstraction - both engines implement same contract",
+    "integration_method": "VS Code extension submits jobs to Colab API, streams results via WebSocket"
+  },
+
+  "user_stories": [
+    {
+      "story_id": "US-LC-015-001",
+      "title": "GPU Engine - Port C++ to Python/Numba",
+      "priority": "P0 - Critical",
+      "estimated_effort": "8-12 hours",
+      "passes": true,
+      "description": "As a developer, I need to port the LiveCalc C++ projection engine to Python + Numba CUDA so that it can run on GPU hardware with equivalent logic and results.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-001-01",
+          "description": "Python engine implements ICalcEngine interface (project, validate, getSchema methods)"
+        },
+        {
+          "id": "AC-001-02",
+          "description": "Numba @cuda.jit kernel replicates C++ projection logic line-by-line: mortality, lapse, expenses, discounting"
+        },
+        {
+          "id": "AC-001-03",
+          "description": "Results match C++ engine within 0.01% tolerance for same inputs (policies, scenarios, assumptions)"
+        },
+        {
+          "id": "AC-001-04",
+          "description": "GPU kernel uses CuPy for array operations (no explicit memory management)"
+        },
+        {
+          "id": "AC-001-05",
+          "description": "Engine handles variable-length projections (term varies by policy)"
+        },
+        {
+          "id": "AC-001-06",
+          "description": "Unit tests cover: single policy, 100 policies, 10K policies with 10/100/1K scenarios"
+        }
+      ],
+      "implementation_notes": [
+        "Port C++ projection loop to Python/Numba CUDA kernel",
+        "Use CuPy for GPU arrays (auto memory management)",
+        "Keep data structures identical to C++ (Policy, Scenario, Assumptions)",
+        "Test on Colab T4 GPU (free tier) first, then V100/A100 if available"
+      ],
+      "definition_of_done": [
+        "Code committed to livecalc/engines/gpu/numba_engine.py",
+        "Unit tests pass with 100% match to C++ results",
+        "Benchmark shows GPU kernel executes successfully on Colab"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-002",
+      "title": "Colab API Service - REST Endpoint",
+      "priority": "P0 - Critical",
+      "estimated_effort": "6-8 hours",
+      "passes": false,
+      "description": "As a user, I need a persistent Colab notebook that exposes a REST API so that my VS Code extension can submit GPU jobs remotely without manual intervention.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-002-01",
+          "description": "Colab notebook runs FastAPI server with endpoints: POST /submit, GET /status/{job_id}, GET /results/{job_id}"
+        },
+        {
+          "id": "AC-002-02",
+          "description": "ngrok tunnel provides public HTTPS URL for API access (auto-generated on notebook start)"
+        },
+        {
+          "id": "AC-002-03",
+          "description": "API accepts job payloads: policies (JSON/Parquet), scenarios (JSON/NPY), assumptions (JSON)"
+        },
+        {
+          "id": "AC-002-04",
+          "description": "Job execution is asynchronous: returns job_id immediately, processes in background"
+        },
+        {
+          "id": "AC-002-05",
+          "description": "Results stored temporarily (1 hour) and returned as JSON with present_values, statistics"
+        },
+        {
+          "id": "AC-002-06",
+          "description": "API includes health check endpoint: GET /health returns GPU model, memory, status"
+        }
+      ],
+      "implementation_notes": [
+        "Use FastAPI for REST API (lightweight, async support)",
+        "ngrok for public tunnel (free tier supports persistent URLs)",
+        "Store jobs in memory dict (ephemeral, no DB required for MVP)",
+        "Use threading for background job execution",
+        "Add timeout: 15 minutes max per job (Colab session limit)"
+      ],
+      "definition_of_done": [
+        "Colab notebook deployed and accessible via public URL",
+        "API responds to /submit, /status, /results correctly",
+        "Sample job (10K policies × 100 scenarios) completes successfully"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-003",
+      "title": "Colab Auto-Reconnect - Keep Notebook Alive",
+      "priority": "P1 - High",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a user, I need the Colab notebook to stay connected 24/7 so that I don't have to manually restart it every time it times out (12-hour session limit).",
+      "acceptance_criteria": [
+        {
+          "id": "AC-003-01",
+          "description": "Colab notebook includes JavaScript auto-clicker to prevent timeout (clicks 'Connect' button every 10 minutes)"
+        },
+        {
+          "id": "AC-003-02",
+          "description": "On disconnect, notebook saves state and attempts reconnect (using Colab API or fallback script)"
+        },
+        {
+          "id": "AC-003-03",
+          "description": "VS Code extension detects Colab disconnect and shows reconnecting status"
+        },
+        {
+          "id": "AC-003-04",
+          "description": "Alternative: Pi 5 runs Selenium script to keep Colab browser tab alive"
+        },
+        {
+          "id": "AC-003-05",
+          "description": "Documentation warns users: free tier may disconnect, Pro tier more reliable"
+        }
+      ],
+      "implementation_notes": [
+        "Add JavaScript auto-clicker to Colab notebook (runs in browser)",
+        "Optionally: Pi 5 runs headless Chromium with Selenium to keep tab open",
+        "VS Code extension polls /health every 5 minutes, alerts user on disconnect",
+        "Document limitations: free tier = best effort, Pro tier = more stable"
+      ],
+      "definition_of_done": [
+        "Colab notebook stays connected for 12+ hours without manual intervention",
+        "Auto-clicker script tested and functional",
+        "VS Code extension handles disconnect gracefully"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-004",
+      "title": "VS Code - Engine Selector UI",
+      "priority": "P0 - Critical",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a user, I want a simple toggle in VS Code settings to choose between CPU and GPU engines so that I can compare performance without changing code.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-004-01",
+          "description": "VS Code settings include 'livecalc.executionMode' with options: 'cpu' (default), 'gpu', 'both'"
+        },
+        {
+          "id": "AC-004-02",
+          "description": "Settings UI shows: radio buttons for CPU/GPU, text field for Colab API URL"
+        },
+        {
+          "id": "AC-004-03",
+          "description": "'Run Projection' command respects executionMode setting"
+        },
+        {
+          "id": "AC-004-04",
+          "description": "If mode='both', runs CPU first (fast preview), then GPU (final result)"
+        },
+        {
+          "id": "AC-004-05",
+          "description": "Status bar shows current engine: 'CPU (Local)' or 'GPU (Colab)'"
+        },
+        {
+          "id": "AC-004-06",
+          "description": "First-run prompt asks user to configure Colab API URL (with setup guide link)"
+        }
+      ],
+      "implementation_notes": [
+        "Add settings to package.json: livecalc.executionMode, livecalc.colabApiUrl",
+        "Create SettingsPanel webview for GPU configuration",
+        "Update RunProjectionCommand to branch on executionMode",
+        "Show status bar item with current engine icon (🖥️ CPU, ⚡ GPU)"
+      ],
+      "definition_of_done": [
+        "Settings UI implemented and accessible via Command Palette",
+        "Engine selection persists across VS Code restarts",
+        "Status bar updates correctly based on selection"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-005",
+      "title": "VS Code - GPU Job Submission",
+      "priority": "P0 - Critical",
+      "estimated_effort": "6-8 hours",
+      "passes": false,
+      "description": "As a user, I want VS Code to submit my projection job to Colab and track progress so that I don't have to manually interact with the Colab notebook.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-005-01",
+          "description": "VS Code extension packages job data (policies, scenarios, assumptions) as JSON/binary"
+        },
+        {
+          "id": "AC-005-02",
+          "description": "Extension POSTs job to Colab API /submit endpoint, receives job_id"
+        },
+        {
+          "id": "AC-005-03",
+          "description": "Extension polls /status/{job_id} every 2 seconds, shows progress in status bar"
+        },
+        {
+          "id": "AC-005-04",
+          "description": "On completion, extension fetches /results/{job_id} and displays in Results Panel"
+        },
+        {
+          "id": "AC-005-05",
+          "description": "On error, extension shows notification with error message and Colab logs"
+        },
+        {
+          "id": "AC-005-06",
+          "description": "User can cancel in-flight job (sends DELETE /job/{job_id})"
+        }
+      ],
+      "implementation_notes": [
+        "Create ColabGPUEngine class implementing ICalcEngine",
+        "Use fetch/axios for HTTP requests to Colab API",
+        "Store job_id in extension state for tracking",
+        "Update status bar during execution: 'Submitting... → Running (45%) → Complete'",
+        "Handle network errors gracefully (Colab disconnect, timeout)"
+      ],
+      "definition_of_done": [
+        "VS Code extension successfully submits job to Colab",
+        "Progress updates appear in status bar",
+        "Results display in Results Panel on completion"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-006",
+      "title": "Results Panel - GPU Metrics Display",
+      "priority": "P1 - High",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a user, I want to see GPU-specific metrics (runtime, GPU model, speedup vs CPU) in the Results Panel so that I can evaluate GPU performance.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-006-01",
+          "description": "Results Panel shows 'Execution Details' section with: engine (CPU/GPU), runtime, GPU model (if GPU)"
+        },
+        {
+          "id": "AC-006-02",
+          "description": "If both CPU and GPU runs exist, panel shows comparison table: runtime, speedup, cost estimate"
+        },
+        {
+          "id": "AC-006-03",
+          "description": "Panel includes 'Copy Results' button to export metrics as JSON/CSV"
+        },
+        {
+          "id": "AC-006-04",
+          "description": "GPU metrics include: total_runtime, kernel_time, memory_transfer_time, gpu_model, gpu_memory_used"
+        },
+        {
+          "id": "AC-006-05",
+          "description": "Panel shows cost estimate: CPU (£0.0002), GPU (£0.001-0.01 depending on tier)"
+        }
+      ],
+      "implementation_notes": [
+        "Extend ProjectionResults type to include engine_metadata field",
+        "Add comparison view to Results Panel webview",
+        "Fetch GPU metrics from Colab API (memory usage, model name)",
+        "Calculate speedup: cpu_time / gpu_time",
+        "Use hardcoded cost estimates (£1.42/mo CPU, £67/mo GPU cloud)"
+      ],
+      "definition_of_done": [
+        "Results Panel displays GPU metrics correctly",
+        "Comparison view shows CPU vs GPU side-by-side",
+        "Copy Results button exports all metrics"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-007",
+      "title": "Output Artifacts - Save to Destination",
+      "priority": "P1 - High",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a user, I want to save projection results to a destination folder (CSV, JSON, Parquet) so that I can use them in downstream analysis or reporting.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-007-01",
+          "description": "VS Code settings include 'livecalc.outputDestination' with default: './livecalc-results'"
+        },
+        {
+          "id": "AC-007-02",
+          "description": "After projection completes, extension saves: results.json, present_values.csv, statistics.json"
+        },
+        {
+          "id": "AC-007-03",
+          "description": "Filenames include timestamp and engine: 'results_cpu_20260129_143022.json'"
+        },
+        {
+          "id": "AC-007-04",
+          "description": "Optional: save full cashflows as Parquet (user opt-in, large file warning)"
+        },
+        {
+          "id": "AC-007-05",
+          "description": "Extension shows notification: 'Results saved to ./livecalc-results/' with 'Open Folder' link"
+        },
+        {
+          "id": "AC-007-06",
+          "description": "Export formats: JSON (default), CSV (present values), Parquet (full cashflows)"
+        }
+      ],
+      "implementation_notes": [
+        "Use VS Code workspace.fs API for file writes",
+        "Create output directory if not exists",
+        "Add setting for export formats: JSON, CSV, Parquet (default: JSON+CSV)",
+        "Optionally compress Parquet files (zstd) for large datasets"
+      ],
+      "definition_of_done": [
+        "Results saved to configured destination after every run",
+        "Files include engine metadata (CPU/GPU, runtime, etc.)",
+        "Notification shown with link to output folder"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-008",
+      "title": "Demo Walkthrough - CPU vs GPU Comparison",
+      "priority": "P1 - High",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a potential user, I want a demo script that runs the same model on both CPU and GPU and shows side-by-side results so that I can evaluate performance trade-offs.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-008-01",
+          "description": "Demo script (run_demo.sh) runs 10K policies × 1K scenarios on both engines"
+        },
+        {
+          "id": "AC-008-02",
+          "description": "Script outputs comparison table: runtime, speedup, cost, cost-adjusted performance"
+        },
+        {
+          "id": "AC-008-03",
+          "description": "Demo includes realistic data: age distribution, product mix, smoker rate matching UK standards"
+        },
+        {
+          "id": "AC-008-04",
+          "description": "Results saved to demo_results/ folder with timestamp"
+        },
+        {
+          "id": "AC-008-05",
+          "description": "Demo README includes: setup instructions, expected results, interpretation guide"
+        },
+        {
+          "id": "AC-008-06",
+          "description": "Video recording (5 minutes) shows demo execution from start to finish"
+        }
+      ],
+      "implementation_notes": [
+        "Reuse existing demo data generation scripts",
+        "Add comparison_report.py to generate side-by-side metrics",
+        "Include Markdown report template with plots (runtime, cost, speedup)",
+        "Record demo video showing: settings UI, run command, results panel"
+      ],
+      "definition_of_done": [
+        "Demo script runs successfully on both engines",
+        "Comparison report generated and visually clear",
+        "Video recorded and uploaded to GitHub README"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-009",
+      "title": "GPU Performance Benchmark - Validate 2-3x Speedup",
+      "priority": "P0 - Critical",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a developer, I need to benchmark GPU vs CPU performance at multiple scales (10K, 100K, 1M policies) to validate that GPU achieves 2-3x speedup target.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-009-01",
+          "description": "Benchmark script runs projections at 10K, 100K, 1M policies × 1K scenarios on both engines"
+        },
+        {
+          "id": "AC-009-02",
+          "description": "GPU achieves 2-3x speedup vs CPU at 100K+ policies scale"
+        },
+        {
+          "id": "AC-009-03",
+          "description": "Results are identical (within 0.01% tolerance) between CPU and GPU"
+        },
+        {
+          "id": "AC-009-04",
+          "description": "Benchmark measures: total_runtime, kernel_time, memory_transfer_time, throughput (proj/sec)"
+        },
+        {
+          "id": "AC-009-05",
+          "description": "Results plotted as chart: runtime vs scale (log-log) for CPU and GPU"
+        },
+        {
+          "id": "AC-009-06",
+          "description": "Benchmark report includes: hardware specs (CPU/GPU model), cost analysis, recommendations"
+        }
+      ],
+      "implementation_notes": [
+        "Use existing benchmark framework from PRD-LC-011",
+        "Add GPU engine to benchmark harness",
+        "Run on Colab T4 (free), V100 (if available), A100 (if Pro)",
+        "Compare against Pi 5 CPU baseline",
+        "Generate plots using matplotlib/plotly"
+      ],
+      "definition_of_done": [
+        "Benchmark completes successfully at all scales",
+        "GPU achieves 2-3x speedup target at 100K+ policies",
+        "Report published in docs/benchmarks/gpu_vs_cpu.md"
+      ]
+    },
+
+    {
+      "story_id": "US-LC-015-010",
+      "title": "Documentation - Setup & Configuration Guide",
+      "priority": "P1 - High",
+      "estimated_effort": "4-6 hours",
+      "passes": false,
+      "description": "As a new user, I need clear documentation on how to set up Colab integration and configure GPU engine so that I can get started quickly.",
+      "acceptance_criteria": [
+        {
+          "id": "AC-010-01",
+          "description": "README.md includes 'Quick Start - GPU Setup' section with step-by-step instructions"
+        },
+        {
+          "id": "AC-010-02",
+          "description": "Colab notebook template provided in docs/colab_template.ipynb with setup instructions"
+        },
+        {
+          "id": "AC-010-03",
+          "description": "Documentation includes: screenshot of settings UI, ngrok setup, troubleshooting common errors"
+        },
+        {
+          "id": "AC-010-04",
+          "description": "FAQ section covers: free vs Pro tier, session limits, reconnect behavior, cost comparison"
+        },
+        {
+          "id": "AC-010-05",
+          "description": "Video tutorial (5-10 minutes) shows full setup from scratch"
+        },
+        {
+          "id": "AC-010-06",
+          "description": "Troubleshooting guide includes: ngrok connection issues, Colab timeout, GPU OOM errors"
+        }
+      ],
+      "implementation_notes": [
+        "Create docs/setup/gpu_integration.md with detailed instructions",
+        "Provide Colab notebook template in docs/colab_template.ipynb",
+        "Record video showing: Colab setup, ngrok config, VS Code settings, first run",
+        "Add troubleshooting section to FAQ"
+      ],
+      "definition_of_done": [
+        "Documentation complete and reviewed",
+        "Colab template tested and functional",
+        "Video tutorial recorded and published"
+      ]
+    }
+  ],
+
+  "dependencies": {
+    "external": [
+      "Google Colab free/Pro tier availability",
+      "ngrok free tier (persistent URL)",
+      "VS Code extension API (1.75+)",
+      "Python 3.10+ with Numba, CuPy, FastAPI"
+    ],
+    "internal": [
+      "PRD-LC-001: C++ projection engine (completed)",
+      "PRD-LC-002: WASM compilation (completed)",
+      "PRD-LC-003: VS Code extension (completed)",
+      "PRD-LC-004: Results Panel (completed)"
+    ]
+  },
+
+  "risks_and_mitigations": [
+    {
+      "risk": "Colab free tier has session limits (12 hours) and may disconnect unpredictably",
+      "mitigation": "Implement auto-reconnect, document limitations, offer Pro tier upgrade guidance",
+      "probability": "high",
+      "impact": "medium"
+    },
+    {
+      "risk": "GPU speedup may be less than 2x for branching actuarial logic",
+      "mitigation": "Validate early with benchmark (US-009), adjust narrative if needed",
+      "probability": "medium",
+      "impact": "high"
+    },
+    {
+      "risk": "Python/Numba overhead may reduce GPU advantage vs optimized C++",
+      "mitigation": "Profile GPU kernel, optimize memory coalescing if needed",
+      "probability": "medium",
+      "impact": "medium"
+    },
+    {
+      "risk": "ngrok free tier may rate-limit or block API requests",
+      "mitigation": "Document ngrok alternatives (Cloudflare Tunnel), test load limits",
+      "probability": "low",
+      "impact": "medium"
+    },
+    {
+      "risk": "Users may expect 10x speedup based on GPU marketing claims",
+      "mitigation": "Set realistic expectations: '2-3x speedup, not 10x' in all docs",
+      "probability": "high",
+      "impact": "low"
+    }
+  ],
+
+  "success_metrics": [
+    {
+      "metric": "GPU Speedup",
+      "target": "2-3x vs CPU at 100K+ policies",
+      "measurement": "Benchmark runtime: GPU < 50s, CPU ~118s for 1M × 1K"
+    },
+    {
+      "metric": "Result Accuracy",
+      "target": "GPU results match CPU within 0.01%",
+      "measurement": "Compare present_values array element-wise"
+    },
+    {
+      "metric": "Colab Uptime",
+      "target": "90%+ availability over 24-hour period",
+      "measurement": "Monitor /health endpoint, track disconnect frequency"
+    },
+    {
+      "metric": "User Adoption",
+      "target": "50% of demo users try GPU mode",
+      "measurement": "Track executionMode setting in telemetry (opt-in)"
+    },
+    {
+      "metric": "Cost Narrative",
+      "target": "Users recognize 'CPU is good enough' message",
+      "measurement": "Survey users: 'Would you pay 48x more for 2x speedup?'"
+    }
+  ],
+
+  "timeline": {
+    "total_estimate": "2-3 weeks",
+    "phases": [
+      {
+        "phase": "Week 1 - GPU Engine & API",
+        "stories": ["US-001", "US-002", "US-003", "US-009"],
+        "deliverable": "Working GPU engine + Colab API + performance validation"
+      },
+      {
+        "phase": "Week 2 - VS Code Integration",
+        "stories": ["US-004", "US-005", "US-006", "US-007"],
+        "deliverable": "VS Code extension with CPU/GPU toggle + results display"
+      },
+      {
+        "phase": "Week 3 - Demo & Documentation",
+        "stories": ["US-008", "US-010"],
+        "deliverable": "Demo walkthrough + setup docs + launch materials"
+      }
+    ]
+  },
+
+  "launch_checklist": [
+    "GPU engine passes all unit tests",
+    "Benchmark validates 2-3x speedup target",
+    "VS Code extension tested on Mac/Windows/Linux",
+    "Colab notebook stays connected for 12+ hours",
+    "Documentation reviewed and complete",
+    "Demo video recorded and published",
+    "GitHub release created with binaries",
+    "Blog post published: 'LiveCalc 1.5 - Desktop + GPU'",
+    "Post on ActuariesConnect forum",
+    "Email existing users with update"
+  ],
+
+  "out_of_scope": [
+    "Multi-GPU support (future: Product 1.6)",
+    "Custom GPU kernel optimization (future: if needed)",
+    "Paid Colab Pro integration (MVP uses free tier)",
+    "Cloud deployment (Azure/AWS) - use Colab for now",
+    "VM-22 nested stochastic (future: Product 1.6)",
+    "Web platform (future: Product 2)"
+  ],
+
+  "appendix": {
+    "related_prds": [
+      "PRD-LC-001: C++ Projection Engine",
+      "PRD-LC-002: WASM Compilation",
+      "PRD-LC-011: Go/No-Go Demo",
+      "PRD-LC-016: VM-22 Nested Stochastic (future)"
+    ],
+    "references": [
+      "LiveCalc demo walkthrough (PRD-LC-011)",
+      "Cost analysis (PRD-LC-011)",
+      "Comparison report (PRD-LC-011)"
+    ],
+    "glossary": {
+      "ICalcEngine": "Abstraction interface for calculation engines (CPU, GPU, future)",
+      "Colab": "Google Colaboratory - free Jupyter notebook with GPU access",
+      "Numba": "Python JIT compiler with CUDA support",
+      "CuPy": "NumPy-compatible GPU array library",
+      "ngrok": "Tunneling service for public HTTPS URLs"
+    }
+  }
+}

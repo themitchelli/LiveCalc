@@ -131,7 +131,7 @@ on relevant tasks. Add your own project-specific standards as needed.
 
 **Key Architectural Patterns:**
 - **Zero-copy parallelism**: SharedArrayBuffer with bus:// protocol eliminates data copying between workers
-- **CalcEngine interface**: Pluggable calculation engines (WASM, Python, future: Milliman Integrate)
+- **CalcEngine interface**: Pluggable calculation engines (WASM, Python, GPU)
 - **API-first**: All cloud services expose REST APIs consumed by VS Code extension
 - **Modular pipelines**: DAG-based orchestration for multi-engine calculations
 

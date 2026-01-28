@@ -1,0 +1,6 @@
+policy_id,age,gender,sum_assured,premium,term,product_type
+1,30,M,100000,1200,20,term
+2,35,F,150000,1800,20,term
+3,40,M,200000,2400,15,term
+4,25,F,100000,1100,25,term
+5,45,M,250000,3500,10,term
