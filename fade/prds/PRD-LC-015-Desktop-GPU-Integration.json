@@ -179,7 +179,7 @@
       "title": "VS Code - Engine Selector UI",
       "priority": "P0 - Critical",
       "estimated_effort": "4-6 hours",
-      "passes": false,
+      "passes": true,
       "description": "As a user, I want a simple toggle in VS Code settings to choose between CPU and GPU engines so that I can compare performance without changing code.",
       "acceptance_criteria": [
         {

@@ -164,6 +164,18 @@
         "title": "Open Pipeline View",
         "category": "LiveCalc",
         "icon": "$(graph)"
+      },
+      {
+        "command": "livecalc.configureGpuEngine",
+        "title": "Configure GPU Engine",
+        "category": "LiveCalc",
+        "icon": "$(server)"
+      },
+      {
+        "command": "livecalc.testGpuConnection",
+        "title": "Test GPU Connection",
+        "category": "LiveCalc",
+        "icon": "$(pulse)"
       }
     ],
     "keybindings": [
@@ -381,6 +393,42 @@
           "type": "string",
           "default": "",
           "description": "LiveCalc Cloud API URL (e.g., https://api.livecalc.cloud)"
+        },
+        "livecalc.executionMode": {
+          "type": "string",
+          "enum": [
+            "cpu",
+            "gpu",
+            "both"
+          ],
+          "default": "cpu",
+          "enumDescriptions": [
+            "CPU (Local WASM) - Fast and free, runs locally in VS Code",
+            "GPU (Google Colab) - 2-3x faster for large datasets, requires Colab setup",
+            "Both - Run CPU first (preview), then GPU (final result)"
+          ],
+          "description": "Choose execution engine: CPU (local WASM), GPU (Colab), or Both",
+          "order": 1
+        },
+        "livecalc.colabApiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Google Colab API URL from ngrok (e.g., https://abc123.ngrok.io). Required for GPU execution mode.",
+          "order": 2
+        },
+        "livecalc.colabHealthCheckInterval": {
+          "type": "number",
+          "default": 300000,
+          "minimum": 60000,
+          "maximum": 600000,
+          "description": "Health check interval for Colab connection in milliseconds (5 minutes default)",
+          "order": 3
+        },
+        "livecalc.gpuFallbackToCpu": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically fall back to CPU if GPU (Colab) is unavailable",
+          "order": 4
         }
       }
     },

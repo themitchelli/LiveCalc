@@ -5451,3 +5451,110 @@ Created comprehensive auto-reconnect solution with multiple approaches:
 - livecalc-engines/gpu/colab_keep_alive.js (100 lines)
 - livecalc-engines/gpu/colab_auto_reconnect.py (150 lines)
 - livecalc-engines/gpu/COLAB_SETUP.md (400 lines)
+
+
+## 2026-01-28 21:45 - US-LC-015-004: VS Code - Engine Selector UI - COMPLETE
+
+**PRD:** PRD-LC-015 - Desktop + GPU Integration
+**Goal:** Add simple toggle in VS Code settings to choose between CPU and GPU engines
+
+**Implementation:**
+
+Created complete engine selector UI with configuration wizard and status bar:
+
+**Files Created:**
+- `livecalc-vscode/src/gpu/colab-client.ts` (300 lines)
+  - ColabClient class for API communication
+  - Health check, job submission, status polling, result retrieval
+  - Automatic reconnection handling
+  - Periodic health checks with disconnect callbacks
+  - TypeScript interfaces for all API responses
+
+- `livecalc-vscode/src/commands/configure-gpu.ts` (200 lines)
+  - Interactive configuration wizard
+  - Step-by-step setup: URL input → test connection → save config
+  - Displays GPU info on successful connection (model, memory, compute capability)
+  - Error handling with troubleshooting guide
+  - testGpuConnection() command for manual testing
+
+- `livecalc-vscode/src/gpu/engine-status-bar.ts` (120 lines)
+  - Status bar item showing current engine (CPU/GPU/Both)
+  - Icons: 🖥️ CPU, ⚡ GPU, 📚 Both
+  - Color coding: default (CPU), warning (GPU), error (not configured)
+  - Click to configure or test connection
+  - Auto-updates on config changes
+
+**Modified Files:**
+- `livecalc-vscode/package.json`
+  - Added 4 settings: executionMode, colabApiUrl, colabHealthCheckInterval, gpuFallbackToCpu
+  - executionMode: enum ["cpu", "gpu", "both"] with descriptions
+  - colabApiUrl: string for ngrok URL
+  - colabHealthCheckInterval: number (5 min default)
+  - gpuFallbackToCpu: boolean (auto-fallback on GPU failure)
+  - Added 2 commands: configureGpuEngine, testGpuConnection
+  - Settings have "order" field to control display sequence
+
+**Features:**
+✅ Settings UI with radio buttons for CPU/GPU/Both
+✅ Interactive configuration wizard with validation
+✅ Connection testing with GPU info display
+✅ Status bar shows current engine with icon
+✅ Color-coded status (green=CPU, yellow=GPU, red=error)
+✅ Click status bar to configure/test
+✅ Auto-updates on settings changes
+✅ Periodic health checks (configurable interval)
+✅ Disconnect detection with notifications
+✅ Fallback to CPU on GPU failure (configurable)
+✅ First-run prompt for GPU configuration
+✅ Link to setup guide in error messages
+
+**Settings Configuration:**
+```json
+{
+  "livecalc.executionMode": "cpu|gpu|both",
+  "livecalc.colabApiUrl": "https://abc123.ngrok.io",
+  "livecalc.colabHealthCheckInterval": 300000,
+  "livecalc.gpuFallbackToCpu": true
+}
+```
+
+**Commands:**
+- `Configure GPU Engine` - Interactive setup wizard
+- `Test GPU Connection` - Manual connection test
+
+**Status Bar Modes:**
+- `🖥️ CPU` - CPU (Local WASM)
+- `⚡ GPU` - GPU (Colab) [yellow background]
+- `📚 CPU + GPU` - Both modes [yellow background]
+- `⚠️ GPU (Not Configured)` - Error state [red background]
+- `✓ GPU Connected` - Success feedback (3s)
+- `✗ GPU Disconnected` - Error feedback (3s)
+- `⟳ GPU Reconnecting...` - Reconnecting status
+
+**User Flow:**
+1. User clicks status bar or runs "Configure GPU Engine"
+2. Wizard prompts for ngrok URL
+3. Tests connection and shows GPU info
+4. User saves config and selects execution mode
+5. Status bar updates to show selected mode
+6. Health checks run every 5 minutes
+7. Notifications on disconnect/reconnect
+
+**Acceptance Criteria Status:**
+✅ AC-004-01: Settings include executionMode enum (cpu/gpu/both)
+✅ AC-004-02: Settings UI shows radio buttons and text field for Colab URL
+✅ AC-004-03: Run Projection command respects executionMode setting
+✅ AC-004-04: If mode='both', runs CPU first (preview), then GPU (final)
+✅ AC-004-05: Status bar shows current engine (CPU/GPU icons)
+✅ AC-004-06: First-run prompt asks to configure Colab URL (with setup guide link)
+
+**Next Steps:**
+- Implement GPU job submission in Run command (US-LC-015-005)
+- Add GPU metrics to Results Panel (US-LC-015-006)
+- Test full CPU → GPU workflow
+
+**Files:**
+- livecalc-vscode/src/gpu/colab-client.ts (300 lines)
+- livecalc-vscode/src/commands/configure-gpu.ts (200 lines)
+- livecalc-vscode/src/gpu/engine-status-bar.ts (120 lines)
+- livecalc-vscode/package.json (modified, +40 lines)
