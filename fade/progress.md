@@ -4611,3 +4611,53 @@ For blocked stories, use:
   - livecalc-orchestrator/tests/test_engine_interface.cpp (320 lines)
 - Tests: Interface design validated with comprehensive mock engine tests
 
+
+## 2026-01-28 01:30 - US-002: SharedArrayBuffer Data Bus - COMPLETE
+
+- Implemented BufferManager class for zero-copy inter-engine communication
+- Created three typed buffer record structures with precise memory layouts:
+  - InputBufferRecord (32 bytes, 16-byte aligned): policy data for projection engines
+  - ScenarioBufferRecord (16 bytes, 16-byte aligned): economic scenarios (ESG → Projection)
+  - ResultBufferRecord (32 bytes, 16-byte aligned): projection results (Projection → Solver)
+- All buffers use 16-byte alignment for SIMD compatibility
+- Platform-specific aligned memory allocation (posix_memalign for Unix, _aligned_malloc for Windows)
+- Comprehensive buffer management API:
+  - allocate_buffer(): Create typed buffers with validation
+  - get_buffer(): Zero-copy buffer access
+  - free_buffer(): Individual buffer cleanup
+  - validate_buffer_size(): Runtime size checking
+  - Buffer statistics and memory tracking
+- Maximum buffer limits:
+  - INPUT: 10M policies (320 MB)
+  - SCENARIO: 100M rows (1.6 GB)
+  - RESULT: 100M results (3.2 GB)
+- Fixed compilation issues:
+  - Updated projection_engine.cpp to use correct livecalc-engine API
+  - Fixed run_valuation() parameter order (policies, mortality, lapse, expenses, scenarios, config)
+  - Fixed scenario generation to use ScenarioSet::generate() static method
+  - Updated CMakeLists.txt to use correct target name (livecalc_core instead of livecalc_lib)
+  - Fixed unused parameter warning in parquet_reader.cpp
+  - Corrected ResultBufferRecord size assertion (32 bytes due to alignment)
+- All acceptance criteria met:
+  - ✅ Orchestrator allocates SharedArrayBuffer(s) for data exchange
+  - ✅ Buffers are typed: InputBuffer, ScenarioBuffer, ResultBuffer
+  - ✅ Engines write to output_buffer, orchestrator passes to next engine's input_buffer
+  - ✅ No copying between engines (true SharedArrayBuffer)
+  - ✅ Buffer layout documented: struct definitions, byte offsets, alignment
+  - ✅ Support for large buffers (100MB+) without performance degradation
+- Files created:
+  - livecalc-orchestrator/src/buffer_manager.hpp (280 lines)
+  - livecalc-orchestrator/src/buffer_manager.cpp (216 lines)
+  - livecalc-orchestrator/tests/test_buffer_manager.cpp (318 lines)
+- Files modified:
+  - livecalc-orchestrator/src/projection_engine.cpp (API fixes)
+  - livecalc-orchestrator/CMakeLists.txt (added buffer_manager, fixed target name)
+  - livecalc-engine/src/io/parquet_reader.cpp (unused parameter fix)
+- Tests: 15 test cases, 223 assertions passed
+  - Basic allocation/deallocation for all buffer types
+  - Error handling (zero records, duplicates, overflow, not found)
+  - Buffer metadata and statistics
+  - Record structure layout verification with offsetof()
+  - Zero-copy data sharing demonstrations
+  - Large buffer allocation (1M-10M records)
+  - Buffer size validation

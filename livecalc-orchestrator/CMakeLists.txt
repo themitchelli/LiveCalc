@@ -24,24 +24,27 @@ include_directories(
 # Source files
 set(ORCHESTRATOR_SOURCES
     src/projection_engine.cpp
+    src/buffer_manager.cpp
 )
 
 # Header files
 set(ORCHESTRATOR_HEADERS
     src/engine_interface.hpp
     src/projection_engine.hpp
+    src/buffer_manager.hpp
 )
 
 # Build orchestrator as a library
 add_library(orchestrator STATIC ${ORCHESTRATOR_SOURCES})
 
-# Link against livecalc-engine
-add_subdirectory(../livecalc-engine ${CMAKE_BINARY_DIR}/livecalc-engine)
-target_link_libraries(orchestrator PRIVATE livecalc_lib)
+# Link against livecalc-engine (which already includes assumptions-lib if available)
+if(NOT TARGET livecalc_core)
+    add_subdirectory(../livecalc-engine ${CMAKE_BINARY_DIR}/livecalc-engine)
+endif()
+target_link_libraries(orchestrator PRIVATE livecalc_core)
 
-# Optionally link against livecalc-assumptions-lib if available
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../livecalc-assumptions-lib)
-    add_subdirectory(../livecalc-assumptions-lib ${CMAKE_BINARY_DIR}/livecalc-assumptions-lib)
+# If livecalc_core linked against assumptions_lib, we inherit it
+if(TARGET livecalc_assumptions_lib)
     target_link_libraries(orchestrator PRIVATE livecalc_assumptions_lib)
     target_compile_definitions(orchestrator PRIVATE HAVE_ASSUMPTIONS_CLIENT)
 endif()
@@ -64,6 +67,7 @@ if(BUILD_TESTS)
     # Test sources
     set(TEST_SOURCES
         tests/test_engine_interface.cpp
+        tests/test_buffer_manager.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})

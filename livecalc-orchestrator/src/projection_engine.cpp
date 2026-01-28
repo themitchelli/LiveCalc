@@ -97,8 +97,10 @@ ExecutionResult ProjectionEngine::runChunk(
 
         ValuationResult val_result = run_valuation(
             policies,
+            assumptions_->get_mortality_table(),
+            assumptions_->get_lapse_table(),
+            assumptions_->get_expense_assumptions(),
             *scenarios_,
-            *assumptions_,
             val_config
         );
 
@@ -196,16 +198,8 @@ void ProjectionEngine::generate_scenarios() {
     }
 
     // Generate scenarios using GBM
-    scenarios_->generate_gbm(
-        num_scenarios_,
-        projection_years_,
-        seed_,
-        initial_rate,
-        drift,
-        volatility,
-        min_rate,
-        max_rate
-    );
+    ScenarioGeneratorParams params(initial_rate, drift, volatility, min_rate, max_rate);
+    *scenarios_ = ScenarioSet::generate(num_scenarios_, params, seed_);
 }
 
 PolicySet ProjectionEngine::parse_policy_buffer(const uint8_t* buffer, size_t size) {

@@ -106,7 +106,7 @@
         },
         "alignment": "All buffers 16-byte aligned for SIMD safety"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

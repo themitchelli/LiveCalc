@@ -108,6 +108,7 @@ PolicySet ParquetReader::load_policies(const std::string& filepath) {
 #else // !HAVE_ARROW
 
 PolicySet ParquetReader::load_policies(const std::string& filepath) {
+    (void)filepath;  // Suppress unused parameter warning
     throw std::runtime_error("Apache Arrow not available. Rebuild with -DHAVE_ARROW to enable Parquet support.");
 }
 
