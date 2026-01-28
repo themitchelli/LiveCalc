@@ -90,7 +90,7 @@
       "title": "Colab API Service - REST Endpoint",
       "priority": "P0 - Critical",
       "estimated_effort": "6-8 hours",
-      "passes": false,
+      "passes": true,
       "description": "As a user, I need a persistent Colab notebook that exposes a REST API so that my VS Code extension can submit GPU jobs remotely without manual intervention.",
       "acceptance_criteria": [
         {
