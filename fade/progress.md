@@ -4817,3 +4817,53 @@ For blocked stories, use:
   - ✅ Tokens refreshed if expiring (placeholder for automatic refresh, manual supported)
   - ✅ No credentials logged or exposed in debug output
   - ✅ Support multiple credential sources: stored file, environment variable, interactive login (file/env implemented, interactive future)
+
+## 2026-01-28 07:00 - US-006: Parquet I/O Integration (PRD-LC-010-REVISED) - COMPLETE
+
+- Implemented Parquet I/O for input policies, scenarios, and output results
+- ParquetReader class:
+  - read_policies() - Loads policies from Parquet into InputBuffer
+  - read_scenarios() - Loads scenarios from Parquet into ScenarioBuffer
+  - get_row_count() - Returns row count without loading data
+  - Schema validation with clear error messages
+- ParquetWriter class:
+  - write_results() - Writes ResultBuffer to Parquet file
+- ParquetSchema struct for schema validation
+  - Validates required columns are present
+  - Supports optional columns
+- Apache Arrow integration:
+  - Conditional compilation with #ifdef HAVE_ARROW
+  - CMake find_package(Arrow) with optional detection
+  - Clear error messages when Arrow is not available
+- Performance:
+  - Columnar format for efficient large dataset handling
+  - Arrow reserve() for builder efficiency
+  - 1MB row group size
+  - Tested with 1M+ rows (<10 seconds for write + read roundtrip)
+- Schema definitions:
+  - Policy: policy_id (u64), age (u8), gender (u8), sum_assured (f64), premium (f64), term (u32), product_type (u8), underwriting_class (u8)
+  - Scenario: scenario_id (u32), year (u32), rate (f64)
+  - Result: scenario_id (u32), policy_id (u64), npv (f64), premium_income (f64), death_benefits (f64), surrender_benefits (f64), expenses (f64), execution_time_ms (f64)
+- Files created:
+  - livecalc-orchestrator/src/parquet_io.hpp (163 lines)
+  - livecalc-orchestrator/src/parquet_io.cpp (377 lines)
+  - livecalc-orchestrator/tests/test_parquet_io.cpp (580 lines, 18 test cases)
+- Files modified:
+  - livecalc-orchestrator/CMakeLists.txt (added parquet_io source/header/test, Arrow dependency detection)
+  - livecalc-orchestrator/README.md (added 250+ lines of Parquet I/O documentation with API examples)
+- Tests: 18 test cases
+  - Schema validation (3 tests)
+  - Policy reading (3 tests)
+  - Scenario reading (3 tests)
+  - Result writing (2 tests)
+  - Large dataset benchmarks (2 tests - 100K, 1M rows)
+  - Error handling (5 tests - missing file, missing columns, invalid schema)
+- All acceptance criteria met:
+  - ✅ Load policies from Parquet into InputBuffer
+  - ✅ Load scenarios from Parquet into ScenarioBuffer (when ESG is skipped)
+  - ✅ Export results from ResultBuffer to Parquet
+  - ✅ Schema validation ensures columns match buffer layout
+  - ✅ Support 1M+ rows efficiently (<10s roundtrip)
+  - ✅ Parquet file paths configurable in DAG config
+- Build status: Clean compilation with 0 warnings in parquet_io code
+

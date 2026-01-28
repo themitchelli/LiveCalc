@@ -1,0 +1,2 @@
+/usr/bin/ar qc liborchestrator.a CMakeFiles/orchestrator.dir/src/projection_engine.cpp.o CMakeFiles/orchestrator.dir/src/buffer_manager.cpp.o CMakeFiles/orchestrator.dir/src/engine_factory.cpp.o CMakeFiles/orchestrator.dir/src/engine_lifecycle.cpp.o CMakeFiles/orchestrator.dir/src/dag_config.cpp.o CMakeFiles/orchestrator.dir/src/config_parser.cpp.o CMakeFiles/orchestrator.dir/src/credential_manager.cpp.o CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o
+/usr/bin/ranlib liborchestrator.a

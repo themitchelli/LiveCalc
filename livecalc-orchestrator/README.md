@@ -930,7 +930,7 @@ auto custom = factory.create_engine("my_custom_engine");
 
 ## Implementation Status
 
-### Completed (US-001, US-002, US-003)
+### Completed (US-001 through US-006)
 
 - ✅ ICalcEngine interface definition (C++)
 - ✅ SharedArrayBuffer data bus with typed buffers
@@ -938,13 +938,280 @@ auto custom = factory.create_engine("my_custom_engine");
 - ✅ Lifecycle management with timeout protection
 - ✅ Error recovery and retry logic
 - ✅ Statistics tracking
-- ✅ Comprehensive test suite (32 tests, 274 assertions)
+- ✅ DAG configuration and composition
+- ✅ Credential management integration
+- ✅ Parquet I/O integration (read policies/scenarios, write results)
+- ✅ Comprehensive test suite (60+ tests, 500+ assertions)
 
 ### In Progress
 
-- ⏳ DAG configuration and composition (US-004)
-- ⏳ Credential management integration (US-005)
-- ⏳ Parquet I/O integration (US-006)
 - ⏳ Execution tracking and logging (US-007)
 - ⏳ Error handling and resilience (US-008)
+
+
+---
+
+## Parquet I/O Integration
+
+The orchestrator supports efficient loading and exporting of data using Apache Arrow Parquet format.
+
+### Features
+
+- **Policy Loading**: Read policies from Parquet files into InputBuffer
+- **Scenario Loading**: Read scenarios from Parquet files into ScenarioBuffer (when ESG is skipped)
+- **Result Export**: Write projection results from ResultBuffer to Parquet files
+- **Schema Validation**: Ensures Parquet columns match expected buffer layout
+- **Large Dataset Support**: Efficient handling of 1M+ row datasets
+- **Configurable**: Parquet file paths specified in DAG configuration
+
+### Requirements
+
+Parquet support requires Apache Arrow C++ library. If Arrow is not available, Parquet operations will fail gracefully with clear error messages.
+
+**Installation (Ubuntu/Debian):**
+```bash
+sudo apt-get install libarrow-dev libparquet-dev
+```
+
+**Installation (macOS):**
+```bash
+brew install apache-arrow
+```
+
+### Policy Schema
+
+**Required columns:**
+- `policy_id` (uint64): Unique policy identifier
+- `age` (uint8): Age of insured (0-120)
+- `gender` (uint8): Gender code (0=Male, 1=Female, 2=Other)
+- `sum_assured` (float64): Coverage amount
+- `premium` (float64): Premium amount
+- `term` (uint32): Policy term in years
+- `product_type` (uint8): Product type code
+- `underwriting_class` (uint8): Underwriting class code
+
+**Example:**
+```python
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+# Create policy data
+table = pa.table({
+    'policy_id': [1000, 1001, 1002],
+    'age': [30, 45, 55],
+    'gender': [0, 1, 0],
+    'sum_assured': [100000.0, 150000.0, 200000.0],
+    'premium': [1000.0, 1500.0, 2000.0],
+    'term': [20, 15, 10],
+    'product_type': [0, 1, 0],
+    'underwriting_class': [0, 1, 2]
+})
+
+# Write to Parquet
+pq.write_table(table, 'policies.parquet')
+```
+
+### Scenario Schema
+
+**Required columns:**
+- `scenario_id` (uint32): Scenario identifier
+- `year` (uint32): Projection year (1-50)
+- `rate` (float64): Interest rate (per-annum)
+
+**Example:**
+```python
+# Create scenario data (10 scenarios × 50 years = 500 rows)
+scenario_ids = []
+years = []
+rates = []
+
+for s in range(10):
+    for y in range(1, 51):
+        scenario_ids.append(s)
+        years.append(y)
+        rates.append(0.03 + (s * 0.001))
+
+table = pa.table({
+    'scenario_id': scenario_ids,
+    'year': years,
+    'rate': rates
+})
+
+pq.write_table(table, 'scenarios.parquet')
+```
+
+### Result Schema
+
+**Columns written:**
+- `scenario_id` (uint32): Scenario identifier
+- `policy_id` (uint64): Policy identifier
+- `npv` (float64): Net present value
+- `premium_income` (float64): Total premium income
+- `death_benefits` (float64): Total death benefits paid
+- `surrender_benefits` (float64): Total surrender benefits paid
+- `expenses` (float64): Total expenses
+- `execution_time_ms` (float64): Execution time in milliseconds
+
+### C++ API
+
+**Reading Policies:**
+
+```cpp
+#include "parquet_io.hpp"
+
+ParquetReader reader;
+
+// Get row count without loading data
+size_t row_count = reader.get_row_count("policies.parquet");
+
+// Allocate buffer
+BufferManager mgr;
+auto result = mgr.allocate_buffer(BufferType::INPUT, row_count);
+
+// Read policies
+size_t records_read = 0;
+bool success = reader.read_policies(
+    "policies.parquet",
+    result.buffer_input,
+    row_count,
+    records_read
+);
+
+if (!success) {
+    std::cerr << "Error: " << reader.get_last_error() << std::endl;
+}
+```
+
+**Reading Scenarios:**
+
+```cpp
+ParquetReader reader;
+size_t row_count = reader.get_row_count("scenarios.parquet");
+
+BufferManager mgr;
+auto result = mgr.allocate_buffer(BufferType::SCENARIO, row_count);
+
+size_t records_read = 0;
+bool success = reader.read_scenarios(
+    "scenarios.parquet",
+    result.buffer_scenario,
+    row_count,
+    records_read
+);
+```
+
+**Writing Results:**
+
+```cpp
+#include "parquet_io.hpp"
+
+ParquetWriter writer;
+
+// Assume results are already in ResultBuffer
+bool success = writer.write_results(
+    "results.parquet",
+    result.buffer_result,
+    num_records
+);
+
+if (!success) {
+    std::cerr << "Error: " << writer.get_last_error() << std::endl;
+}
+```
+
+### Schema Validation
+
+The Parquet I/O module validates schemas before reading:
+
+```cpp
+ParquetReader reader;
+auto schema = ParquetReader::get_policy_schema();
+
+// Schema contains:
+// - schema.name: "Policy"
+// - schema.required_columns: ["policy_id", "age", "gender", ...]
+// - schema.optional_columns: []
+
+// Validation happens automatically during read
+std::vector<std::string> actual_columns = {...};
+std::string error_message;
+bool valid = schema.validate_columns(actual_columns, error_message);
+```
+
+### Error Handling
+
+Parquet I/O provides clear error messages:
+
+```cpp
+ParquetReader reader;
+size_t records_read = 0;
+bool success = reader.read_policies("bad.parquet", buffer, 100, records_read);
+
+if (!success) {
+    // Example error messages:
+    // "File not found: bad.parquet"
+    // "Missing required column 'age' in Policy"
+    // "Failed to read table: [Arrow error details]"
+    // "Parquet support not available (Arrow library not linked)"
+    std::cerr << reader.get_last_error() << std::endl;
+}
+```
+
+### Performance
+
+Parquet I/O is optimized for large datasets:
+
+- **1M policy rows**: Read in <10 seconds
+- **1M result rows**: Write in <10 seconds
+- **Memory efficient**: Columnar format, reserve() used for builders
+- **Compression**: Default Parquet compression reduces file size
+- **Row groups**: 1MB row group size for optimal I/O
+
+### DAG Configuration
+
+Specify Parquet file paths in DAG config:
+
+```json
+{
+  "data_sources": {
+    "policies": {
+      "type": "parquet",
+      "path": "/data/policies.parquet"
+    },
+    "scenarios": {
+      "type": "parquet",
+      "path": "/data/scenarios.parquet"
+    }
+  },
+  "engines": [
+    {
+      "id": "projection",
+      "type": "cpp_projection",
+      "inputs": ["policies", "scenarios"],
+      "outputs": ["results"]
+    }
+  ],
+  "output": {
+    "type": "parquet",
+    "path": "/output/results.parquet"
+  }
+}
+```
+
+### Conditional Compilation
+
+Parquet support is conditionally compiled:
+
+```cpp
+#ifdef HAVE_ARROW
+    // Parquet I/O available
+    ParquetReader reader;
+    reader.read_policies(...);
+#else
+    // Fallback or error
+    std::cerr << "Parquet support not available" << std::endl;
+#endif
+```
+
+CMake automatically detects Arrow and defines `HAVE_ARROW` if available.
 

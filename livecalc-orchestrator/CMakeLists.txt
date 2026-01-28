@@ -30,6 +30,7 @@ set(ORCHESTRATOR_SOURCES
     src/dag_config.cpp
     src/config_parser.cpp
     src/credential_manager.cpp
+    src/parquet_io.cpp
 )
 
 # Header files
@@ -42,6 +43,7 @@ set(ORCHESTRATOR_HEADERS
     src/dag_config.hpp
     src/config_parser.hpp
     src/credential_manager.hpp
+    src/parquet_io.hpp
 )
 
 # Build orchestrator as a library
@@ -74,6 +76,17 @@ if(TARGET livecalc_assumptions_lib)
     target_compile_definitions(orchestrator PRIVATE HAVE_ASSUMPTIONS_CLIENT)
 endif()
 
+# Apache Arrow for Parquet I/O (optional)
+find_package(Arrow QUIET)
+if(Arrow_FOUND)
+    find_package(Parquet REQUIRED)
+    target_link_libraries(orchestrator PRIVATE Arrow::arrow_shared Parquet::parquet_shared)
+    target_compile_definitions(orchestrator PRIVATE HAVE_ARROW)
+    message(STATUS "  Arrow/Parquet support: Enabled")
+else()
+    message(STATUS "  Arrow/Parquet support: Disabled (Arrow not found)")
+endif()
+
 # Tests
 option(BUILD_TESTS "Build unit tests" ON)
 
@@ -96,10 +109,17 @@ if(BUILD_TESTS)
         tests/test_engine_lifecycle.cpp
         tests/test_dag_config.cpp
         tests/test_credential_manager.cpp
+        tests/test_parquet_io.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})
     target_link_libraries(orchestrator_tests PRIVATE orchestrator Catch2::Catch2WithMain)
+
+    # Link Arrow/Parquet if available (for parquet_io tests)
+    if(Arrow_FOUND)
+        target_link_libraries(orchestrator_tests PRIVATE Arrow::arrow_shared Parquet::parquet_shared)
+        target_compile_definitions(orchestrator_tests PRIVATE HAVE_ARROW)
+    endif()
     if(TARGET nlohmann_json::nlohmann_json)
         target_link_libraries(orchestrator_tests PRIVATE nlohmann_json::nlohmann_json)
     endif()

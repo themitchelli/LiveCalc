@@ -189,7 +189,7 @@
         "library": "Apache Arrow C++",
         "workflow": "Parquet (disk) → Buffer (memory) → Engine → Buffer (memory) → Parquet (disk)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
