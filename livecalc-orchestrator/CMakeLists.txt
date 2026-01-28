@@ -27,6 +27,8 @@ set(ORCHESTRATOR_SOURCES
     src/buffer_manager.cpp
     src/engine_factory.cpp
     src/engine_lifecycle.cpp
+    src/dag_config.cpp
+    src/config_parser.cpp
 )
 
 # Header files
@@ -36,6 +38,8 @@ set(ORCHESTRATOR_HEADERS
     src/buffer_manager.hpp
     src/engine_factory.hpp
     src/engine_lifecycle.hpp
+    src/dag_config.hpp
+    src/config_parser.hpp
 )
 
 # Build orchestrator as a library
@@ -46,6 +50,21 @@ if(NOT TARGET livecalc_core)
     add_subdirectory(../livecalc-engine ${CMAKE_BINARY_DIR}/livecalc-engine)
 endif()
 target_link_libraries(orchestrator PRIVATE livecalc_core)
+
+# nlohmann/json is needed for config parsing
+# Check if it's available from assumptions lib or fetch it
+if(TARGET nlohmann_json::nlohmann_json)
+    target_link_libraries(orchestrator PRIVATE nlohmann_json::nlohmann_json)
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+    target_link_libraries(orchestrator PRIVATE nlohmann_json::nlohmann_json)
+endif()
 
 # If livecalc_core linked against assumptions_lib, we inherit it
 if(TARGET livecalc_assumptions_lib)
@@ -73,10 +92,14 @@ if(BUILD_TESTS)
         tests/test_engine_interface.cpp
         tests/test_buffer_manager.cpp
         tests/test_engine_lifecycle.cpp
+        tests/test_dag_config.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})
     target_link_libraries(orchestrator_tests PRIVATE orchestrator Catch2::Catch2WithMain)
+    if(TARGET nlohmann_json::nlohmann_json)
+        target_link_libraries(orchestrator_tests PRIVATE nlohmann_json::nlohmann_json)
+    endif()
 
     # Register tests
     add_test(NAME OrchestratorTests COMMAND orchestrator_tests)

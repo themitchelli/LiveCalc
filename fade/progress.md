@@ -4709,3 +4709,60 @@ For blocked stories, use:
   - Integration: factory + lifecycle composition (1 test)
   - Mock engines: MockSlowEngine, RetryableMockEngine for testing lifecycle scenarios
 
+
+## 2026-01-28 05:55 - US-004: DAG Configuration & Composition - COMPLETE
+
+- Implemented DAG configuration system for orchestrating multi-engine workflows
+- Created JSON-based configuration format for defining engine workflows
+- Implemented comprehensive validation ensuring all engine inputs reference existing outputs
+- Computed topological execution order using Kahn's algorithm with circular dependency detection
+- Configuration features:
+  - EngineNode: defines engines with id, type, config, inputs, outputs
+  - DataSource: external data inputs (Parquet, CSV, buffer)
+  - OutputConfig: final output configuration
+  - AMCredentialsConfig: optional AM credentials with validation
+  - Support for linear chains (A → B → C) and parallel execution (diamond dependencies)
+- Validation logic:
+  - At least one engine exists
+  - All engine IDs are unique
+  - All engine types are non-empty
+  - All inputs reference existing outputs (from data sources or previous engines)
+  - No circular dependencies detected via topological sort
+  - Output configuration is valid (non-empty type and path)
+- Input reference resolution:
+  - Simple references: "policies" (data source)
+  - Qualified references: "esg.scenarios" (engine output)
+- Configuration parser features:
+  - JSON parsing using nlohmann/json library
+  - Environment variable expansion (${VAR} and $VAR syntax)
+  - Relative path resolution for file references
+  - Automatic validation after parsing
+  - Clear error messages with ConfigParseError exceptions
+- Topological sort implementation:
+  - Kahn's algorithm for dependency resolution
+  - Detects circular dependencies when not all nodes can be processed
+  - Returns execution order vector ensuring all dependencies are met
+- All acceptance criteria met:
+  - ✅ Config format: JSON with array of engine nodes and their connections
+  - ✅ Validation: ensure all inputs have corresponding outputs from previous engines
+  - ✅ Support linear chain (A → B → C) and conditional branches
+  - ✅ Document: examples for common workflows (examples already exist)
+- Files created:
+  - livecalc-orchestrator/src/dag_config.hpp (146 lines)
+  - livecalc-orchestrator/src/dag_config.cpp (265 lines)
+  - livecalc-orchestrator/src/config_parser.hpp (61 lines)
+  - livecalc-orchestrator/src/config_parser.cpp (175 lines)
+  - livecalc-orchestrator/tests/test_dag_config.cpp (314 lines)
+- Files modified:
+  - livecalc-orchestrator/CMakeLists.txt (added dag_config, config_parser sources and test)
+- Build system fixes:
+  - Added nlohmann_json dependency with guard to prevent duplicate declaration
+  - Fixed Catch2 v3 header compatibility (catch2/catch_test_macros.hpp)
+- Tests: 38 test cases, 322 assertions passed
+  - DAG validation: empty DAG, duplicate IDs, missing data sources, missing outputs, empty types/paths (7 tests)
+  - Topological sort: single engine, linear chain, full pipeline, circular dependency, diamond dependency (6 tests)
+  - Input reference resolution: data source, engine output, empty reference (3 tests)
+  - Environment variable expansion: ${VAR}, $VAR, undefined vars, no vars (4 tests)
+  - JSON config parsing: minimal config, full pipeline config, missing fields, invalid JSON (4 tests)
+  - AMCredentials validation: valid, missing URL, missing token (3 tests)
+
