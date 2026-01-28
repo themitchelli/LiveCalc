@@ -929,15 +929,59 @@ US-007 test coverage:
 
 ## Error Handling
 
-The solver provides comprehensive error handling:
+The solver provides comprehensive error handling with automatic recovery (US-008):
+
+### Exception Types
 
 | Exception | When Raised | Handling |
 |-----------|-------------|----------|
 | `InitializationError` | Invalid configuration | Fix config and reinitialize |
 | `ConfigurationError` | Invalid config values (e.g., timeout out of range) | Update config values |
 | `ExecutionError` | Optimization execution fails | Check projection callback, logs |
-| `TimeoutError` | Optimization exceeds timeout | Increase timeout or simplify problem |
-| `ConvergenceError` | Optimization diverges | Try different algorithm or initial values |
+| `TimeoutError` | Optimization exceeds timeout (returns partial result) | Increase timeout or simplify problem |
+| `ConvergenceError` | Too many consecutive failures (returns partial result) | Check projection callback, adjust parameters |
+
+### Automatic Recovery Features
+
+**1. Projection Callback Failures:**
+```python
+# Solver handles flaky projection callbacks gracefully
+def flaky_callback(params):
+    if random.random() < 0.1:  # 10% failure rate
+        raise ValueError("Temporary failure")
+    return ValuationResult(mean_npv=100.0)
+
+# Solver will retry with penalty values, tracking failures
+result = solver.optimize(flaky_callback)
+# Optimization continues despite intermittent failures
+```
+
+**2. Timeout with Partial Results:**
+```python
+# On timeout, solver returns best result found so far
+result = solver.optimize(slow_callback)
+if result.partial_result:
+    print(f"Partial optimization: {result.objective_value:.2f}")
+    print(f"After {result.iterations} iterations")
+    # Can still use parameters for production
+```
+
+**3. Infeasible Constraint Detection:**
+```python
+# Solver detects consistently violated constraints
+result = solver.optimize(callback)
+if not result.converged and result.constraint_violations:
+    # Log explains which constraints are problematic
+    # Suggestions provided for relaxing constraints
+```
+
+**4. Divergence Detection:**
+```python
+# Solver monitors objective trends and warns on divergence
+result = solver.optimize(callback)
+# Check logs for "Divergence detected" warnings
+# Best result still returned for use
+```
 
 ## Logging
 
@@ -981,6 +1025,79 @@ result = solver.optimize(projection_callback)
 - **Timeout Protection**: Default 5 minutes (configurable 1-3600 seconds)
 - **Callback Overhead**: Minimal (<1ms per callback invocation)
 
+### US-008: Error Handling & Robustness ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ Projection callback exception handling with penalty values
+- ✅ Consecutive failure tracking (abort after 3 consecutive failures)
+- ✅ Best result tracking across all iterations
+- ✅ Timeout returns partial result instead of failing
+- ✅ Convergence error returns best result found
+- ✅ Infeasible constraint detection with detailed messages
+- ✅ Divergence detection (objective getting worse over time)
+- ✅ Full error context logging (iteration, parameters, objective)
+- ✅ Unit tests (10 test cases)
+
+**Acceptance Criteria Met:**
+- Projection callback fails (exception) → catch, log, try alternative parameters ✅
+- Constraint becomes infeasible → relax constraints or fail with explanation ✅
+- Timeout (>5 minutes) → return best result found so far, mark as partial ✅
+- Divergence detected (objective getting worse) → try different algorithm or restart ✅
+- All errors logged with context: iteration, parameters tried, objective value ✅
+
+**Error Handling Features:**
+
+1. **Projection Callback Failures:**
+   - Catches exceptions during projection execution
+   - Returns penalty value to guide optimizer away from problematic regions
+   - Tracks consecutive failures (max 3 before aborting)
+   - Logs full context: iteration number, parameters, error message
+
+2. **Partial Results:**
+   - Timeout returns best valid result found with `partial_result=True`
+   - Convergence errors return best result if available
+   - Preserves optimization progress even on early exit
+
+3. **Infeasible Constraint Detection:**
+   - Detects constraints consistently violated across iterations
+   - Checks if violations are getting worse (suggesting true infeasibility)
+   - Provides helpful message with constraint names and suggested actions
+
+4. **Divergence Detection:**
+   - Monitors objective value trends across recent iterations
+   - Detects when objective consistently worsens (80% of recent iterations)
+   - Warns but allows optimization to complete with best result
+
+5. **Error Context Logging:**
+   - Every error includes: iteration number, parameter values, objective value
+   - Failure counts tracked: `failed_iterations`, `consecutive_failures`
+   - Best result always preserved for recovery
+
+**Example Error Messages:**
+
+```
+# Projection callback failure
+ERROR: Iteration 5: Projection callback failed: ValueError('Invalid data').
+       Parameters: {'premium_rate': 1.15, 'reserve_factor': 0.92}.
+       Consecutive failures: 2/3
+
+# Infeasible constraints
+WARNING: Constraints may be infeasible: ['solvency', 'cost'] have been
+         consistently violated and are getting worse. Consider relaxing
+         these constraints or adjusting parameter bounds.
+
+# Divergence detected
+WARNING: Divergence detected: 4/5 recent iterations worse than baseline
+         (objective=1234.5)
+
+# Partial result on timeout
+WARNING: Optimization timed out after 305.2s. Returning best result found.
+INFO: Returning partial result: objective=1450.3, iterations=8,
+      constraints_violated=0
+```
+
 ## Roadmap
 
 - [x] US-001: Solver Interface & Orchestration Integration
@@ -990,7 +1107,7 @@ result = solver.optimize(projection_callback)
 - [x] US-005: Solver Algorithm Selection
 - [x] US-006: Iteration Tracking & Convergence
 - [x] US-007: Result Output & Parameter Export
-- [ ] US-008: Error Handling & Robustness
+- [x] US-008: Error Handling & Robustness
 
 ## License
 

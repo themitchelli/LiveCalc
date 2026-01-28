@@ -53,6 +53,8 @@ class OptimizerCallback:
 
     Translates between algorithm's parameter vector format and solver's dict format.
     Tracks iterations and constraint violations.
+
+    US-008: Handles projection failures gracefully, tracks best result for partial returns.
     """
 
     def __init__(
@@ -81,52 +83,185 @@ class OptimizerCallback:
         self.iteration_count = 0
         self.iteration_history: List[IterationResult] = []
 
+        # US-008: Track best result for partial returns and failure recovery
+        self.best_result: Optional[IterationResult] = None
+        self.failed_iterations: int = 0
+        self.consecutive_failures: int = 0
+        self.max_consecutive_failures: int = 3  # Abort after 3 consecutive failures
+
     def __call__(self, x: np.ndarray) -> float:
         """
         Evaluate objective function at parameter vector x.
+
+        US-008: Handles projection callback failures gracefully.
+        Tracks best result for partial returns on timeout/failure.
 
         Args:
             x: Parameter vector (numpy array)
 
         Returns:
             Objective value (sign-adjusted for minimization)
+
+        Raises:
+            ConvergenceError: If too many consecutive failures occur
         """
         # Convert parameter vector to dict
         params = {name: float(val) for name, val in zip(self.parameter_names, x)}
 
-        # Call projection
-        result = self.projection_callback(params)
-
-        # Extract objective and constraints
-        raw_objective = self.objective_extractor(result)
-        constraint_violations = self.constraint_evaluator(result)
-
-        # Record iteration
         self.iteration_count += 1
-        self.iteration_history.append(IterationResult(
-            parameters=params.copy(),
-            objective_value=raw_objective,
-            constraint_violations=constraint_violations.copy(),
-            iteration=self.iteration_count
-        ))
 
-        # Log iteration
-        constraints_status = "satisfied" if not constraint_violations else f"{len(constraint_violations)} violated"
-        logger.info(
-            f"Iteration {self.iteration_count}: objective={raw_objective:.4f}, "
-            f"constraints={constraints_status}, params={params}"
-        )
+        try:
+            # Call projection with exception handling
+            result = self.projection_callback(params)
 
-        if constraint_violations:
-            for name, violation in constraint_violations.items():
-                logger.warning(f"  Constraint '{name}' violated by {violation:.4f}")
+            # Extract objective and constraints
+            raw_objective = self.objective_extractor(result)
+            constraint_violations = self.constraint_evaluator(result)
 
-        # For scipy.optimize.minimize, we need to minimize
-        # If user wants to maximize, negate the objective
+            # Record successful iteration
+            iteration_result = IterationResult(
+                parameters=params.copy(),
+                objective_value=raw_objective,
+                constraint_violations=constraint_violations.copy(),
+                iteration=self.iteration_count
+            )
+            self.iteration_history.append(iteration_result)
+
+            # Update best result (considering constraints)
+            if self._is_better_result(iteration_result):
+                self.best_result = iteration_result
+                logger.debug(f"New best result: objective={raw_objective:.4f}")
+
+            # Reset consecutive failure counter on success
+            self.consecutive_failures = 0
+
+            # Log iteration
+            constraints_status = "satisfied" if not constraint_violations else f"{len(constraint_violations)} violated"
+            logger.info(
+                f"Iteration {self.iteration_count}: objective={raw_objective:.4f}, "
+                f"constraints={constraints_status}, params={params}"
+            )
+
+            if constraint_violations:
+                for name, violation in constraint_violations.items():
+                    logger.warning(f"  Constraint '{name}' violated by {violation:.4f}")
+
+            # For scipy.optimize.minimize, we need to minimize
+            # If user wants to maximize, negate the objective
+            if self.direction == 'maximize':
+                return -raw_objective
+            else:
+                return raw_objective
+
+        except Exception as e:
+            # US-008: Handle projection callback failures
+            self.failed_iterations += 1
+            self.consecutive_failures += 1
+
+            logger.error(
+                f"Iteration {self.iteration_count}: Projection callback failed: {e}. "
+                f"Parameters: {params}. "
+                f"Consecutive failures: {self.consecutive_failures}/{self.max_consecutive_failures}"
+            )
+
+            # Check if too many consecutive failures
+            if self.consecutive_failures >= self.max_consecutive_failures:
+                logger.error(
+                    f"Optimization aborted: {self.consecutive_failures} consecutive projection failures. "
+                    f"Last parameters: {params}"
+                )
+                raise ConvergenceError(
+                    f"Optimization failed: {self.consecutive_failures} consecutive projection callback failures. "
+                    f"Last error: {e}"
+                ) from e
+
+            # Return a penalty value to guide optimizer away from this region
+            # Use a large penalty (worse than any reasonable objective)
+            penalty = 1e10 if self.direction == 'minimize' else -1e10
+
+            logger.debug(f"Returning penalty value: {penalty}")
+            return penalty
+
+    def _is_better_result(self, new_result: IterationResult) -> bool:
+        """
+        Check if new result is better than current best.
+
+        Args:
+            new_result: New iteration result
+
+        Returns:
+            True if new result is better (considering constraints)
+        """
+        # If no best result yet, this is better
+        if self.best_result is None:
+            return True
+
+        # Prefer feasible solutions over infeasible ones
+        new_feasible = len(new_result.constraint_violations) == 0
+        best_feasible = len(self.best_result.constraint_violations) == 0
+
+        if new_feasible and not best_feasible:
+            return True
+        if not new_feasible and best_feasible:
+            return False
+
+        # Both feasible or both infeasible: compare objectives
+        new_obj = new_result.objective_value
+        best_obj = self.best_result.objective_value
+
         if self.direction == 'maximize':
-            return -raw_objective
+            return new_obj > best_obj
         else:
-            return raw_objective
+            return new_obj < best_obj
+
+    def check_divergence(self, window_size: int = 5, threshold: float = 0.1) -> bool:
+        """
+        US-008: Check if optimization is diverging (getting consistently worse).
+
+        Args:
+            window_size: Number of recent iterations to check
+            threshold: Percentage worse threshold (e.g., 0.1 = 10% worse)
+
+        Returns:
+            True if divergence detected
+        """
+        if len(self.iteration_history) < window_size + 1:
+            return False
+
+        # Get recent objectives
+        recent = self.iteration_history[-window_size:]
+        baseline = self.iteration_history[-(window_size + 1)]
+
+        # Check if all recent iterations are worse than baseline
+        baseline_obj = baseline.objective_value
+
+        # Skip if baseline is zero (avoid division by zero)
+        if abs(baseline_obj) < 1e-10:
+            return False
+
+        worse_count = 0
+        for iter_result in recent:
+            obj = iter_result.objective_value
+            relative_change = (obj - baseline_obj) / abs(baseline_obj)
+
+            # Check if worse (accounting for direction)
+            if self.direction == 'maximize':
+                if relative_change < -threshold:
+                    worse_count += 1
+            else:  # minimize
+                if relative_change > threshold:
+                    worse_count += 1
+
+        # Divergence if majority of recent iterations are significantly worse
+        divergence = worse_count >= (window_size * 0.8)
+
+        if divergence:
+            logger.warning(
+                f"Divergence detected: {worse_count}/{window_size} recent iterations "
+                f"worse than baseline (objective={baseline_obj:.4f})"
+            )
+
+        return divergence
 
 
 def run_slsqp_algorithm(

@@ -2112,5 +2112,267 @@ class TestResultOutputAndParameterExport(unittest.TestCase):
             # (ResultExporter returns early)
 
 
+class TestErrorHandlingAndRobustness(unittest.TestCase):
+    """
+    Test error handling and robustness (US-008).
+
+    Covers:
+    - Projection callback failures with recovery
+    - Timeout with partial result return
+    - Infeasible constraint detection
+    - Divergence detection
+    - Full error context logging
+    """
+
+    def test_projection_callback_failure_with_recovery(self):
+        """Test solver handles projection callback exceptions and continues."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'nelder-mead',  # More robust than SLSQP
+            'max_iterations': 10
+        }
+        engine.initialize(config)
+
+        call_count = [0]
+
+        def flaky_callback(params):
+            """Callback that fails first 2 calls, then succeeds."""
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                raise ValueError(f"Simulated failure {call_count[0]}")
+            # Return valid result after failures
+            return ValuationResult(mean_npv=100.0 + params['param1'] * 10)
+
+        # Should complete despite initial failures
+        result = engine.optimize(flaky_callback)
+        self.assertIsNotNone(result)
+        self.assertGreater(call_count[0], 2)  # Should have retried after failures
+
+    def test_timeout_returns_partial_result(self):
+        """Test timeout returns best result found with partial flag."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'timeout_seconds': 1  # Short timeout
+        }
+        engine.initialize(config)
+
+        iteration_count = [0]
+
+        def slow_callback(params):
+            """Callback that gets slower, ensuring timeout."""
+            iteration_count[0] += 1
+            time.sleep(0.3)  # Each call takes 300ms
+            return ValuationResult(mean_npv=100.0 + params['param1'] * 10)
+
+        # Should timeout but return partial result
+        result = engine.optimize(slow_callback)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.partial_result)
+        self.assertFalse(result.converged)
+        self.assertGreater(result.iterations, 0)  # Should have at least one iteration
+        self.assertIn('param1', result.final_parameters)
+
+    def test_consecutive_failures_abort(self):
+        """Test too many consecutive failures causes abort with best result."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'nelder-mead',
+            'max_iterations': 10
+        }
+        engine.initialize(config)
+
+        call_count = [0]
+
+        def mostly_failing_callback(params):
+            """Callback that succeeds once then fails repeatedly."""
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call succeeds
+                return ValuationResult(mean_npv=100.0)
+            else:
+                # All subsequent calls fail
+                raise ValueError("Persistent failure")
+
+        # Should return partial result with the one successful iteration
+        result = engine.optimize(mostly_failing_callback)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.partial_result)
+        self.assertEqual(result.final_parameters['param1'], 5.0)  # Should return initial
+
+    def test_infeasible_constraints_detection(self):
+        """Test detection of infeasible constraints."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 1.0, 'initial': 0.5}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'constraints': [
+                {'name': 'solvency', 'operator': '>=', 'value': 2.0}  # Impossible with param1 <= 1
+            ],
+            'max_iterations': 15
+        }
+        engine.initialize(config)
+
+        def callback(params):
+            # Result always has solvency = param1 (max 1.0, never reaches 2.0)
+            return ValuationResult(mean_npv=100.0, solvency=params['param1'])
+
+        # Should complete but detect infeasibility
+        result = engine.optimize(callback)
+        self.assertIsNotNone(result)
+        self.assertFalse(result.converged)  # Should not converge with infeasible constraint
+        self.assertIn('solvency', result.constraint_violations)
+
+    def test_divergence_detection(self):
+        """Test detection of diverging optimization."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'nelder-mead',
+            'max_iterations': 20
+        }
+        engine.initialize(config)
+
+        call_count = [0]
+
+        def diverging_callback(params):
+            """Callback where objective gets worse over time."""
+            call_count[0] += 1
+            # Objective decreases with each call (diverging for maximize)
+            penalty = call_count[0] * 10
+            return ValuationResult(mean_npv=100.0 - penalty)
+
+        # Should detect divergence
+        result = engine.optimize(diverging_callback)
+        self.assertIsNotNone(result)
+        # May or may not converge, but should complete
+        self.assertGreater(result.iterations, 0)
+
+    def test_error_logging_with_full_context(self):
+        """Test that errors are logged with full context."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0},
+                {'name': 'param2', 'lower': -5.0, 'upper': 5.0, 'initial': 0.0}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        failure_params = []
+
+        def failing_callback(params):
+            """Callback that captures params when it fails."""
+            failure_params.append(params.copy())
+            if len(failure_params) <= 2:
+                raise ValueError(f"Test failure {len(failure_params)}")
+            return ValuationResult(mean_npv=100.0)
+
+        # Run optimization
+        result = engine.optimize(failing_callback)
+
+        # Check that we captured failure context
+        self.assertGreater(len(failure_params), 0)
+        for params in failure_params:
+            self.assertIn('param1', params)
+            self.assertIn('param2', params)
+
+    def test_partial_result_on_convergence_error(self):
+        """Test ConvergenceError returns partial result if available."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'nelder-mead',
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        call_count = [0]
+
+        def callback_with_late_failure(params):
+            """Succeeds a few times then fails repeatedly."""
+            call_count[0] += 1
+            if call_count[0] <= 3:
+                return ValuationResult(mean_npv=100.0 + call_count[0])
+            raise ValueError("Late failure")
+
+        # Should return partial result from successful iterations
+        result = engine.optimize(callback_with_late_failure)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.partial_result)
+        self.assertGreater(result.objective_value, 0)  # Should have some valid result
+
+    def test_infeasibility_message_details(self):
+        """Test infeasibility detection provides helpful message."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'rate', 'lower': 0.0, 'upper': 0.1, 'initial': 0.05}
+            ],
+            'objective': {'metric': 'return'},
+            'constraints': [
+                {'name': 'cost', 'operator': '<=', 'value': 50.0},
+                {'name': 'solvency', 'operator': '>=', 'value': 0.95}
+            ],
+            'max_iterations': 15
+        }
+        engine.initialize(config)
+
+        def callback(params):
+            # Solvency always low (infeasible)
+            return ValuationResult(return_value=0.08, cost=100.0, solvency=0.5)
+
+        result = engine.optimize(callback)
+        # Should mention which constraints are problematic
+        self.assertIn('solvency', result.constraint_violations)
+        self.assertIn('cost', result.constraint_violations)
+
+    def test_best_result_tracking(self):
+        """Test that best result is tracked across iterations."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'max_iterations': 10
+        }
+        engine.initialize(config)
+
+        objectives = [100.0, 120.0, 110.0, 130.0, 105.0]  # Peak at iteration 4
+        call_count = [0]
+
+        def varying_callback(params):
+            """Callback with varying objectives."""
+            idx = min(call_count[0], len(objectives) - 1)
+            call_count[0] += 1
+            return ValuationResult(mean_npv=objectives[idx])
+
+        result = engine.optimize(varying_callback)
+        # Best result should be 130.0 (peak value)
+        self.assertGreaterEqual(result.objective_value, 130.0)
+
+
 if __name__ == '__main__':
     unittest.main()

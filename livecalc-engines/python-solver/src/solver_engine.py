@@ -372,9 +372,11 @@ class SolverEngine(ICalcEngine):
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(self._timeout_seconds)
 
+        callback = None  # Will be set by _run_optimization_loop
+
         try:
             # Run optimization with timeout protection
-            result = self._run_optimization_loop(projection_callback, initial_parameters)
+            result, callback = self._run_optimization_loop(projection_callback, initial_parameters)
 
             # Cancel timeout
             signal.alarm(0)
@@ -391,11 +393,54 @@ class SolverEngine(ICalcEngine):
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)
 
-            # Return best result found so far with partial flag
+            # US-008: Return best result found so far with partial flag
             elapsed = time.time() - start_time
-            logger.warning(f"Optimization timed out after {elapsed:.2f}s")
+            logger.warning(f"Optimization timed out after {elapsed:.2f}s. Returning best result found.")
 
-            raise TimeoutError(f"Optimization exceeded timeout of {self._timeout_seconds}s")
+            if callback and callback.best_result:
+                # Return best result with partial flag
+                result = OptimizationResult(
+                    final_parameters=callback.best_result.parameters,
+                    objective_value=callback.best_result.objective_value,
+                    iterations=callback.iteration_count,
+                    converged=False,
+                    constraint_violations=callback.best_result.constraint_violations,
+                    execution_time_seconds=elapsed,
+                    partial_result=True
+                )
+                logger.info(
+                    f"Returning partial result: objective={result.objective_value:.4f}, "
+                    f"iterations={result.iterations}, constraints_violated={len(result.constraint_violations)}"
+                )
+                return result
+            else:
+                # No valid result found yet
+                raise TimeoutError(
+                    f"Optimization exceeded timeout of {self._timeout_seconds}s and no valid result was found"
+                )
+
+        except ConvergenceError as e:
+            # US-008: Return best result on convergence failure
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+
+            elapsed = time.time() - start_time
+            logger.error(f"Convergence error after {elapsed:.2f}s: {e}")
+
+            if callback and callback.best_result:
+                logger.info("Returning best result before convergence failure")
+                result = OptimizationResult(
+                    final_parameters=callback.best_result.parameters,
+                    objective_value=callback.best_result.objective_value,
+                    iterations=callback.iteration_count,
+                    converged=False,
+                    constraint_violations=callback.best_result.constraint_violations,
+                    execution_time_seconds=elapsed,
+                    partial_result=True
+                )
+                return result
+            else:
+                raise
 
         except Exception as e:
             signal.alarm(0)
@@ -491,10 +536,22 @@ class SolverEngine(ICalcEngine):
             if not scipy_result.success:
                 converged = False
 
+            # US-008: Check for divergence
+            if callback.check_divergence():
+                logger.warning("Divergence detected in optimization. Returning best result found.")
+                converged = False
+
+            # US-008: Check for infeasible constraints
+            infeasibility_msg = self._check_infeasibility(callback)
+            if infeasibility_msg:
+                logger.warning(infeasibility_msg)
+                # Don't fail, but mark as not converged
+                converged = False
+
             # Store iteration history for export (US-007)
             self._iteration_history = callback.iteration_history
 
-            return OptimizationResult(
+            result = OptimizationResult(
                 final_parameters=final_params,
                 objective_value=final_objective,
                 iterations=scipy_result.nit,
@@ -504,12 +561,76 @@ class SolverEngine(ICalcEngine):
                 partial_result=not converged
             )
 
+            # US-008: Return callback for timeout/error handling
+            return result, callback
+
         except TimeoutException:
-            # Re-raise timeout exception so it's caught by outer handler
+            # Re-raise timeout exception so it's caught by outer handler with callback
             raise
         except Exception as e:
             logger.error(f"Optimization failed: {e}")
             raise ExecutionError(f"Optimization failed: {e}") from e
+
+    def _check_infeasibility(self, callback: 'OptimizerCallback', min_iterations: int = 10) -> Optional[str]:
+        """
+        US-008: Check if constraints appear infeasible after several iterations.
+
+        Args:
+            callback: Optimizer callback with iteration history
+            min_iterations: Minimum iterations before checking infeasibility
+
+        Returns:
+            Error message if infeasibility detected, None otherwise
+        """
+        if len(callback.iteration_history) < min_iterations:
+            return None
+
+        # Check recent iterations for persistent constraint violations
+        recent = callback.iteration_history[-min_iterations:]
+
+        # Track which constraints are consistently violated
+        violation_counts = {}
+
+        for iteration in recent:
+            for constraint_name in iteration.constraint_violations:
+                violation_counts[constraint_name] = violation_counts.get(constraint_name, 0) + 1
+
+        # Check if any constraint violated in all recent iterations
+        consistently_violated = [
+            name for name, count in violation_counts.items()
+            if count >= min_iterations * 0.9  # 90% of iterations
+        ]
+
+        if consistently_violated:
+            # Check if violations are getting worse (suggesting infeasibility)
+            getting_worse = {}
+            for constraint_name in consistently_violated:
+                violations_history = [
+                    iter_result.constraint_violations.get(constraint_name, 0)
+                    for iter_result in recent
+                    if constraint_name in iter_result.constraint_violations
+                ]
+
+                if len(violations_history) >= 2:
+                    # Check if average violation in second half > first half
+                    mid = len(violations_history) // 2
+                    first_half_avg = sum(violations_history[:mid]) / mid
+                    second_half_avg = sum(violations_history[mid:]) / (len(violations_history) - mid)
+
+                    if second_half_avg > first_half_avg * 1.1:  # 10% worse
+                        getting_worse[constraint_name] = second_half_avg
+
+            if getting_worse:
+                msg = (
+                    f"Constraints may be infeasible: {list(getting_worse.keys())} "
+                    f"have been consistently violated and are getting worse. "
+                    f"Consider relaxing these constraints or adjusting parameter bounds. "
+                    f"Average violations: {getting_worse}"
+                )
+                logger.warning(msg)
+                return msg
+
+        return None
 
     def _extract_objective(self, result: ValuationResult) -> float:
         """
