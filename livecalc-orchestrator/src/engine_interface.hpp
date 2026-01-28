@@ -238,7 +238,7 @@ public:
  *   }
  *   @endcode
  */
-using EngineFactory = std::unique_ptr<ICalcEngine>(*)();
+using EngineFactoryFn = std::unique_ptr<ICalcEngine>(*)();
 
 } // namespace livecalc
 

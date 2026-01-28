@@ -16,9 +16,10 @@ ESG Engine → Projection Engine → Solver Engine
 **Key Features:**
 - **Pluggable Engines**: All engines implement `ICalcEngine` interface
 - **Zero-Copy Data Flow**: SharedArrayBuffer for inter-engine communication (no serialization)
+- **Lifecycle Management**: Engine initialization, execution with timeout, cleanup
 - **Credential Management**: Centralized AM JWT passing to engines
 - **DAG Configuration**: JSON-based workflow definition
-- **Error Handling**: Graceful failure with partial results
+- **Error Handling**: Graceful failure with partial results, auto-retry support
 
 ---
 
@@ -340,6 +341,98 @@ engine_factories_["my_engine"] = create_my_engine;
 
 ## Data Flow & Buffer Management
 
+### Buffer Types
+
+The orchestrator manages three types of buffers for zero-copy data exchange:
+
+| Buffer Type | Record Size | Purpose | Max Records |
+|-------------|-------------|---------|-------------|
+| **INPUT** | 32 bytes | Policy data (Projection input) | 10M (320 MB) |
+| **SCENARIO** | 16 bytes | Economic scenarios (ESG → Projection) | 100M (1.6 GB) |
+| **RESULT** | 24 bytes | Projection results (Projection → Solver) | 100M (2.4 GB) |
+
+### Buffer Layouts
+
+#### INPUT Buffer (Policy Data)
+
+```cpp
+struct InputBufferRecord {     // 32 bytes, 16-byte aligned
+    uint64_t policy_id;         // 0-7: Unique policy ID
+    uint8_t age;                // 8: Age at entry (0-120)
+    uint8_t gender;             // 9: 0=Male, 1=Female, 2=Other
+    uint8_t underwriting_class; // 10: 0=Standard, 1=Smoker, etc.
+    uint8_t product_type;       // 11: 0=Term, 1=Whole Life, etc.
+    uint32_t padding1;          // 12-15: Alignment padding
+    double sum_assured;         // 16-23: Sum assured amount
+    double premium;             // 24-31: Annual premium
+};
+```
+
+**Example: 10,000 policies = 320 KB**
+
+#### SCENARIO Buffer (Economic Scenarios)
+
+```cpp
+struct ScenarioBufferRecord {  // 16 bytes, 16-byte aligned
+    uint32_t scenario_id;       // 0-3: outer_id * 1000 + inner_id
+    uint32_t year;              // 4-7: Projection year (1-indexed)
+    double rate;                // 8-15: Interest rate (per-annum, e.g., 0.03)
+};
+```
+
+**Example: 10 outer × 1K inner × 50 years = 500,000 rows = 8 MB**
+
+#### RESULT Buffer (Projection Results)
+
+```cpp
+struct ResultBufferRecord {    // 24 bytes
+    uint32_t scenario_id;       // 0-3: Scenario identifier
+    uint32_t policy_id;         // 4-7: Policy identifier
+    double npv;                 // 8-15: Net present value
+    uint64_t padding1;          // 16-23: Reserved for future metrics
+};
+```
+
+**Example: 1,000 policies × 1,000 scenarios = 1M results = 24 MB**
+
+### BufferManager API
+
+**Header:** `src/buffer_manager.hpp`
+
+```cpp
+#include "buffer_manager.hpp"
+using namespace livecalc::orchestrator;
+
+// Create manager
+BufferManager manager;
+
+// Allocate buffers
+BufferInfo policies = manager.allocate_buffer(
+    BufferType::INPUT, "policies", 10000);
+
+BufferInfo scenarios = manager.allocate_buffer(
+    BufferType::SCENARIO, "scenarios", 500000);
+
+BufferInfo results = manager.allocate_buffer(
+    BufferType::RESULT, "results", 10000000);
+
+// Access buffer data
+auto* policy_records = static_cast<InputBufferRecord*>(policies.data);
+policy_records[0].policy_id = 1;
+policy_records[0].sum_assured = 100000.0;
+
+// Zero-copy sharing: Engine A writes, Engine B reads
+engine_a->runChunk(nullptr, 0, scenarios.data, scenarios.total_size);
+engine_b->runChunk(scenarios.data, scenarios.total_size, results.data, results.total_size);
+
+// Query buffer stats
+size_t total_allocated = manager.get_total_allocated();
+auto stats = manager.get_buffer_stats();  // Map: name → size
+
+// Cleanup (automatic on destruction)
+manager.free_all();
+```
+
 ### SharedArrayBuffer (Zero-Copy)
 
 Within a single process (C++ ↔ Python), data flows via SharedArrayBuffer:
@@ -352,21 +445,30 @@ Engine A (Output Buffer)
 Engine B (Input Buffer)
 ```
 
-**Orchestrator allocates buffers:**
+**Key Properties:**
+- **16-byte alignment**: All buffers aligned for SIMD compatibility
+- **Zero-copy**: Same memory address passed between engines
+- **Validation**: Buffer sizes validated before allocation
+- **Reusability**: Buffers reused across multiple `runChunk()` calls
+
+**Example Workflow:**
 
 ```cpp
-// Allocate input and output buffers
-size_t input_size = 1000 * 32;   // 1000 policies × 32 bytes
-size_t output_size = 1000 * 16;  // 1000 results × 16 bytes
+BufferManager manager;
 
-uint8_t* input_buffer = allocate_aligned_buffer(input_size);
-uint8_t* output_buffer = allocate_aligned_buffer(output_size);
+// ESG Engine writes scenarios
+BufferInfo scenarios = manager.allocate_buffer(BufferType::SCENARIO, "scenarios", 500000);
+esg_engine->runChunk(nullptr, 0, scenarios.data, scenarios.total_size);
 
-// Engine A writes to output_buffer
-engine_a->runChunk(nullptr, 0, output_buffer, output_size);
+// Projection Engine reads scenarios (zero-copy), writes results
+BufferInfo results = manager.allocate_buffer(BufferType::RESULT, "results", 1000000);
+projection_engine->runChunk(
+    scenarios.data, scenarios.total_size,  // Input: ESG scenarios
+    results.data, results.total_size        // Output: NPVs
+);
 
-// Engine B reads from output_buffer (now input for B)
-engine_b->runChunk(output_buffer, output_size, final_output, final_output_size);
+// Solver Engine reads results (zero-copy)
+solver_engine->runChunk(results.data, results.total_size, final_output, final_output_size);
 ```
 
 **Alignment:** All buffers are 16-byte aligned for SIMD compatibility.
@@ -561,3 +663,174 @@ TEST_CASE("ESG → Projection integration") {
 - [Python ESG Engine](../livecalc-engines/python-esg/): Example Python engine
 - [Python Solver Engine](../livecalc-engines/python-solver/): Example solver engine
 - [C++ Projection Engine](../livecalc-engine/): Core projection library
+
+---
+
+## Engine Lifecycle Management
+
+The `EngineLifecycleManager` handles engine startup, execution, and cleanup with timeout protection and error recovery.
+
+### Basic Usage
+
+```cpp
+#include "engine_factory.hpp"
+#include "engine_lifecycle.hpp"
+
+// Create engine via factory
+EngineFactory factory;
+auto engine = factory.create_engine("cpp_projection");
+
+// Configure lifecycle
+LifecycleConfig config;
+config.timeout_seconds = 300;        // 5 minute timeout
+config.auto_retry_on_error = true;   // Retry once on transient errors
+config.max_consecutive_errors = 3;   // Abort after 3 consecutive errors
+
+// Create manager
+EngineLifecycleManager manager(std::move(engine), config);
+
+// Initialize
+std::map<std::string, std::string> engine_config;
+engine_config["num_scenarios"] = "1000";
+engine_config["projection_years"] = "50";
+AMCredentials creds("https://am.example.com", "jwt_token", "/cache");
+manager.initialize(engine_config, &creds);
+
+// Execute
+ExecutionResult result = manager.run_chunk(input, input_size, output, output_size);
+if (!result.success) {
+    std::cerr << "Error: " << result.error_message << std::endl;
+}
+
+// Get statistics
+auto stats = manager.get_stats();
+std::cout << "Successful runs: " << stats.successful_runs << std::endl;
+std::cout << "Average time: " << stats.average_execution_time_ms << "ms" << std::endl;
+
+// Cleanup (automatic via RAII, or explicit)
+manager.dispose();
+```
+
+### Engine States
+
+The lifecycle manager tracks engine state through these transitions:
+
+```
+UNINITIALIZED → INITIALIZING → READY → RUNNING → [READY | ERROR | DISPOSED]
+```
+
+- **UNINITIALIZED**: Engine created but not initialized
+- **INITIALIZING**: `initialize()` in progress
+- **READY**: Engine initialized and ready to execute
+- **RUNNING**: `runChunk()` executing
+- **ERROR**: Execution failed, recovery possible
+- **DISPOSED**: Resources freed, engine no longer usable
+
+### Timeout Protection
+
+Execution is protected by a configurable timeout:
+
+```cpp
+LifecycleConfig config;
+config.timeout_seconds = 180;  // 3 minutes
+
+EngineLifecycleManager manager(create_engine(), config);
+// If execution exceeds 180 seconds, it's aborted and returns error
+```
+
+### Error Recovery
+
+The manager supports automatic retry on transient errors:
+
+```cpp
+LifecycleConfig config;
+config.auto_retry_on_error = true;
+config.max_consecutive_errors = 3;
+
+EngineLifecycleManager manager(create_engine(), config);
+
+// If first execution fails, automatically retries once
+// If 3 consecutive errors occur, engine is disposed
+```
+
+### Statistics Tracking
+
+Track engine performance across multiple runs:
+
+```cpp
+auto stats = manager.get_stats();
+
+std::cout << "Successful runs: " << stats.successful_runs << std::endl;
+std::cout << "Failed runs: " << stats.failed_runs << std::endl;
+std::cout << "Timeout count: " << stats.timeout_count << std::endl;
+std::cout << "Average execution time: " << stats.average_execution_time_ms << "ms" << std::endl;
+std::cout << "Total execution time: " << stats.total_execution_time_ms << "ms" << std::endl;
+
+// Reset statistics
+manager.reset_stats();
+```
+
+---
+
+## Engine Factory
+
+The `EngineFactory` provides centralized engine creation by type.
+
+### Built-in Engines
+
+```cpp
+EngineFactory factory;
+
+// Create projection engine
+auto projection = factory.create_engine("cpp_projection");
+
+// List available engine types
+auto types = factory.list_engine_types();
+for (const auto& type : types) {
+    std::cout << "Available: " << type << std::endl;
+}
+
+// Check if engine type is registered
+if (factory.is_registered("cpp_projection")) {
+    // ...
+}
+```
+
+### Custom Engine Registration
+
+Register custom engine implementations:
+
+```cpp
+EngineFactory factory;
+
+// Register custom engine
+factory.register_engine("my_custom_engine", []() -> std::unique_ptr<ICalcEngine> {
+    return std::make_unique<MyCustomEngine>();
+});
+
+// Create instance
+auto custom = factory.create_engine("my_custom_engine");
+```
+
+---
+
+## Implementation Status
+
+### Completed (US-001, US-002, US-003)
+
+- ✅ ICalcEngine interface definition (C++)
+- ✅ SharedArrayBuffer data bus with typed buffers
+- ✅ Engine factory with registration system
+- ✅ Lifecycle management with timeout protection
+- ✅ Error recovery and retry logic
+- ✅ Statistics tracking
+- ✅ Comprehensive test suite (32 tests, 274 assertions)
+
+### In Progress
+
+- ⏳ DAG configuration and composition (US-004)
+- ⏳ Credential management integration (US-005)
+- ⏳ Parquet I/O integration (US-006)
+- ⏳ Execution tracking and logging (US-007)
+- ⏳ Error handling and resilience (US-008)
+

@@ -124,7 +124,7 @@
         "factory": "EngineFactory class with methods: create_engine(type, config) → ICalcEngine",
         "lifecycle": "Sequence: initialize → runChunk → dispose (or on error)"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

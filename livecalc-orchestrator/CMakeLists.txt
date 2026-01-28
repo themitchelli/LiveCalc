@@ -25,6 +25,8 @@ include_directories(
 set(ORCHESTRATOR_SOURCES
     src/projection_engine.cpp
     src/buffer_manager.cpp
+    src/engine_factory.cpp
+    src/engine_lifecycle.cpp
 )
 
 # Header files
@@ -32,6 +34,8 @@ set(ORCHESTRATOR_HEADERS
     src/engine_interface.hpp
     src/projection_engine.hpp
     src/buffer_manager.hpp
+    src/engine_factory.hpp
+    src/engine_lifecycle.hpp
 )
 
 # Build orchestrator as a library
@@ -68,6 +72,7 @@ if(BUILD_TESTS)
     set(TEST_SOURCES
         tests/test_engine_interface.cpp
         tests/test_buffer_manager.cpp
+        tests/test_engine_lifecycle.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})

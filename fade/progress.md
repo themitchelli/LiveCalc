@@ -4661,3 +4661,51 @@ For blocked stories, use:
   - Zero-copy data sharing demonstrations
   - Large buffer allocation (1M-10M records)
   - Buffer size validation
+
+## 2026-01-28 02:30 - US-003: Engine Lifecycle Management - COMPLETE
+
+- Implemented EngineFactory class for creating calculation engines by type
+- Implemented EngineLifecycleManager for managing engine initialization, execution with timeout protection, error recovery, and cleanup
+- Created comprehensive lifecycle state machine:
+  - States: UNINITIALIZED → INITIALIZING → READY → RUNNING → [READY | ERROR | DISPOSED]
+  - Thread-safe state transitions with validation
+- Engine factory features:
+  - Registry-based engine creation with factory functions
+  - Built-in cpp_projection engine registration
+  - Support for custom engine registration at runtime
+  - Clear error messages listing available engines when unknown type requested
+  - Engine type enumeration API (list_engine_types)
+- Lifecycle management features:
+  - Configurable timeout protection (default 300s) using std::async
+  - Optional auto-retry on transient errors
+  - Configurable cleanup on error (default: true)
+  - Maximum consecutive error threshold (default: 3)
+  - Comprehensive statistics tracking (successful runs, failed runs, timeouts, execution times)
+- Timeout implementation using std::async and std::future::wait_for()
+- Error recovery with configurable retry logic and state transitions
+- RAII pattern for automatic cleanup via destructor
+- Fixed critical retry bug: transition back to READY state before retry attempt
+- Fixed naming collision: renamed EngineFactoryFn type alias (was EngineFactory)
+- All acceptance criteria met:
+  - ✅ Engine factory creates engines by type (cpp_projection, python_esg, python_solver)
+  - ✅ Startup: call initialize() on each engine in sequence
+  - ✅ Execution: call runChunk() with data, collect results
+  - ✅ Error recovery: cleanup resources, return error to caller
+  - ✅ Cleanup: call dispose() on all engines at end
+  - ✅ Timeout protection: runChunk() completes within time limit (configurable, default 5 min)
+- Files created:
+  - livecalc-orchestrator/src/engine_factory.hpp (94 lines)
+  - livecalc-orchestrator/src/engine_factory.cpp (65 lines)
+  - livecalc-orchestrator/src/engine_lifecycle.hpp (230 lines)
+  - livecalc-orchestrator/src/engine_lifecycle.cpp (180 lines)
+  - livecalc-orchestrator/tests/test_engine_lifecycle.cpp (418 lines)
+- Files modified:
+  - livecalc-orchestrator/src/engine_interface.hpp (renamed EngineFactory to EngineFactoryFn)
+  - livecalc-orchestrator/CMakeLists.txt (added new sources and tests)
+  - livecalc-orchestrator/README.md (added lifecycle management documentation)
+- Tests: 32 test cases, 274 assertions passed
+  - Factory: create, list, register, duplicate detection (5 tests)
+  - Lifecycle: initialize, execute, timeout, failure, retry, max errors, statistics (12 tests)
+  - Integration: factory + lifecycle composition (1 test)
+  - Mock engines: MockSlowEngine, RetryableMockEngine for testing lifecycle scenarios
+
