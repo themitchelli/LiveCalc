@@ -230,11 +230,8 @@ class SolverEngine(ICalcEngine):
         if not isinstance(config['parameters'], list) or len(config['parameters']) == 0:
             raise InitializationError("Config 'parameters' must be a non-empty list")
 
-        for param in config['parameters']:
-            if not isinstance(param, dict):
-                raise InitializationError(f"Parameter must be a dict, got: {type(param)}")
-            if 'name' not in param or 'initial' not in param:
-                raise InitializationError(f"Parameter missing 'name' or 'initial': {param}")
+        # Comprehensive parameter validation (US-003)
+        self._validate_parameters(config['parameters'])
 
         # Validate objective structure
         if not isinstance(config['objective'], dict) or 'metric' not in config['objective']:
@@ -408,6 +405,106 @@ class SolverEngine(ICalcEngine):
             return getattr(result, metric)
         else:
             raise ConfigurationError(f"Objective metric '{metric}' not found in ValuationResult")
+
+    def _validate_parameters(self, parameters: List[Dict[str, Any]]) -> None:
+        """
+        Validate parameter definitions comprehensively (US-003).
+
+        Validates:
+        - Required fields (name, initial, lower, upper)
+        - Parameter types (continuous/discrete)
+        - Bounds validity (lower < upper)
+        - Initial value within bounds
+        - Step size for discrete parameters
+
+        Args:
+            parameters: List of parameter definitions
+
+        Raises:
+            InitializationError: If any parameter is invalid
+        """
+        for i, param in enumerate(parameters):
+            # Check if parameter is a dict
+            if not isinstance(param, dict):
+                raise InitializationError(f"Parameter {i} must be a dict, got: {type(param)}")
+
+            # Check required fields
+            required_fields = ['name', 'initial', 'lower', 'upper']
+            missing_fields = [f for f in required_fields if f not in param]
+            if missing_fields:
+                raise InitializationError(
+                    f"Parameter {i} ('{param.get('name', 'unknown')}') missing required fields: {missing_fields}. "
+                    f"Required: {required_fields}"
+                )
+
+            param_name = param['name']
+
+            # Validate parameter type (continuous or discrete)
+            param_type = param.get('type', 'continuous')  # default to continuous
+            valid_types = ['continuous', 'discrete']
+            if param_type not in valid_types:
+                raise InitializationError(
+                    f"Parameter '{param_name}' has invalid type '{param_type}'. "
+                    f"Expected one of: {valid_types}"
+                )
+
+            # Validate bounds are numeric
+            try:
+                lower = float(param['lower'])
+                upper = float(param['upper'])
+                initial = float(param['initial'])
+            except (ValueError, TypeError) as e:
+                raise InitializationError(
+                    f"Parameter '{param_name}' has non-numeric bound: {e}"
+                )
+
+            # Validate lower < upper
+            if lower >= upper:
+                raise InitializationError(
+                    f"Parameter '{param_name}' has invalid bounds: lower ({lower}) must be < upper ({upper})"
+                )
+
+            # Validate initial value is within bounds
+            if initial < lower or initial > upper:
+                raise InitializationError(
+                    f"Parameter '{param_name}' initial value ({initial}) is outside bounds [{lower}, {upper}]"
+                )
+
+            # Validate step size for discrete parameters
+            if param_type == 'discrete':
+                if 'step' not in param:
+                    raise InitializationError(
+                        f"Discrete parameter '{param_name}' missing required 'step' field"
+                    )
+
+                try:
+                    step = float(param['step'])
+                except (ValueError, TypeError) as e:
+                    raise InitializationError(
+                        f"Parameter '{param_name}' has non-numeric step: {e}"
+                    )
+
+                if step <= 0:
+                    raise InitializationError(
+                        f"Parameter '{param_name}' step size ({step}) must be positive"
+                    )
+
+                # Validate that the range is divisible by step (warn if not exact)
+                range_size = upper - lower
+                num_steps = range_size / step
+                if abs(num_steps - round(num_steps)) > 1e-6:
+                    logger.warning(
+                        f"Parameter '{param_name}': range ({lower} to {upper}) is not evenly divisible by step ({step}). "
+                        f"This may cause unexpected behavior."
+                    )
+
+        # Check for duplicate parameter names
+        param_names = [p['name'] for p in parameters]
+        duplicates = [name for name in param_names if param_names.count(name) > 1]
+        if duplicates:
+            raise InitializationError(
+                f"Duplicate parameter names found: {set(duplicates)}"
+            )
 
     def _resolve_calibration_targets(
         self,

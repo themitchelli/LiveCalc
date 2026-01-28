@@ -54,7 +54,7 @@ class TestSolverEngineInterface(unittest.TestCase):
         engine = SolverEngine()
         config = {
             'parameters': [
-                {'name': 'param1', 'initial': 1.0}
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}
             ],
             'objective': {'metric': 'mean_npv'}
         }
@@ -65,7 +65,7 @@ class TestSolverEngineInterface(unittest.TestCase):
         """Test dispose cleans up resources."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'}
         }
         engine.initialize(config)
@@ -105,7 +105,7 @@ class TestConfigurationValidation(unittest.TestCase):
         """Test initialization fails if objective missing."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}]
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}]
         }
         with self.assertRaises(InitializationError) as ctx:
             engine.initialize(config)
@@ -128,19 +128,20 @@ class TestConfigurationValidation(unittest.TestCase):
         engine = SolverEngine()
         config = {
             'parameters': [
-                {'name': 'param1'}  # missing 'initial'
+                {'name': 'param1'}  # missing 'initial', 'lower', 'upper'
             ],
             'objective': {'metric': 'mean_npv'}
         }
         with self.assertRaises(InitializationError) as ctx:
             engine.initialize(config)
-        self.assertIn("missing 'name' or 'initial'", str(ctx.exception))
+        # Now checks for all missing required fields (initial, lower, upper)
+        self.assertIn("missing required fields", str(ctx.exception))
 
     def test_invalid_objective_structure(self):
         """Test initialization fails if objective structure is invalid."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {}  # missing 'metric'
         }
         with self.assertRaises(InitializationError) as ctx:
@@ -151,7 +152,7 @@ class TestConfigurationValidation(unittest.TestCase):
         """Test custom timeout configuration."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'timeout_seconds': 60
         }
@@ -162,7 +163,7 @@ class TestConfigurationValidation(unittest.TestCase):
         """Test invalid timeout (negative) raises error."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'timeout_seconds': -10
         }
@@ -174,7 +175,7 @@ class TestConfigurationValidation(unittest.TestCase):
         """Test invalid timeout (too large) raises error."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'timeout_seconds': 5000
         }
@@ -202,7 +203,7 @@ class TestOptimizeMethod(unittest.TestCase):
         engine = SolverEngine()
         config = {
             'parameters': [
-                {'name': 'premium_rate', 'initial': 1.0}
+                {'name': 'premium_rate', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}
             ],
             'objective': {'metric': 'mean_npv'}
         }
@@ -234,8 +235,8 @@ class TestOptimizeMethod(unittest.TestCase):
         engine = SolverEngine()
         config = {
             'parameters': [
-                {'name': 'param1', 'initial': 1.0},
-                {'name': 'param2', 'initial': 2.0}
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0},
+                {'name': 'param2', 'lower': 0.0, 'upper': 10.0, 'initial': 2.0}
             ],
             'objective': {'metric': 'mean_npv'}
         }
@@ -258,7 +259,7 @@ class TestOptimizeMethod(unittest.TestCase):
         """Test optimize() returns OptimizationResult with required fields."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'}
         }
         engine.initialize(config)
@@ -284,7 +285,7 @@ class TestOptimizeMethod(unittest.TestCase):
         """Test objective value is extracted from ValuationResult."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'}
         }
         engine.initialize(config)
@@ -299,7 +300,7 @@ class TestOptimizeMethod(unittest.TestCase):
         """Test optimize() handles projection callback exceptions."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'}
         }
         engine.initialize(config)
@@ -324,7 +325,7 @@ class TestTimeoutProtection(unittest.TestCase):
         """Test timeout protection triggers for slow callbacks."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'timeout_seconds': 1  # 1 second timeout
         }
@@ -346,7 +347,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test initialization with inline calibration targets."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'premium_rate', 'initial': 1.0}],
+            'parameters': [{'name': 'premium_rate', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize_return',
@@ -367,7 +368,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test validation catches invalid objective_function."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'invalid_objective',
@@ -382,7 +383,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test validation catches invalid objective_metric."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize',
@@ -397,7 +398,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test inline targets with multiple constraints."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize',
@@ -415,7 +416,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test constraint validation catches missing required fields."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize',
@@ -433,7 +434,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test constraint validation catches invalid operators."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize',
@@ -451,7 +452,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test constraint validation catches non-numeric values."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'objective_function': 'maximize',
@@ -487,7 +488,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test that calibration_targets field is optional."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'}
             # No calibration_targets - should still work
         }
@@ -499,7 +500,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test AM reference validation catches invalid format."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'am_reference': 'invalid_format_no_colon'
@@ -518,7 +519,7 @@ class TestCalibrationTargetResolution(unittest.TestCase):
         """Test AM reference requires credentials."""
         engine = SolverEngine()
         config = {
-            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
             'objective': {'metric': 'mean_npv'},
             'calibration_targets': {
                 'am_reference': 'calibration-targets:v1.0'
@@ -533,6 +534,369 @@ class TestCalibrationTargetResolution(unittest.TestCase):
             "not available" in error_msg or "credentials required" in error_msg,
             f"Expected error about AM client or credentials, got: {error_msg}"
         )
+
+
+class TestParameterDefinitionAndBounds(unittest.TestCase):
+    """Test parameter definition and bounds validation (US-003)."""
+
+    def test_valid_parameter_with_all_fields(self):
+        """Test parameter with all required fields validates successfully."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'type': 'continuous',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+
+    def test_parameter_missing_name(self):
+        """Test parameter validation fails if name missing."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'type': 'continuous',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("missing required fields", str(ctx.exception))
+        self.assertIn("name", str(ctx.exception))
+
+    def test_parameter_missing_initial(self):
+        """Test parameter validation fails if initial value missing."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'type': 'continuous',
+                    'lower': 0.5,
+                    'upper': 2.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("missing required fields", str(ctx.exception))
+        self.assertIn("initial", str(ctx.exception))
+
+    def test_parameter_missing_bounds(self):
+        """Test parameter validation fails if bounds missing."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'initial': 1.0
+                    # Missing 'lower' and 'upper' - should fail
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("missing required fields", str(ctx.exception))
+        self.assertTrue("lower" in str(ctx.exception) or "upper" in str(ctx.exception))
+
+    def test_parameter_invalid_type(self):
+        """Test parameter validation fails if type is invalid."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'type': 'invalid_type',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("invalid type", str(ctx.exception))
+        self.assertIn("continuous", str(ctx.exception))
+        self.assertIn("discrete", str(ctx.exception))
+
+    def test_parameter_lower_greater_than_upper(self):
+        """Test parameter validation fails if lower bound >= upper bound."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 2.0,
+                    'upper': 1.0,
+                    'initial': 1.5
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("invalid bounds", str(ctx.exception))
+        self.assertIn("lower", str(ctx.exception))
+        self.assertIn("upper", str(ctx.exception))
+
+    def test_parameter_initial_below_lower_bound(self):
+        """Test parameter validation fails if initial value < lower bound."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 0.3
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("initial value", str(ctx.exception))
+        self.assertIn("outside bounds", str(ctx.exception))
+
+    def test_parameter_initial_above_upper_bound(self):
+        """Test parameter validation fails if initial value > upper bound."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 2.5
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("initial value", str(ctx.exception))
+        self.assertIn("outside bounds", str(ctx.exception))
+
+    def test_discrete_parameter_missing_step(self):
+        """Test discrete parameter validation fails if step missing."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'num_employees',
+                    'type': 'discrete',
+                    'lower': 1,
+                    'upper': 100,
+                    'initial': 50
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("missing required 'step' field", str(ctx.exception))
+
+    def test_discrete_parameter_with_valid_step(self):
+        """Test discrete parameter with valid step validates successfully."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'num_employees',
+                    'type': 'discrete',
+                    'lower': 0,
+                    'upper': 100,
+                    'initial': 50,
+                    'step': 1
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+
+    def test_discrete_parameter_negative_step(self):
+        """Test discrete parameter validation fails if step is negative."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'num_employees',
+                    'type': 'discrete',
+                    'lower': 0,
+                    'upper': 100,
+                    'initial': 50,
+                    'step': -1
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("step size", str(ctx.exception))
+        self.assertIn("must be positive", str(ctx.exception))
+
+    def test_discrete_parameter_zero_step(self):
+        """Test discrete parameter validation fails if step is zero."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'num_employees',
+                    'type': 'discrete',
+                    'lower': 0,
+                    'upper': 100,
+                    'initial': 50,
+                    'step': 0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("step size", str(ctx.exception))
+        self.assertIn("must be positive", str(ctx.exception))
+
+    def test_continuous_parameter_defaults_when_type_omitted(self):
+        """Test parameter defaults to continuous when type not specified."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+
+    def test_multiple_parameters_all_valid(self):
+        """Test multiple parameters with all valid configurations."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'type': 'continuous',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                },
+                {
+                    'name': 'reserve_factor',
+                    'type': 'continuous',
+                    'lower': 0.7,
+                    'upper': 1.5,
+                    'initial': 0.9
+                },
+                {
+                    'name': 'num_scenarios',
+                    'type': 'discrete',
+                    'lower': 100,
+                    'upper': 1000,
+                    'initial': 500,
+                    'step': 100
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+
+    def test_duplicate_parameter_names(self):
+        """Test validation fails if duplicate parameter names found."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 1.0
+                },
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.8,
+                    'upper': 1.5,
+                    'initial': 1.2
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("Duplicate parameter names", str(ctx.exception))
+
+    def test_parameter_non_numeric_bounds(self):
+        """Test validation fails if bounds are not numeric."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 'invalid',
+                    'upper': 2.0,
+                    'initial': 1.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("non-numeric bound", str(ctx.exception))
+
+    def test_parameter_initial_at_lower_bound(self):
+        """Test parameter with initial value at lower bound validates successfully."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 0.5
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+
+    def test_parameter_initial_at_upper_bound(self):
+        """Test parameter with initial value at upper bound validates successfully."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {
+                    'name': 'premium_rate',
+                    'lower': 0.5,
+                    'upper': 2.0,
+                    'initial': 2.0
+                }
+            ],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
 
 
 if __name__ == '__main__':
