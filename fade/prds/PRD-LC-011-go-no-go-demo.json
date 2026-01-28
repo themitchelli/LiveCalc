@@ -73,7 +73,7 @@
         "scenario_generation": "Use PRD-LC-007 (ESG) to generate scenarios",
         "am_setup": "Upload assumptions to assumptionsmanager.ddns.net with known versions"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

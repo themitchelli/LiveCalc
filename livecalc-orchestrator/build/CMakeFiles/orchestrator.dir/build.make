@@ -184,6 +184,34 @@ CMakeFiles/orchestrator.dir/src/parquet_io.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator.dir/src/parquet_io.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/parquet_io.cpp -o CMakeFiles/orchestrator.dir/src/parquet_io.cpp.s
 
+CMakeFiles/orchestrator.dir/src/logger.cpp.o: CMakeFiles/orchestrator.dir/flags.make
+CMakeFiles/orchestrator.dir/src/logger.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.cpp
+CMakeFiles/orchestrator.dir/src/logger.cpp.o: CMakeFiles/orchestrator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/orchestrator.dir/src/logger.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/orchestrator.dir/src/logger.cpp.o -MF CMakeFiles/orchestrator.dir/src/logger.cpp.o.d -o CMakeFiles/orchestrator.dir/src/logger.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.cpp
+
+CMakeFiles/orchestrator.dir/src/logger.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/orchestrator.dir/src/logger.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.cpp > CMakeFiles/orchestrator.dir/src/logger.cpp.i
+
+CMakeFiles/orchestrator.dir/src/logger.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator.dir/src/logger.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.cpp -o CMakeFiles/orchestrator.dir/src/logger.cpp.s
+
+CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o: CMakeFiles/orchestrator.dir/flags.make
+CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.cpp
+CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o: CMakeFiles/orchestrator.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o -MF CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o.d -o CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.cpp
+
+CMakeFiles/orchestrator.dir/src/orchestrator.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/orchestrator.dir/src/orchestrator.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.cpp > CMakeFiles/orchestrator.dir/src/orchestrator.cpp.i
+
+CMakeFiles/orchestrator.dir/src/orchestrator.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator.dir/src/orchestrator.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.cpp -o CMakeFiles/orchestrator.dir/src/orchestrator.cpp.s
+
 # Object files for target orchestrator
 orchestrator_OBJECTS = \
 "CMakeFiles/orchestrator.dir/src/projection_engine.cpp.o" \
@@ -193,7 +221,9 @@ orchestrator_OBJECTS = \
 "CMakeFiles/orchestrator.dir/src/dag_config.cpp.o" \
 "CMakeFiles/orchestrator.dir/src/config_parser.cpp.o" \
 "CMakeFiles/orchestrator.dir/src/credential_manager.cpp.o" \
-"CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o"
+"CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o" \
+"CMakeFiles/orchestrator.dir/src/logger.cpp.o" \
+"CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o"
 
 # External object files for target orchestrator
 orchestrator_EXTERNAL_OBJECTS =
@@ -206,9 +236,11 @@ liborchestrator.a: CMakeFiles/orchestrator.dir/src/dag_config.cpp.o
 liborchestrator.a: CMakeFiles/orchestrator.dir/src/config_parser.cpp.o
 liborchestrator.a: CMakeFiles/orchestrator.dir/src/credential_manager.cpp.o
 liborchestrator.a: CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o
+liborchestrator.a: CMakeFiles/orchestrator.dir/src/logger.cpp.o
+liborchestrator.a: CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o
 liborchestrator.a: CMakeFiles/orchestrator.dir/build.make
 liborchestrator.a: CMakeFiles/orchestrator.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX static library liborchestrator.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX static library liborchestrator.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/orchestrator.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/orchestrator.dir/link.txt --verbose=$(VERBOSE)
 

@@ -32,6 +32,7 @@ set(ORCHESTRATOR_SOURCES
     src/credential_manager.cpp
     src/parquet_io.cpp
     src/logger.cpp
+    src/orchestrator.cpp
 )
 
 # Header files
@@ -46,6 +47,7 @@ set(ORCHESTRATOR_HEADERS
     src/credential_manager.hpp
     src/parquet_io.hpp
     src/logger.hpp
+    src/orchestrator.hpp
 )
 
 # Build orchestrator as a library
@@ -113,6 +115,7 @@ if(BUILD_TESTS)
         tests/test_credential_manager.cpp
         tests/test_parquet_io.cpp
         tests/test_logger.cpp
+        tests/test_orchestrator.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})

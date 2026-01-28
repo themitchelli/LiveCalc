@@ -14,6 +14,8 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/dag_config.cpp" "CMakeFiles/orchestrator.dir/src/dag_config.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/dag_config.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/engine_factory.cpp" "CMakeFiles/orchestrator.dir/src/engine_factory.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/engine_factory.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/engine_lifecycle.cpp" "CMakeFiles/orchestrator.dir/src/engine_lifecycle.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/engine_lifecycle.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.cpp" "CMakeFiles/orchestrator.dir/src/logger.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/logger.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.cpp" "CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/parquet_io.cpp" "CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/parquet_io.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/projection_engine.cpp" "CMakeFiles/orchestrator.dir/src/projection_engine.cpp.o" "gcc" "CMakeFiles/orchestrator.dir/src/projection_engine.cpp.o.d"
   )

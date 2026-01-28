@@ -809,6 +809,54 @@ src/engine_lifecycle.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/engine_lifecycle.cpp.s
 .PHONY : src/engine_lifecycle.cpp.s
 
+src/logger.o: src/logger.cpp.o
+.PHONY : src/logger.o
+
+# target to build an object file
+src/logger.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/logger.cpp.o
+.PHONY : src/logger.cpp.o
+
+src/logger.i: src/logger.cpp.i
+.PHONY : src/logger.i
+
+# target to preprocess a source file
+src/logger.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/logger.cpp.i
+.PHONY : src/logger.cpp.i
+
+src/logger.s: src/logger.cpp.s
+.PHONY : src/logger.s
+
+# target to generate assembly for a file
+src/logger.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/logger.cpp.s
+.PHONY : src/logger.cpp.s
+
+src/orchestrator.o: src/orchestrator.cpp.o
+.PHONY : src/orchestrator.o
+
+# target to build an object file
+src/orchestrator.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/orchestrator.cpp.o
+.PHONY : src/orchestrator.cpp.o
+
+src/orchestrator.i: src/orchestrator.cpp.i
+.PHONY : src/orchestrator.i
+
+# target to preprocess a source file
+src/orchestrator.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/orchestrator.cpp.i
+.PHONY : src/orchestrator.cpp.i
+
+src/orchestrator.s: src/orchestrator.cpp.s
+.PHONY : src/orchestrator.s
+
+# target to generate assembly for a file
+src/orchestrator.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator.dir/build.make CMakeFiles/orchestrator.dir/src/orchestrator.cpp.s
+.PHONY : src/orchestrator.cpp.s
+
 src/parquet_io.o: src/parquet_io.cpp.o
 .PHONY : src/parquet_io.o
 
@@ -977,6 +1025,54 @@ tests/test_engine_lifecycle.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_engine_lifecycle.cpp.s
 .PHONY : tests/test_engine_lifecycle.cpp.s
 
+tests/test_logger.o: tests/test_logger.cpp.o
+.PHONY : tests/test_logger.o
+
+# target to build an object file
+tests/test_logger.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o
+.PHONY : tests/test_logger.cpp.o
+
+tests/test_logger.i: tests/test_logger.cpp.i
+.PHONY : tests/test_logger.i
+
+# target to preprocess a source file
+tests/test_logger.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.i
+.PHONY : tests/test_logger.cpp.i
+
+tests/test_logger.s: tests/test_logger.cpp.s
+.PHONY : tests/test_logger.s
+
+# target to generate assembly for a file
+tests/test_logger.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.s
+.PHONY : tests/test_logger.cpp.s
+
+tests/test_orchestrator.o: tests/test_orchestrator.cpp.o
+.PHONY : tests/test_orchestrator.o
+
+# target to build an object file
+tests/test_orchestrator.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o
+.PHONY : tests/test_orchestrator.cpp.o
+
+tests/test_orchestrator.i: tests/test_orchestrator.cpp.i
+.PHONY : tests/test_orchestrator.i
+
+# target to preprocess a source file
+tests/test_orchestrator.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.i
+.PHONY : tests/test_orchestrator.cpp.i
+
+tests/test_orchestrator.s: tests/test_orchestrator.cpp.s
+.PHONY : tests/test_orchestrator.s
+
+# target to generate assembly for a file
+tests/test_orchestrator.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/orchestrator_tests.dir/build.make CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.s
+.PHONY : tests/test_orchestrator.cpp.s
+
 tests/test_parquet_io.o: tests/test_parquet_io.cpp.o
 .PHONY : tests/test_parquet_io.o
 
@@ -1070,6 +1166,12 @@ help:
 	@echo "... src/engine_lifecycle.o"
 	@echo "... src/engine_lifecycle.i"
 	@echo "... src/engine_lifecycle.s"
+	@echo "... src/logger.o"
+	@echo "... src/logger.i"
+	@echo "... src/logger.s"
+	@echo "... src/orchestrator.o"
+	@echo "... src/orchestrator.i"
+	@echo "... src/orchestrator.s"
 	@echo "... src/parquet_io.o"
 	@echo "... src/parquet_io.i"
 	@echo "... src/parquet_io.s"
@@ -1091,6 +1193,12 @@ help:
 	@echo "... tests/test_engine_lifecycle.o"
 	@echo "... tests/test_engine_lifecycle.i"
 	@echo "... tests/test_engine_lifecycle.s"
+	@echo "... tests/test_logger.o"
+	@echo "... tests/test_logger.i"
+	@echo "... tests/test_logger.s"
+	@echo "... tests/test_orchestrator.o"
+	@echo "... tests/test_orchestrator.i"
+	@echo "... tests/test_orchestrator.s"
 	@echo "... tests/test_parquet_io.o"
 	@echo "... tests/test_parquet_io.i"
 	@echo "... tests/test_parquet_io.s"

@@ -13,6 +13,8 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_dag_config.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_dag_config.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_dag_config.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_engine_interface.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_engine_interface.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_engine_interface.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_engine_lifecycle.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_engine_lifecycle.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_engine_lifecycle.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_logger.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o.d"
+  "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_orchestrator.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o.d"
   "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_parquet_io.cpp" "CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.o" "gcc" "CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.o.d"
   )
 

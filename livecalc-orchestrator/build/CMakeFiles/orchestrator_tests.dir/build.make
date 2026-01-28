@@ -156,6 +156,34 @@ CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_parquet_io.cpp -o CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.s
 
+CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o: CMakeFiles/orchestrator_tests.dir/flags.make
+CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_logger.cpp
+CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o: CMakeFiles/orchestrator_tests.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o -MF CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o.d -o CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_logger.cpp
+
+CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_logger.cpp > CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.i
+
+CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_logger.cpp -o CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.s
+
+CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o: CMakeFiles/orchestrator_tests.dir/flags.make
+CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o: /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_orchestrator.cpp
+CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o: CMakeFiles/orchestrator_tests.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o -MF CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o.d -o CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o -c /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_orchestrator.cpp
+
+CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_orchestrator.cpp > CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.i
+
+CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/tests/test_orchestrator.cpp -o CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.s
+
 # Object files for target orchestrator_tests
 orchestrator_tests_OBJECTS = \
 "CMakeFiles/orchestrator_tests.dir/tests/test_engine_interface.cpp.o" \
@@ -163,7 +191,9 @@ orchestrator_tests_OBJECTS = \
 "CMakeFiles/orchestrator_tests.dir/tests/test_engine_lifecycle.cpp.o" \
 "CMakeFiles/orchestrator_tests.dir/tests/test_dag_config.cpp.o" \
 "CMakeFiles/orchestrator_tests.dir/tests/test_credential_manager.cpp.o" \
-"CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.o"
+"CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.o" \
+"CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o" \
+"CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o"
 
 # External object files for target orchestrator_tests
 orchestrator_tests_EXTERNAL_OBJECTS =
@@ -174,6 +204,8 @@ orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_engine_lifecycl
 orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_dag_config.cpp.o
 orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_credential_manager.cpp.o
 orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_parquet_io.cpp.o
+orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_logger.cpp.o
+orchestrator_tests: CMakeFiles/orchestrator_tests.dir/tests/test_orchestrator.cpp.o
 orchestrator_tests: CMakeFiles/orchestrator_tests.dir/build.make
 orchestrator_tests: liborchestrator.a
 orchestrator_tests: _deps/catch2-build/src/libCatch2Maind.a
@@ -184,7 +216,7 @@ orchestrator_tests: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/
 orchestrator_tests: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libcurl.tbd
 orchestrator_tests: _deps/catch2-build/src/libCatch2d.a
 orchestrator_tests: CMakeFiles/orchestrator_tests.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable orchestrator_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX executable orchestrator_tests"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/orchestrator_tests.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

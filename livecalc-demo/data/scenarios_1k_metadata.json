@@ -1,0 +1,14 @@
+{
+  "outer_paths": 10,
+  "inner_paths_per_outer": 100,
+  "total_scenarios": 1000,
+  "projection_years": 50,
+  "seed": 42,
+  "esg_model": "vasicek",
+  "generated_at": "2026-01-28T07:14:04.820787",
+  "total_rows": 50000,
+  "mean_rate": 0.08199463039636612,
+  "std_dev_rate": 0.14306676387786865,
+  "min_rate": 0.0010000000474974513,
+  "max_rate": 0.8911411166191101
+}

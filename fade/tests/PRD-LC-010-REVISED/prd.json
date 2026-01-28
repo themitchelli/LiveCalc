@@ -1,0 +1,285 @@
+{
+  "id": "PRD-LC-010-REVISED",
+  "complexity": "very_high",
+  "title": "Modular Orchestration Layer - Engine DAG & SharedArrayBuffer Bus",
+  "type": "feature",
+  "priority": "critical",
+  "status": "proposed",
+  "created": "2026-01-27",
+  "project": "LiveCalc",
+  "phase": 2,
+  "description": "Build the orchestration layer that chains calculation engines (C++ Projection, Python ESG, Python Solver) into a DAG. Manages engine lifecycle, credentials (AM JWT), data flow via SharedArrayBuffer (zero-copy within process), and Parquet (external). Handles engine composition: ESG → Projection → Solver, with each engine independently resolving assumptions.",
+  "problem": [
+    "Multiple independent engines need to be connected without tight coupling",
+    "Data between engines must flow efficiently (zero-copy within process, Parquet for persistence)",
+    "Each engine needs AM credentials but they shouldn't be hard-coded",
+    "Need to support different execution models: C++ native, Python subprocess, WASM browser"
+  ],
+  "solution": [
+    "Build a DAG orchestrator that instantiates engines, connects them, manages data flow",
+    "Define ICalcEngine interface (all engines implement it)",
+    "SharedArrayBuffer for inter-engine communication (C++ ↔ Python, zero-copy)",
+    "Parquet for external I/O (input policies, output results)",
+    "Credential/AM token passed to engines at startup, engines independently resolve assumptions",
+    "Support engine composition: arbitrary DAG of engines, configured via JSON"
+  ],
+  "dependencies": [
+    {
+      "id": "PRD-LC-006-REFACTOR",
+      "title": "Assumptions Manager Library",
+      "status": "required",
+      "notes": "Orchestrator passes AM credentials to engines"
+    },
+    {
+      "id": "PRD-LC-001-REVISED",
+      "title": "C++ Projection Engine",
+      "status": "required",
+      "notes": "Core engine in the DAG"
+    },
+    {
+      "id": "PRD-LC-007",
+      "title": "Python ESG Engine",
+      "status": "required",
+      "notes": "Optional first node in DAG"
+    },
+    {
+      "id": "PRD-LC-008",
+      "title": "Python Solver Engine",
+      "status": "required",
+      "notes": "Optional final node in DAG"
+    }
+  ],
+  "technicalNotes": {
+    "interface": {
+      "name": "ICalcEngine",
+      "methods": [
+        "initialize(config: Dict, am_credentials: {url, token, cache_dir})",
+        "runChunk(input_buffer: SharedArrayBuffer, output_buffer: SharedArrayBuffer) → ExecutionResult",
+        "dispose()"
+      ]
+    },
+    "dataFlow": {
+      "withinProcess": "SharedArrayBuffer (no serialization)",
+      "external": "Parquet (columnar, compressed)"
+    },
+    "daGConfiguration": "JSON with engine nodes and data connections",
+    "executionModel": "Sequential engines (ESG → Projection → Solver) or parallel where applicable",
+    "credentialManagement": "Orchestrator obtains AM JWT, passes to engines via initialize()"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "ICalcEngine Interface Definition",
+      "story": "As an engine developer, I need a standardized interface so any engine can be plugged into the orchestrator",
+      "acceptanceCriteria": [
+        "Define ICalcEngine: initialize(), runChunk(), dispose()",
+        "All engines (C++, Python) implement this interface",
+        "initialize(config, am_credentials) sets up engine with config and AM access",
+        "runChunk(input_buffer, output_buffer) is the main execution unit",
+        "Engines throw clear exceptions on errors, orchestrator catches and logs",
+        "Interface documentation with examples"
+      ],
+      "technicalNotes": {
+        "definition": "Header file (C++) or abstract base class (Python)",
+        "configFormat": "JSON dict passed to initialize()",
+        "bufferFormat": "SharedArrayBuffer, layout documented per engine"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "SharedArrayBuffer Data Bus",
+      "story": "As a performance optimizer, I need zero-copy data flow between engines so large datasets don't get serialized",
+      "acceptanceCriteria": [
+        "Orchestrator allocates SharedArrayBuffer(s) for data exchange",
+        "Buffers are typed: InputBuffer (policies), ScenarioBuffer (ESG output, Projection input), ResultBuffer (Projection output, Solver input)",
+        "Engines write data to output_buffer, orchestrator passes to next engine's input_buffer",
+        "No copying between engines (true SharedArrayBuffer)",
+        "Buffer layout documented: struct definitions, byte offsets, alignment",
+        "Support for large buffers (100MB+) without performance degradation"
+      ],
+      "technicalNotes": {
+        "bufferTypes": {
+          "InputBuffer": "Policies: [policy_id (u64), age (u8), gender (u8), ...] repeated",
+          "ScenarioBuffer": "Scenarios: [scenario_id (u32), year (u32), rate (f64)] repeated",
+          "ResultBuffer": "Results: [scenario_id (u32), npv (f64), cte_95 (f64), ...] repeated"
+        },
+        "alignment": "All buffers 16-byte aligned for SIMD safety"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Engine Lifecycle Management",
+      "story": "As an orchestrator, I need to manage engine startup, execution, and cleanup so resources are properly allocated and freed",
+      "acceptanceCriteria": [
+        "Engine factory: creates engines by type (cpp_projection, python_esg, python_solver)",
+        "Startup: call initialize() on each engine in sequence",
+        "Execution: call runChunk() with data, collect results",
+        "Error recovery: if engine fails, cleanup resources, return error to caller",
+        "Cleanup: call dispose() on all engines at end",
+        "Timeout protection: runChunk() must complete within time limit (configurable, default 5 min)"
+      ],
+      "technicalNotes": {
+        "factory": "EngineFactory class with methods: create_engine(type, config) → ICalcEngine",
+        "lifecycle": "Sequence: initialize → runChunk → dispose (or on error)"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "DAG Configuration & Composition",
+      "story": "As a user, I need to define which engines run and in what order so I can compose different workflows",
+      "acceptanceCriteria": [
+        "Config format: JSON with array of engine nodes and their connections",
+        "Example: [ {engine: 'esg', config: {...}, outputs: ['scenarios']}, {engine: 'projection', inputs: ['scenarios'], outputs: ['results']} ]",
+        "Validation: ensure all inputs have corresponding outputs from previous engines",
+        "Support linear chain (A → B → C) and conditional branches (if solver converges, use result; else use fallback)",
+        "Document: examples for common workflows (projection-only, projection + solver, full pipeline)"
+      ],
+      "technicalNotes": {
+        "configSchema": {
+          "engines": [
+            {
+              "id": "string (unique)",
+              "type": "string (engine_type)",
+              "config": "dict (engine-specific)",
+              "inputs": ["engine_id.output_name"],
+              "outputs": ["output_name"]
+            }
+          ]
+        }
+      },
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Credential & Authentication Management",
+      "story": "As a platform architect, I need centralized credential management so engines don't duplicate auth logic",
+      "acceptanceCriteria": [
+        "Orchestrator obtains AM JWT (from VS Code extension or CLI config)",
+        "Orchestrator passes credentials to engines via initialize(am_credentials)",
+        "Engines use credentials to independently resolve assumptions",
+        "Tokens are refreshed if expiring (orchestrator or engine responsibility - clarify in config)",
+        "No credentials logged or exposed in debug output",
+        "Support multiple credential sources: stored file, environment variable, interactive login"
+      ],
+      "technicalNotes": {
+        "credentialFlow": {
+          "source": "VS Code SecretStorage | environment LIVECALC_AM_TOKEN | config file",
+          "passing": "initialize(am_credentials: {url, token, cache_dir})",
+          "refresh": "Orchestrator polls engine status, refreshes token if needed, reinitializes"
+        }
+      },
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Parquet I/O Integration",
+      "story": "As a data engineer, I need Parquet support for large input/output so data is efficiently stored and loaded",
+      "acceptanceCriteria": [
+        "Load policies from Parquet: orchestrator reads policies, writes to InputBuffer",
+        "Load scenarios from Parquet (if ESG is skipped): read and populate ScenarioBuffer",
+        "Export results to Parquet: orchestrator reads ResultBuffer, writes results file",
+        "Schema validation: ensure Parquet columns match expected buffer layout",
+        "Support 1M+ row datasets efficiently",
+        "Parquet file path configurable in DAG config"
+      ],
+      "technicalNotes": {
+        "library": "Apache Arrow C++",
+        "workflow": "Parquet (disk) → Buffer (memory) → Engine → Buffer (memory) → Parquet (disk)"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-007",
+      "title": "Execution Tracking & Logging",
+      "story": "As an operator, I need visibility into engine execution so I can debug failures and monitor performance",
+      "acceptanceCriteria": [
+        "Log: engine initialization, parameters, assumptions resolved",
+        "Log: each runChunk() call with input size, execution time, output size",
+        "Log: errors with stack trace, context (which engine, which iteration)",
+        "Metrics: total execution time, time per engine, buffer sizes, memory usage",
+        "Output format: structured logs (JSON) for parsing by monitoring systems",
+        "Debug mode: detailed logs including buffer contents (for small buffers)"
+      ],
+      "technicalNotes": {
+        "logging": "Structured logging to file and console, configurable level (debug, info, warn, error)"
+      },
+      "passes": true
+    },
+    {
+      "id": "US-008",
+      "title": "Error Handling & Resilience",
+      "story": "As a user, I need clear error messages and graceful failure modes so partial results can be used if needed",
+      "acceptanceCriteria": [
+        "Engine initialization failure → clear message with config issue",
+        "Engine execution failure → log engine output, offer retry or fallback",
+        "Timeout → kill engine, return best result so far (if available)",
+        "Buffer overflow → clear message about data size, suggest chunking",
+        "Assumption resolution failure → message with assumption name, fail the job",
+        "Recover scenarios: if Solver fails, still return Projection results"
+      ],
+      "technicalNotes": {
+        "errorPropagation": "Each engine returns ExecutionResult with success/failure flag and error message"
+      },
+      "passes": true
+    }
+  ],
+  "filesToCreate": [
+    "livecalc-orchestrator/src/engine_interface.hpp",
+    "livecalc-orchestrator/src/orchestrator.hpp",
+    "livecalc-orchestrator/src/orchestrator.cpp",
+    "livecalc-orchestrator/src/engine_factory.hpp",
+    "livecalc-orchestrator/src/engine_factory.cpp",
+    "livecalc-orchestrator/src/buffer_manager.hpp",
+    "livecalc-orchestrator/src/buffer_manager.cpp",
+    "livecalc-orchestrator/src/config_parser.hpp",
+    "livecalc-orchestrator/src/config_parser.cpp",
+    "livecalc-orchestrator/src/logger.hpp",
+    "livecalc-orchestrator/src/logger.cpp",
+    "livecalc-orchestrator/src/credential_manager.hpp",
+    "livecalc-orchestrator/src/credential_manager.cpp",
+    "livecalc-orchestrator/src/parquet_io.hpp",
+    "livecalc-orchestrator/src/parquet_io.cpp",
+    "livecalc-orchestrator/tests/test_orchestrator.cpp",
+    "livecalc-orchestrator/tests/test_buffer_manager.cpp",
+    "livecalc-orchestrator/examples/dag_config_projection_only.json",
+    "livecalc-orchestrator/examples/dag_config_esg_projection.json",
+    "livecalc-orchestrator/examples/dag_config_full_pipeline.json",
+    "livecalc-orchestrator/README.md"
+  ],
+  "definitionOfDone": [
+    "ICalcEngine interface defined and documented",
+    "SharedArrayBuffer data bus works for zero-copy engine communication",
+    "Engine lifecycle management (init, run, dispose) works",
+    "DAG configuration validated and executed correctly",
+    "Credential management secure and centralized",
+    "Parquet I/O for input and output",
+    "Execution tracking and logging comprehensive",
+    "Error handling covers all failure modes",
+    "All 8 user stories pass acceptance criteria",
+    "Examples demonstrate: projection-only, ESG+projection, full pipeline"
+  ],
+  "estimatedSessions": "6-7 FADE sessions",
+  "risks": [
+    {
+      "risk": "SharedArrayBuffer alignment issues between C++ and Python",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Strict alignment enforcement, extensive testing with different data types"
+    },
+    {
+      "risk": "DAG becomes complex, hard to debug",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Start with simple chains, add visualization tool for DAG"
+    },
+    {
+      "risk": "Credential refresh during long-running orchestration",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Proactive token refresh before expiry, or lightweight re-auth if needed"
+    }
+  ]
+}

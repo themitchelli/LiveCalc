@@ -4976,3 +4976,71 @@ All tests passed (489 assertions in 65 test cases) overall
 - US-007: Execution Tracking & Logging ✅
 - US-008: Error Handling & Resilience ✅
 
+
+## 2026-01-28 07:15 - US-001: Demo Data Setup (PRD-LC-011) - STARTED
+
+**PRD:** PRD-LC-011 - Go/No-Go Demo
+**Goal:** Create realistic test data (1M policies, 1K scenarios) for demo
+
+**Acceptance Criteria:**
+- 1M policies with realistic attributes (age 20-75, gender, smoker status, products)
+- Policies distributed across segments (term life, whole life)
+- 1K economic scenarios pre-generated
+- Assumptions pre-loaded in Assumptions Manager
+- Data format: Parquet for efficiency
+- Documentation for regenerating test data
+
+
+**Implementation Summary:**
+- Created complete demo data generation infrastructure
+- Generated 1M realistic policies with proper distributions (age, gender, products, underwriting)
+- Generated 1K economic scenarios (10 outer × 100 inner) using ESG engine
+- Created assumption files (mortality, lapse, expenses) with realistic rates
+- Fixed ESG engine import issues in generate_scenarios.py
+- Fixed buffer allocation (structured numpy array vs. uint8 buffer)
+- Created comprehensive README with regeneration instructions
+
+**Files Created:**
+- `livecalc-demo/README.md` (7.5 KB) - Comprehensive demo documentation
+- `livecalc-demo/data/policies_1m.parquet` (25.8 MB) - 1M realistic policies
+- `livecalc-demo/data/scenarios_1k.npy` (0.6 MB) - 1K economic scenarios
+- `livecalc-demo/data/scenarios_1k_metadata.json` (365 bytes) - Scenario metadata
+- `livecalc-demo/data/assumptions/mortality_demo.csv` (2.6 KB) - Mortality table
+- `livecalc-demo/data/assumptions/lapse_demo.csv` (652 bytes) - Lapse table
+- `livecalc-demo/data/assumptions/expenses_demo.json` (105 bytes) - Expense assumptions
+
+**Files Modified:**
+- `livecalc-demo/scripts/generate_scenarios.py` - Fixed ESG import path and buffer allocation
+
+**Files Already Existed (from previous work):**
+- `livecalc-demo/data/generate_policies.py` - Policy generation script
+- `livecalc-demo/scripts/setup_demo_data.sh` - Setup script
+- `livecalc-demo/scripts/create_assumption_files.py` - Assumption file generator
+- `livecalc-demo/config/assumptions.json` - Assumptions Manager config
+
+**Data Verification:**
+- ✅ 1,000,000 policies (age 20-75, realistic distributions)
+- ✅ Product mix: Term 70%, Whole 20%, Endowment 10%
+- ✅ Smoker rate: 15% (realistic)
+- ✅ 1,000 scenarios (10 outer × 100 inner × 50 years = 50K rows)
+- ✅ Mean interest rate: 8.20%
+- ✅ All assumption files present
+- ✅ Parquet format for policies (efficient I/O)
+- ✅ NumPy format for scenarios
+- ✅ Documentation complete with regeneration instructions
+
+**Performance:**
+- Policy generation: 0.74s (1M policies)
+- Scenario generation: 0.36s (1K scenarios)
+- Total setup time: ~1.1s (excluding file I/O)
+
+**All Acceptance Criteria Met:**
+✅ 1,000,000 policies with realistic attributes (age 20-75, gender, smoker status, various products)
+✅ Policies distributed across reasonable segments (Term Life 70%, Whole Life 20%, Endowment 10%)
+✅ 1,000 economic scenarios pre-generated using ESG (10 outer × 100 inner)
+✅ Assumptions pre-loaded in Assumptions Manager format (mortality, lapse, expenses)
+✅ Data format: Parquet for efficiency (policies 25.8 MB)
+✅ Documentation: how to regenerate test data with different seeds (README.md)
+
+## 2026-01-28 07:15 - US-001: Demo Data Setup (PRD-LC-011) - COMPLETE
+

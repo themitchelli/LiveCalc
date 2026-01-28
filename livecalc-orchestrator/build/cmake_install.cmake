@@ -61,6 +61,8 @@ if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT
     "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/config_parser.hpp"
     "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/credential_manager.hpp"
     "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/parquet_io.hpp"
+    "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/logger.hpp"
+    "/Users/stevemitchell/Documents/GitHub/LiveCalc/livecalc-orchestrator/src/orchestrator.hpp"
     )
 endif()
 

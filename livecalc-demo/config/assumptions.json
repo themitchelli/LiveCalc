@@ -1,0 +1,37 @@
+{
+  "mortality": {
+    "table_name": "mortality-demo-2026",
+    "version": "v1.0",
+    "description": "Demo mortality table for LiveCalc go/no-go demo",
+    "type": "mortality",
+    "source_file": "../data/assumptions/mortality_demo.csv",
+    "notes": "Standard UK mortality rates adjusted for demo purposes"
+  },
+  "lapse": {
+    "table_name": "lapse-demo-2026",
+    "version": "v1.0",
+    "description": "Demo lapse table for LiveCalc go/no-go demo",
+    "type": "lapse",
+    "source_file": "../data/assumptions/lapse_demo.csv",
+    "notes": "Standard lapse curve for term life products"
+  },
+  "expenses": {
+    "table_name": "expenses-demo-2026",
+    "version": "v1.0",
+    "description": "Demo expense assumptions for LiveCalc go/no-go demo",
+    "type": "expenses",
+    "source_file": "../data/assumptions/expenses_demo.json",
+    "notes": "Per-policy and percentage-of-premium expenses"
+  },
+  "yield_curve": {
+    "table_name": "yield-curve-demo-2026",
+    "version": "v1.0",
+    "description": "Demo yield curve parameters for ESG",
+    "type": "yield_curve",
+    "notes": "UK gilt curve as of 2026-01-01, parameters for Vasicek model"
+  },
+  "assumptions_manager": {
+    "url": "https://assumptionsmanager.ddns.net",
+    "upload_instructions": "Use scripts/upload_assumptions.py to upload these assumptions to AM"
+  }
+}
