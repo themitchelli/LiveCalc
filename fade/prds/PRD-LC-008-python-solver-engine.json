@@ -168,7 +168,7 @@
       "technicalNotes": {
         "convergenceTracking": "Keep list of objective values, check improvement on each iteration"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

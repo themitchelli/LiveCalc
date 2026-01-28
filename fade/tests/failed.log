@@ -1,10 +1,10 @@
 # FADE Test Run
-[RUN_TIMESTAMP] 2026-01-28 00:33:15
+[RUN_TIMESTAMP] 2026-01-28 00:39:27
 [RUN_DIR] /Users/stevemitchell/Documents/GitHub/LiveCalc/fade/tests
 
 [FAILURE] PRD-LC-013/test_us_plat_01_01_namespace_creation.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -12,7 +12,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_01_02_cleanup_worker_reaping.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   FAIL: Could not create test namespace
   Response: {"detail":"Not Found"}
@@ -21,7 +21,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_01_03_diagnostic_extraction.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   FAIL: Could not create test namespace
 
@@ -29,7 +29,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_01_05_mttc_verification.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -37,7 +37,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_02_03_warm_pool_api.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -45,7 +45,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_03_01_mean_stddev_calculation.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -53,7 +53,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_03_02_3sigma_anomaly_flagging.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -61,7 +61,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_03_03_diagnostic_bundle.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -69,7 +69,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_04_01_debug_pause_step_api.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:21
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -77,7 +77,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_04_03_memory_inspection.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:22
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 
@@ -85,7 +85,7 @@
 
 [FAILURE] PRD-LC-013/test_us_plat_04_04_bus_resource_listing.sh
 [EXIT_CODE] 1
-[TIMESTAMP] 2026-01-28 00:33:22
+[TIMESTAMP] 2026-01-28 00:39:33
 [OUTPUT]
   head: illegal line count -- -1
 

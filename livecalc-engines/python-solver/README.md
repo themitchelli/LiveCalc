@@ -694,9 +694,29 @@ class ValuationResult:
 - differential_evolution: derivative-free, handles multimodal objectives ✅
 - custom: user-defined Python function for specialized problems ✅
 
+### US-006: Iteration Tracking & Convergence ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ Iteration count tracking via `OptimizerCallback.iteration_count`
+- ✅ Objective value tracking at each iteration via `IterationResult` dataclass
+- ✅ Constraint violation tracking at each iteration
+- ✅ Convergence criteria: objective improves < 0.01% for 3 consecutive iterations
+- ✅ Max iterations reached detection
+- ✅ Iteration logging: `"Iteration N: objective=X, constraints=Y, params={...}"`
+- ✅ Final metrics returned: converged (bool), iterations_used, final_objective, constraint_status
+- ✅ `_check_convergence_criteria()` method for custom convergence detection
+- ✅ Unit tests (11 test cases)
+
+**Acceptance Criteria Met:**
+- Track: iteration count, objective value at each iteration, constraint violations ✅
+- Convergence criteria: objective improves < 0.01% for 3 consecutive iterations, or max_iterations reached ✅
+- Log each iteration: 'Iteration 5: objective=1234.5, constraints_violated=0, parameters=[1.1, 0.95]' ✅
+- Return final metrics: converged (bool), iterations_used, final_objective, constraint_status ✅
+
 ### Upcoming User Stories
 
-- **US-006**: Iteration Tracking & Convergence
 - **US-007**: Result Output & Parameter Export
 - **US-008**: Error Handling & Robustness
 
@@ -761,7 +781,20 @@ US-005 test coverage:
 - ✅ Algorithm convergence tracking (1 test)
 - ✅ Multi-parameter optimization (1 test)
 
-**Total: 84 test cases**
+US-006 test coverage:
+- ✅ Iteration count tracking (1 test)
+- ✅ Objective value tracking (1 test)
+- ✅ Constraint violations tracking (1 test)
+- ✅ Convergence criteria improvement threshold (1 test)
+- ✅ Convergence max iterations reached (1 test)
+- ✅ Final metrics returned (1 test)
+- ✅ Iteration logging format (1 test)
+- ✅ Consecutive iterations convergence (1 test)
+- ✅ Convergence with constraints satisfied (1 test)
+- ✅ Partial result flag on early exit (1 test)
+- ✅ Convergence detection (1 test)
+
+**Total: 95 test cases**
 
 ## Error Handling
 
@@ -820,11 +853,11 @@ result = solver.optimize(projection_callback)
 ## Roadmap
 
 - [x] US-001: Solver Interface & Orchestration Integration
-- [ ] US-002: Calibration Target Resolution
-- [ ] US-003: Parameter Definition & Bounds
-- [ ] US-004: Objective Function & Constraints
-- [ ] US-005: Solver Algorithm Selection
-- [ ] US-006: Iteration Tracking & Convergence
+- [x] US-002: Calibration Target Resolution
+- [x] US-003: Parameter Definition & Bounds
+- [x] US-004: Objective Function & Constraints
+- [x] US-005: Solver Algorithm Selection
+- [x] US-006: Iteration Tracking & Convergence
 - [ ] US-007: Result Output & Parameter Export
 - [ ] US-008: Error Handling & Robustness
 

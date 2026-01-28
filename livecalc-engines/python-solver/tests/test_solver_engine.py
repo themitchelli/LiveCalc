@@ -1462,5 +1462,314 @@ class TestSolverAlgorithmSelection(unittest.TestCase):
         self.assertGreater(result.final_parameters['reserve_factor'], 0.3)
 
 
+class TestIterationTrackingAndConvergence(unittest.TestCase):
+    """Test US-006: Iteration Tracking & Convergence."""
+
+    def test_iteration_count_tracking(self):
+        """Test that iteration count is tracked correctly."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.5, 'upper': 2.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 10
+        }
+        engine.initialize(config)
+
+        iteration_count = [0]
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            iteration_count[0] += 1
+            return ValuationResult(mean_npv=1000.0 + params['premium_rate'] * 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Iteration count should be tracked
+        self.assertGreater(result.iterations, 0)
+        self.assertLessEqual(result.iterations, 10)
+        # Callback should be called same number of times (or more for line search)
+        self.assertGreaterEqual(iteration_count[0], result.iterations)
+
+    def test_objective_value_tracking(self):
+        """Test that objective values are tracked at each iteration."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': -5.0, 'upper': 5.0, 'initial': 0.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 20
+        }
+        engine.initialize(config)
+
+        # Quadratic objective with max at x=2
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            obj = -(x - 2.0)**2 + 100.0
+            return ValuationResult(mean_npv=obj)
+
+        result = engine.optimize(mock_callback)
+
+        # Should converge to near-optimal objective
+        self.assertGreater(result.objective_value, 95.0)  # Close to 100
+        self.assertLess(abs(result.final_parameters['x'] - 2.0), 0.5)
+
+    def test_constraint_violations_tracking(self):
+        """Test that constraint violations are tracked at each iteration."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.5, 'upper': 2.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'constraints': [
+                {'metric': 'cte_95', 'operator': '>=', 'value': 50.0}
+            ],
+            'algorithm': 'slsqp',
+            'max_iterations': 20
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            pr = params['premium_rate']
+            # CTE varies with premium rate
+            cte = 40.0 + pr * 10.0
+            return ValuationResult(mean_npv=1000.0, cte_95=cte)
+
+        result = engine.optimize(mock_callback)
+
+        # Constraint violations should be tracked
+        self.assertIsInstance(result.constraint_violations, dict)
+        # If constraint satisfied, violations should be empty or show compliance
+        if not result.constraint_violations:
+            # Constraint satisfied
+            self.assertGreaterEqual(mock_callback(result.final_parameters).cte_95, 50.0)
+
+    def test_convergence_criteria_improvement_threshold(self):
+        """Test convergence when objective improves < 0.01% for 3 iterations."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'minimize'},
+            'algorithm': 'nelder-mead',
+            'max_iterations': 100,
+            'tolerance': 1e-6  # Very tight tolerance
+        }
+        engine.initialize(config)
+
+        # Objective that converges quickly
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            obj = (x - 3.0)**2 + 10.0  # Min at x=3
+            return ValuationResult(mean_npv=obj)
+
+        result = engine.optimize(mock_callback)
+
+        # Should converge
+        self.assertTrue(result.converged)
+        # Should be close to optimal
+        self.assertLess(abs(result.final_parameters['x'] - 3.0), 0.1)
+
+    def test_convergence_max_iterations_reached(self):
+        """Test that convergence is detected when max iterations reached."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 0.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 5  # Very few iterations
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=params['x'] * 10)
+
+        result = engine.optimize(mock_callback)
+
+        # Should hit max iterations
+        self.assertLessEqual(result.iterations, 5)
+
+    def test_final_metrics_returned(self):
+        """Test that final metrics are returned correctly."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.8, 'upper': 1.5, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'constraints': [
+                {'metric': 'std_dev', 'operator': '<=', 'value': 50.0}
+            ],
+            'algorithm': 'slsqp',
+            'max_iterations': 20
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            pr = params['premium_rate']
+            return ValuationResult(
+                mean_npv=1000.0 + pr * 100,
+                std_dev=30.0
+            )
+
+        result = engine.optimize(mock_callback)
+
+        # Check all final metrics are present
+        self.assertIsInstance(result.final_parameters, dict)
+        self.assertIn('premium_rate', result.final_parameters)
+        self.assertIsInstance(result.objective_value, (int, float))
+        self.assertIsInstance(result.iterations, int)
+        self.assertIsInstance(result.converged, bool)
+        self.assertIsInstance(result.constraint_violations, dict)
+        self.assertIsInstance(result.execution_time_seconds, (int, float))
+        self.assertGreater(result.execution_time_seconds, 0.0)
+
+    def test_iteration_logging_format(self):
+        """Test that iterations are logged in correct format."""
+        import logging
+        import io
+
+        # Capture log output
+        log_stream = io.StringIO()
+        handler = logging.StreamHandler(log_stream)
+        handler.setLevel(logging.INFO)
+        logger = logging.getLogger('solver_engine')
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 5.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=params['x'] * 100)
+
+        result = engine.optimize(mock_callback)
+
+        log_output = log_stream.getvalue()
+        logger.removeHandler(handler)
+
+        # Check that iteration logs contain expected format
+        # "Iteration N: objective=X, constraints=Y, params={...}"
+        self.assertIn('Iteration', log_output)
+        self.assertIn('objective=', log_output)
+        self.assertIn('constraints=', log_output)
+        self.assertIn('params=', log_output)
+
+    def test_consecutive_iterations_convergence(self):
+        """Test that convergence requires 3 consecutive iterations with small improvement."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 5.0, 'initial': 0.5}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 50,
+            'tolerance': 1e-8
+        }
+        engine.initialize(config)
+
+        # Flat objective near optimum
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            obj = 100.0 - (x - 3.0)**2 * 0.001
+            return ValuationResult(mean_npv=obj)
+
+        result = engine.optimize(mock_callback)
+
+        # Should converge quickly since objective is nearly flat
+        self.assertTrue(result.converged)
+        self.assertLess(result.iterations, 30)
+
+    def test_convergence_with_constraints_satisfied(self):
+        """Test convergence status when all constraints are satisfied."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.5, 'upper': 2.0, 'initial': 1.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'constraints': [
+                {'metric': 'cte_95', 'operator': '>=', 'value': 50.0},
+                {'metric': 'std_dev', 'operator': '<=', 'value': 100.0}
+            ],
+            'algorithm': 'slsqp',
+            'max_iterations': 30
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            pr = params['premium_rate']
+            return ValuationResult(
+                mean_npv=1000.0 + pr * 100,
+                std_dev=50.0,
+                cte_95=60.0
+            )
+
+        result = engine.optimize(mock_callback)
+
+        # All constraints easily satisfied, should converge
+        self.assertTrue(result.converged)
+        # No constraint violations
+        self.assertEqual(len(result.constraint_violations), 0)
+
+    def test_partial_result_flag_on_early_exit(self):
+        """Test that partial_result flag is set when optimization exits early."""
+        # This tests the partial_result field in OptimizationResult
+        # which should be True if not converged
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 0.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 2  # Very few iterations, won't converge
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            # Complex objective that needs many iterations
+            x = params['x']
+            return ValuationResult(mean_npv=-(x - 5.0)**2 + 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Should not converge with only 2 iterations
+        # partial_result should be True when not converged
+        if not result.converged:
+            self.assertTrue(result.partial_result)
+
+
 if __name__ == '__main__':
     unittest.main()

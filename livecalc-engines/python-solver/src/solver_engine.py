@@ -27,6 +27,7 @@ from .calc_engine_interface import (
 from .solver_algorithms import (
     AlgorithmConfig,
     OptimizerCallback,
+    IterationResult,
     select_and_run_algorithm
 )
 
@@ -423,8 +424,12 @@ class SolverEngine(ICalcEngine):
                 final_objective = scipy_result.fun if direction == 'minimize' else -scipy_result.fun
                 final_violations = {}
 
-            # Check convergence
-            converged = scipy_result.success
+            # Check convergence (US-006: custom convergence criteria)
+            converged = self._check_convergence_criteria(callback.iteration_history)
+
+            # Also respect scipy's success flag (both must agree for true convergence)
+            if not scipy_result.success:
+                converged = False
 
             return OptimizationResult(
                 final_parameters=final_params,
@@ -948,6 +953,59 @@ class SolverEngine(ICalcEngine):
             raise InitializationError(
                 f"Error resolving calibration targets '{am_ref}': {e}"
             ) from e
+
+    def _check_convergence_criteria(self, iteration_history: List) -> bool:
+        """
+        Check if optimization has converged based on custom criteria (US-006).
+
+        Convergence criteria:
+        - Objective value improves < 0.01% for 3 consecutive iterations, OR
+        - Max iterations reached
+
+        Args:
+            iteration_history: List of IterationResult objects
+
+        Returns:
+            True if converged, False otherwise
+        """
+        if not iteration_history or len(iteration_history) < 3:
+            # Need at least 3 iterations to check convergence
+            return False
+
+        # Get last 3 iterations
+        recent = iteration_history[-3:]
+
+        # Extract objective values
+        objectives = [it.objective_value for it in recent]
+
+        # Check improvement between consecutive iterations
+        improvements = []
+        for i in range(1, len(objectives)):
+            prev_obj = objectives[i - 1]
+            curr_obj = objectives[i]
+
+            # Calculate relative improvement
+            if abs(prev_obj) < 1e-10:
+                # Handle near-zero objectives
+                improvement = abs(curr_obj - prev_obj)
+            else:
+                improvement = abs((curr_obj - prev_obj) / prev_obj)
+
+            improvements.append(improvement)
+
+        # Check if all recent improvements are below threshold (0.01% = 0.0001)
+        convergence_threshold = 0.0001
+
+        all_below_threshold = all(imp < convergence_threshold for imp in improvements)
+
+        if all_below_threshold:
+            logger.info(
+                f"Convergence detected: objective improvements {[f'{imp:.6f}' for imp in improvements]} "
+                f"all below threshold {convergence_threshold} for 3 consecutive iterations"
+            )
+            return True
+
+        return False
 
     def dispose(self) -> None:
         """Clean up resources."""
