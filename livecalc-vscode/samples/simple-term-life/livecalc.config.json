@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/livecalc.config.schema.json",
   "model": "model.mga",
-  "policies": "local://data/policies_1_5m.csv",
+  "policies": "local://data/policies.csv",
   "assumptions": {
     "mortality": "local://assumptions/mortality.csv",
     "lapse": "local://assumptions/lapse.csv",

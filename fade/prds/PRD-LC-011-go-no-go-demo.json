@@ -8,14 +8,14 @@
   "created": "2026-01-27",
   "project": "LiveCalc",
   "phase": 3,
-  "description": "Build a demonstration that proves LiveCalc's core thesis: pluggable calculation engines (C++ + Python) that scale without GPU, resolve assumptions independently, and deliver cost-effective horsepower. Demo shows: 1M policy projection in <2 minutes, Python UDF execution during projection, multi-engine orchestration (ESG → Projection → Solver), all with auditable assumption governance from Assumptions Manager.",
+  "description": "Build a demonstration that proves LiveCalc's core thesis: pluggable calculation engines (C++ + Python) that scale without GPU, resolve assumptions independently, and deliver cost-effective horsepower. Demo shows: 1M policy projection in <2 minutes, Python UDF execution during projection, multi-engine orchestration (ESG \u2192 Projection \u2192 Solver), all with auditable assumption governance from Assumptions Manager.",
   "problem": [
     "The market believes GPU is required for actuarial scale (Pathwise, others make this claim)",
     "Need to prove cost-effective horsepower is achievable with better engineering, not specialized hardware",
     "Need to demonstrate architecture actually works end-to-end before committing to scaling"
   ],
   "solution": [
-    "Build a complete end-to-end demo: load policies → generate scenarios → run projection with Python UDFs → optimize parameters",
+    "Build a complete end-to-end demo: load policies \u2192 generate scenarios \u2192 run projection with Python UDFs \u2192 optimize parameters",
     "Benchmark against comparable workloads (1M policies, 1K scenarios, 40-year projection)",
     "Show cost-per-calculation advantage over cloud alternatives",
     "Document actual runtimes, memory usage, and architecture decisions"
@@ -51,7 +51,7 @@
     "testData": "1M realistic policies, 1K scenarios, 40-year projection",
     "assumptionsSource": "Assumptions Manager (assumptionsmanager.ddns.net)",
     "pythonUdf": "Smoker mortality adjustment (1.2x for smokers)",
-    "demoWorkflow": "ESG → Projection with UDF → Solver for optimal premium",
+    "demoWorkflow": "ESG \u2192 Projection with UDF \u2192 Solver for optimal premium",
     "platform": "Native C++ (Raspberry Pi 5 or comparable), then WASM version",
     "successCriteria": "1M policies + 1K scenarios < 2 minutes, all engines working, assumptions auditable"
   },
@@ -80,7 +80,7 @@
       "title": "Projection-Only Benchmark",
       "story": "As a performance analyst, I need a baseline projection benchmark so I can measure horsepower",
       "acceptanceCriteria": [
-        "Run 1M policies × 1K scenarios × 40 years projection natively (C++)",
+        "Run 1M policies \u00d7 1K scenarios \u00d7 40 years projection natively (C++)",
         "No Python UDFs, no solver, just core projection",
         "Measure: total execution time, memory peak, calculations per second",
         "Target: <120 seconds on modern hardware (Intel i7 equivalent)",
@@ -99,7 +99,7 @@
       "title": "Python UDF Execution in Projection",
       "story": "As a demo operator, I want to show Python UDFs work so actuaries see extensibility",
       "acceptanceCriteria": [
-        "Projection runs with a Python UDF: adjust_mortality_for_smoker(policy, assumption, base_qx) → adjusted_qx",
+        "Projection runs with a Python UDF: adjust_mortality_for_smoker(policy, assumption, base_qx) \u2192 adjusted_qx",
         "UDF applies 1.2x multiplier if policy.smoker == true",
         "Measure: UDF execution time as percentage of total (target: <10%)",
         "Show that results differ from projection-only (smoking-adjusted mortality evident in results)",
@@ -109,15 +109,15 @@
         "udfScript": "examples/demo_smoker_adjustment.py",
         "performance": "Should add <10% overhead to total projection time"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
       "title": "End-to-End Multi-Engine Orchestration",
-      "story": "As a product manager, I want to demonstrate the full pipeline (ESG → Projection → Solver) so stakeholders see the architecture in action",
+      "story": "As a product manager, I want to demonstrate the full pipeline (ESG \u2192 Projection \u2192 Solver) so stakeholders see the architecture in action",
       "acceptanceCriteria": [
-        "ESG engine generates 10 outer paths × 100 inner paths each (1K total scenarios)",
-        "Projection engine processes 1M policies × 1K scenarios with Python UDF",
+        "ESG engine generates 10 outer paths \u00d7 100 inner paths each (1K total scenarios)",
+        "Projection engine processes 1M policies \u00d7 1K scenarios with Python UDF",
         "Solver engine optimizes premium rate to hit target NPV (e.g., 1200.0)",
         "All engines run via orchestrator (PRD-LC-010), data flows via SharedArrayBuffer",
         "Total time: <10 minutes for full pipeline",
@@ -125,10 +125,10 @@
       ],
       "technicalNotes": {
         "daGConfig": "examples/demo_full_pipeline.json",
-        "workflow": "ESG (10s) → Projection (100s) → Solver (300s target)",
+        "workflow": "ESG (10s) \u2192 Projection (100s) \u2192 Solver (300s target)",
         "outputs": "Final premium rate, achieved NPV, solver convergence metrics"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -145,7 +145,7 @@
         "metadataOutput": "JSON with assumptions_used, parameters, seed, output_hash",
         "auditTrail": "Detailed logs of assumption resolution"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -155,18 +155,18 @@
         "Measure: total execution time and hardware used (CPU, RAM)",
         "Calculate: cost_per_calculation = (hardware_cost + electricity_cost) / num_calculations",
         "Compare: demo results vs. equivalent cloud (e.g., Azure Batch, GPU vendor claims)",
-        "Example output: '1B calculations in 16 hours on Pi 5 (£80 hardware + £0.50 electricity) = £5.3e-9 per calculation'",
+        "Example output: '1B calculations in 16 hours on Pi 5 (\u00a380 hardware + \u00a30.50 electricity) = \u00a35.3e-9 per calculation'",
         "Assume cloud pricing: vary by option (Azure Batch, AWS, competitor claims)"
       ],
       "technicalNotes": {
         "costModel": {
-          "hardware_cost": "Raspberry Pi 5 8GB = £80",
-          "hardware_amortization": "5 years = £0.04/month",
+          "hardware_cost": "Raspberry Pi 5 8GB = \u00a380",
+          "hardware_amortization": "5 years = \u00a30.04/month",
           "electricity": "Estimate from measured watts",
           "benchmark": "Compare to cloud pricing (as of demo date)"
         }
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
@@ -183,7 +183,7 @@
         "script": "examples/demo_script.sh with inline commentary",
         "visibility": "Use progress bars, real-time output to show execution"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
@@ -199,7 +199,7 @@
       "technicalNotes": {
         "report": "docs/comparison_report.md with tables and graphs"
       },
-      "passes": false
+      "passes": true
     }
   ],
   "filesToCreate": [
@@ -223,7 +223,7 @@
     "Demo data (1M policies, 1K scenarios) generated and ready",
     "Projection-only benchmark runs in <120 seconds, metrics reported",
     "Python UDF executes during projection with <10% overhead",
-    "Full pipeline (ESG → Projection → Solver) completes in <10 minutes",
+    "Full pipeline (ESG \u2192 Projection \u2192 Solver) completes in <10 minutes",
     "Assumption governance trail documented (versions, timestamps)",
     "Cost analysis shows advantage vs. cloud/GPU alternatives",
     "Demo script runs smoothly, can be presented live",

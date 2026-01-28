@@ -1,0 +1,58 @@
+{
+  "pipeline": "full-demo-esg-projection-solver",
+  "description": "Full LiveCalc demo pipeline: ESG → Projection → Solver",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "esg",
+      "engine_type": "python-esg",
+      "config": {
+        "esg_model": "vasicek",
+        "outer_paths": 10,
+        "inner_paths_per_outer": 100,
+        "projection_years": 50,
+        "seed": 42,
+        "assumptions_version": "latest"
+      },
+      "inputs": [],
+      "outputs": ["bus://scenarios"]
+    },
+    {
+      "id": "projection",
+      "engine_type": "cpp-projection",
+      "config": {
+        "policies_path": "data/policies_1m.parquet",
+        "mortality_table": "mortality-demo-2026:v1.0",
+        "lapse_table": "lapse-demo-2026:v1.0",
+        "expenses": "expenses-demo-2026:v1.0",
+        "udf_script": "udfs/smoker_adjustment.py",
+        "udf_function": "adjust_mortality_for_smoker"
+      },
+      "inputs": ["bus://scenarios"],
+      "outputs": ["bus://projections"]
+    },
+    {
+      "id": "solver",
+      "engine_type": "python-solver",
+      "config": {
+        "objective": "npv_target",
+        "target_npv": 1200.0,
+        "optimize_parameter": "premium_rate",
+        "method": "newton",
+        "tolerance": 0.01,
+        "max_iterations": 10
+      },
+      "inputs": ["bus://projections"],
+      "outputs": ["bus://solution"]
+    }
+  ],
+  "credentials": {
+    "assumptions_manager_url": "https://assumptionsmanager.ddns.net",
+    "jwt_token_env": "LIVECALC_AM_TOKEN"
+  },
+  "execution": {
+    "mode": "sequential",
+    "timeout_ms": 600000,
+    "retry_on_failure": false
+  }
+}
