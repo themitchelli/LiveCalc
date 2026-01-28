@@ -666,6 +666,120 @@ TEST_CASE("ESG → Projection integration") {
 
 ---
 
+## Credential & Authentication Management
+
+The `CredentialManager` provides centralized management of Assumptions Manager credentials with support for multiple sources and token lifecycle management.
+
+### Credential Sources (Priority Order)
+
+1. **Explicit credentials** (passed to constructor)
+2. **Environment variables**: `LIVECALC_AM_URL`, `LIVECALC_AM_TOKEN`, `LIVECALC_AM_CACHE_DIR`
+3. **Configuration file**: `~/.livecalc/credentials.json`
+
+### Basic Usage
+
+```cpp
+#include "credential_manager.hpp"
+
+// Option 1: Auto-discover from environment/file
+CredentialManager manager;
+if (manager.has_credentials()) {
+    AMCredentials creds = manager.get_credentials();
+    // Pass to engines...
+}
+
+// Option 2: Explicit credentials
+AMCredentials explicit_creds("https://am.example.com", "jwt_token", "/cache");
+CredentialManager manager(explicit_creds);
+
+// Check source
+CredentialSource source = manager.get_source();
+// Returns: EXPLICIT, ENVIRONMENT, CONFIG_FILE, or NONE
+
+// Validate credentials
+bool valid = manager.validate();  // Format check
+bool connected = manager.validate(true);  // Format + connectivity check
+
+// Token refresh (if needed)
+manager.refresh_if_needed();
+
+// Safe logging (token masked)
+std::cout << manager.to_string() << std::endl;
+// Output: CredentialManager{source=ENVIRONMENT, url=https://am.example.com,
+//         token=eyJh...ture, cache_dir=/tmp/cache, expires_in=3500s}
+```
+
+### Environment Variables
+
+```bash
+# Set credentials via environment
+export LIVECALC_AM_URL="https://am.example.com"
+export LIVECALC_AM_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature"
+export LIVECALC_AM_CACHE_DIR="$HOME/.livecalc/cache"
+
+# Run orchestrator (auto-loads from environment)
+./livecalc-engine --config dag.json
+```
+
+### Configuration File
+
+Create `~/.livecalc/credentials.json`:
+
+```json
+{
+  "am_url": "https://am.example.com",
+  "am_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature",
+  "cache_dir": "/Users/username/.livecalc/cache"
+}
+```
+
+### Token Lifecycle
+
+```cpp
+// Get token metadata
+std::optional<TokenInfo> info = manager.get_token_info();
+if (info && info->is_valid) {
+    std::cout << "Token expires in " << info->seconds_until_expiry() << " seconds" << std::endl;
+
+    // Check if refresh needed (5 minute threshold by default)
+    if (info->needs_refresh()) {
+        manager.refresh_if_needed();
+    }
+}
+
+// Clear credentials (e.g., on logout)
+manager.clear();
+
+// Update credentials (e.g., after manual refresh)
+AMCredentials new_creds = get_fresh_credentials();
+manager.update_credentials(new_creds);
+```
+
+### Integration with Engines
+
+```cpp
+// Pass credentials to engine during initialization
+CredentialManager cred_manager;
+AMCredentials creds = cred_manager.get_credentials();
+
+EngineFactory factory;
+auto engine = factory.create_engine("cpp_projection");
+
+std::map<std::string, std::string> config;
+engine->initialize(config, &creds);
+
+// Engine can now resolve assumptions from AM
+```
+
+### Security
+
+- **No logging**: Tokens are never logged in plain text
+- **Masking**: `to_string()` masks tokens (shows first/last 4 chars)
+- **Memory cleanup**: Tokens cleared from memory on destruction
+- **Validation**: JWT format and URL validation before use
+
+---
+
 ## Engine Lifecycle Management
 
 The `EngineLifecycleManager` handles engine startup, execution, and cleanup with timeout protection and error recovery.

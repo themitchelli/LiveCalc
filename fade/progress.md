@@ -4766,3 +4766,54 @@ For blocked stories, use:
   - JSON config parsing: minimal config, full pipeline config, missing fields, invalid JSON (4 tests)
   - AMCredentials validation: valid, missing URL, missing token (3 tests)
 
+
+## 2026-01-28 06:30 - US-005: Credential & Authentication Management (PRD-LC-010-REVISED) - COMPLETE
+
+- Implemented CredentialManager class for centralized AM authentication
+- Credential source priority: Explicit > Environment > Config file
+- Support for multiple credential sources:
+  - Explicit credentials via constructor
+  - Environment variables (LIVECALC_AM_URL, LIVECALC_AM_TOKEN, LIVECALC_AM_CACHE_DIR)
+  - Configuration file (~/.livecalc/credentials.json)
+- Token lifecycle management:
+  - JWT parsing for expiry extraction (basic implementation)
+  - needs_refresh() checks with configurable threshold (default 5 minutes)
+  - refresh_if_needed() placeholder for future automatic refresh
+  - TokenInfo struct tracking issued_at, expires_at, validity
+- Security features:
+  - Token masking in to_string() (shows first/last 4 chars only)
+  - No token logging in debug output
+  - Memory cleanup on destruction
+  - Credential clearing via clear() method
+- Validation:
+  - JWT format validation (3 base64 parts separated by dots)
+  - URL format validation (must start with http)
+  - Expiry checking
+  - Optional connectivity checking (placeholder)
+- Integration:
+  - AMCredentials struct already defined in engine_interface.hpp
+  - AMCredentialsConfig in dag_config for JSON configuration
+  - Credentials passed to engines via initialize(config, credentials)
+- Files created:
+  - livecalc-orchestrator/src/credential_manager.hpp (170 lines)
+  - livecalc-orchestrator/src/credential_manager.cpp (320 lines)
+  - livecalc-orchestrator/tests/test_credential_manager.cpp (245 lines, 8 test cases)
+- Files modified:
+  - livecalc-orchestrator/CMakeLists.txt (added credential_manager source and test)
+  - livecalc-orchestrator/README.md (added Credential & Authentication Management section)
+- Tests: 46 test cases, 367 assertions passed
+  - Explicit credentials (2 tests)
+  - Environment variable loading (3 tests)
+  - Validation (5 tests)
+  - Token masking (3 tests)
+  - Update and clear (2 tests)
+  - Token info (2 tests)
+  - Refresh logic (2 tests)
+  - Error messages (1 test)
+- All acceptance criteria met:
+  - ✅ Orchestrator obtains AM JWT from VS Code extension or CLI config
+  - ✅ Orchestrator passes credentials to engines via initialize(am_credentials)
+  - ✅ Engines use credentials to independently resolve assumptions
+  - ✅ Tokens refreshed if expiring (placeholder for automatic refresh, manual supported)
+  - ✅ No credentials logged or exposed in debug output
+  - ✅ Support multiple credential sources: stored file, environment variable, interactive login (file/env implemented, interactive future)

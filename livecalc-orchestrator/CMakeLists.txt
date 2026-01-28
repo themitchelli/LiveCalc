@@ -29,6 +29,7 @@ set(ORCHESTRATOR_SOURCES
     src/engine_lifecycle.cpp
     src/dag_config.cpp
     src/config_parser.cpp
+    src/credential_manager.cpp
 )
 
 # Header files
@@ -40,6 +41,7 @@ set(ORCHESTRATOR_HEADERS
     src/engine_lifecycle.hpp
     src/dag_config.hpp
     src/config_parser.hpp
+    src/credential_manager.hpp
 )
 
 # Build orchestrator as a library
@@ -93,6 +95,7 @@ if(BUILD_TESTS)
         tests/test_buffer_manager.cpp
         tests/test_engine_lifecycle.cpp
         tests/test_dag_config.cpp
+        tests/test_credential_manager.cpp
     )
 
     add_executable(orchestrator_tests ${TEST_SOURCES})
