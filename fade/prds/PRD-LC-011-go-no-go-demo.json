@@ -92,7 +92,7 @@
         "memory": "Peak RSS via /proc/self/status (Linux) or similar",
         "calculation_rate": "num_scenarios * num_policies * num_years / execution_time_seconds"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

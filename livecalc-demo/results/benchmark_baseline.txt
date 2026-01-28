@@ -1,0 +1,92 @@
+LiveCalc Valuation Performance Benchmark
+========================================
+
+=== Benchmark: 100 policies × 100 scenarios ===
+Creating 100 policies...
+Generating 100 scenarios...
+Running valuation...
+
+Results:
+  Mean NPV:    £-3.28M
+  Std Dev:     £0.03M
+  P50 (Median):£-3.28M
+  P95:         £-3.24M
+  P99:         £-3.22M
+  CTE_95:      £-3.35M
+
+Performance:
+  Total time:  10.66 ms
+  Projections: 0.01M
+  Throughput:  937771.28 proj/sec
+
+=== Benchmark: 1000 policies × 100 scenarios ===
+Creating 1000 policies...
+Generating 100 scenarios...
+Running valuation...
+
+Results:
+  Mean NPV:    £-35.37M
+  Std Dev:     £0.31M
+  P50 (Median):£-35.33M
+  P95:         £-34.92M
+  P99:         £-34.75M
+  CTE_95:      £-36.10M
+
+Performance:
+  Total time:  34.38 ms
+  Projections: 0.10M
+  Throughput:  2908328.02 proj/sec
+
+=== Benchmark: 1000 policies × 1000 scenarios ===
+Creating 1000 policies...
+Generating 1000 scenarios...
+Running valuation...
+
+Results:
+  Mean NPV:    £-35.38M
+  Std Dev:     £0.32M
+  P50 (Median):£-35.37M
+  P95:         £-34.85M
+  P99:         £-34.62M
+  CTE_95:      £-36.04M
+
+Performance:
+  Total time:  178.32 ms
+  Projections: 1.00M
+  Throughput:  5607887.21 proj/sec
+
+=== Benchmark: 10000 policies × 1000 scenarios ===
+Creating 10000 policies...
+Generating 1000 scenarios...
+Running valuation...
+
+Results:
+  Mean NPV:    £-353.96M
+  Std Dev:     £3.22M
+  P50 (Median):£-353.89M
+  P95:         £-348.62M
+  P99:         £-346.30M
+  CTE_95:      £-360.59M
+
+Performance:
+  Total time:  620.40 ms
+  Projections: 10.00M
+  Throughput:  16118513.81 proj/sec
+
+=== Benchmark: 100000 policies × 1000 scenarios ===
+Creating 100000 policies...
+Generating 1000 scenarios...
+Running valuation...
+
+Results:
+  Mean NPV:    £-3540.26M
+  Std Dev:     £32.19M
+  P50 (Median):£-3539.49M
+  P95:         £-3486.82M
+  P99:         £-3463.58M
+  CTE_95:      £-3606.58M
+
+Performance:
+  Total time:  5935.33 ms
+  Projections: 100.00M
+  Throughput:  16848271.84 proj/sec
