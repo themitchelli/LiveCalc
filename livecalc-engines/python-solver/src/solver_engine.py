@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import logging
 import sys
 import os
+import numpy as np
 
 from .calc_engine_interface import (
     ICalcEngine,
@@ -21,6 +22,12 @@ from .calc_engine_interface import (
     ExecutionError,
     TimeoutError,
     ConvergenceError
+)
+
+from .solver_algorithms import (
+    AlgorithmConfig,
+    OptimizerCallback,
+    select_and_run_algorithm
 )
 
 # Import AssumptionsClient if available
@@ -341,12 +348,10 @@ class SolverEngine(ICalcEngine):
         initial_parameters: Dict[str, float]
     ) -> OptimizationResult:
         """
-        Internal optimization loop (placeholder for US-001, enhanced for US-004).
+        Internal optimization loop using configured algorithm.
 
-        This is a simple implementation for US-001. More sophisticated algorithms
-        will be implemented in US-005.
-
-        US-004 enhancement: Evaluates objective function and constraints.
+        US-005: Supports multiple solver algorithms (SLSQP, Nelder-Mead,
+        differential_evolution, custom gradient descent).
 
         Args:
             projection_callback: Projection function
@@ -354,54 +359,89 @@ class SolverEngine(ICalcEngine):
 
         Returns:
             OptimizationResult
+
+        Raises:
+            ConfigurationError: If algorithm config invalid
+            ConvergenceError: If optimization diverges
         """
-        # For US-001, we just run a simple iteration to demonstrate the callback interface
-        # US-005 will implement actual solver algorithms (SLSQP, differential_evolution, etc.)
+        # Get algorithm configuration from config
+        algorithm_name = self._config.get('algorithm', 'slsqp')
+        max_iterations = self._config.get('max_iterations', 20)
+        tolerance = self._config.get('tolerance', 1e-4)
+        algorithm_options = self._config.get('algorithm_options', {})
 
-        current_params = initial_parameters.copy()
-        iterations = 0
-        max_iterations = 10  # Simple placeholder
+        algorithm_config = AlgorithmConfig(
+            algorithm=algorithm_name,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+            options=algorithm_options
+        )
 
-        # Run projection with initial parameters
+        # Extract parameter metadata
+        parameter_names = [p['name'] for p in self._config['parameters']]
+        bounds = [(p['lower'], p['upper']) for p in self._config['parameters']]
+
+        # Convert initial parameters to numpy array
+        initial_array = np.array([initial_parameters[name] for name in parameter_names])
+
+        # Determine objective direction
+        direction = self._config['objective'].get('direction', 'maximize')
+
+        # Create optimizer callback wrapper
+        callback = OptimizerCallback(
+            parameter_names=parameter_names,
+            projection_callback=projection_callback,
+            objective_extractor=self._extract_objective,
+            constraint_evaluator=self._evaluate_constraints,
+            direction=direction
+        )
+
+        # Run selected algorithm
         try:
-            result = projection_callback(current_params)
-
-            # Extract objective value (US-004)
-            raw_objective = self._extract_objective(result)
-            objective_value = self._apply_objective_direction(raw_objective)
-
-            # Evaluate constraints (US-004)
-            constraint_violations = self._evaluate_constraints(result)
-
-            # Log iteration with constraint status
-            constraints_status = "satisfied" if not constraint_violations else f"{len(constraint_violations)} violated"
-            logger.info(
-                f"Iteration {iterations}: objective={objective_value:.4f} (raw={raw_objective:.4f}), "
-                f"constraints={constraints_status}, params={current_params}"
+            logger.info(f"Running {algorithm_name} algorithm with {len(parameter_names)} parameters")
+            scipy_result = select_and_run_algorithm(
+                algorithm_config,
+                parameter_names,
+                initial_array,
+                bounds,
+                callback
             )
 
-            if constraint_violations:
-                for name, violation in constraint_violations.items():
-                    logger.warning(f"  Constraint '{name}' violated by {violation:.4f}")
+            # Convert result back to our format
+            final_params = {
+                name: float(val)
+                for name, val in zip(parameter_names, scipy_result.x)
+            }
 
-            # For US-001/US-004, we just demonstrate the interface works
-            # Return result without actually optimizing
+            # Get final objective from last iteration in history
+            if callback.iteration_history:
+                last_iteration = callback.iteration_history[-1]
+                final_objective = last_iteration.objective_value
+                final_violations = last_iteration.constraint_violations
+            else:
+                # Fallback if no history (shouldn't happen)
+                final_objective = scipy_result.fun if direction == 'minimize' else -scipy_result.fun
+                final_violations = {}
+
+            # Check convergence
+            converged = scipy_result.success
+
             return OptimizationResult(
-                final_parameters=current_params,
-                objective_value=raw_objective,  # Return raw value (not direction-adjusted)
-                iterations=iterations + 1,
-                converged=True,
-                constraint_violations=constraint_violations,
-                execution_time_seconds=0.0,
-                partial_result=False
+                final_parameters=final_params,
+                objective_value=final_objective,
+                iterations=scipy_result.nit,
+                converged=converged,
+                constraint_violations=final_violations,
+                execution_time_seconds=0.0,  # Will be set by caller
+                partial_result=not converged
             )
 
         except TimeoutException:
             # Re-raise timeout exception so it's caught by outer handler
             raise
         except Exception as e:
-            logger.error(f"Projection callback failed at iteration {iterations}: {e}")
-            raise ExecutionError(f"Projection callback failed: {e}") from e
+            logger.error(f"Optimization failed: {e}")
+            raise ExecutionError(f"Optimization failed: {e}") from e
 
     def _extract_objective(self, result: ValuationResult) -> float:
         """

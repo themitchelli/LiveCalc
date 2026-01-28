@@ -1196,5 +1196,271 @@ class TestObjectiveFunctionAndConstraints(unittest.TestCase):
         self.assertEqual(result.constraint_violations['cte_95'], 100.0)
 
 
+class TestSolverAlgorithmSelection(unittest.TestCase):
+    """Test solver algorithm selection and execution (US-005)."""
+
+    def test_slsqp_algorithm(self):
+        """Test SLSQP algorithm runs successfully."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 20,
+            'tolerance': 1e-4
+        }
+        engine.initialize(config)
+
+        # Mock callback: quadratic objective with maximum at param1=7.5
+        call_count = [0]
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            call_count[0] += 1
+            x = params['param1']
+            # Quadratic: -(x-7.5)^2 + 1000, max at x=7.5
+            mean_npv = -(x - 7.5)**2 + 1000.0
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0, cte_95=mean_npv * 0.9)
+
+        result = engine.optimize(mock_callback)
+
+        # SLSQP should find the maximum
+        self.assertTrue(result.converged)
+        self.assertGreater(call_count[0], 1)  # Called multiple times
+        self.assertLess(call_count[0], 20)  # Should converge before max_iterations
+        # Check we're close to optimal (7.5 ± 0.5)
+        self.assertAlmostEqual(result.final_parameters['param1'], 7.5, delta=0.5)
+        self.assertAlmostEqual(result.objective_value, 1000.0, delta=1.0)
+
+    def test_nelder_mead_algorithm(self):
+        """Test Nelder-Mead algorithm runs successfully."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 2.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'nelder-mead',
+            'max_iterations': 30,
+            'tolerance': 1e-3
+        }
+        engine.initialize(config)
+
+        # Mock callback: simple linear objective
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['param1']
+            mean_npv = 100.0 * x  # Max at upper bound (10.0)
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0, cte_95=mean_npv * 0.9)
+
+        result = engine.optimize(mock_callback)
+
+        self.assertTrue(result.converged)
+        # Should move toward upper bound
+        self.assertGreater(result.final_parameters['param1'], 5.0)
+
+    def test_differential_evolution_algorithm(self):
+        """Test Differential Evolution algorithm runs successfully."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'differential_evolution',
+            'max_iterations': 10,
+            'tolerance': 1e-3
+        }
+        engine.initialize(config)
+
+        # Mock callback
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['param1']
+            mean_npv = 1000.0 - abs(x - 5.0) * 10  # Max at x=5.0
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0, cte_95=mean_npv * 0.9)
+
+        result = engine.optimize(mock_callback)
+
+        # Differential evolution is global, should find good solution
+        self.assertTrue(result.converged)
+        self.assertGreater(result.iterations, 0)
+
+    def test_custom_gradient_descent_algorithm(self):
+        """Test custom gradient descent algorithm runs successfully."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 2.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'gradient_descent',
+            'max_iterations': 50,
+            'tolerance': 1e-3,
+            'algorithm_options': {
+                'learning_rate': 0.1,
+                'epsilon': 1e-6
+            }
+        }
+        engine.initialize(config)
+
+        # Mock callback: quadratic objective
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['param1']
+            mean_npv = -(x - 8.0)**2 + 500.0  # Max at x=8.0
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0, cte_95=mean_npv * 0.9)
+
+        result = engine.optimize(mock_callback)
+
+        self.assertTrue(result.converged)
+        # Should move toward optimal (8.0)
+        self.assertGreater(result.final_parameters['param1'], 5.0)
+
+    def test_algorithm_config_validation(self):
+        """Test algorithm configuration is validated."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'unknown_algorithm'  # Invalid
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1000.0)
+
+        with self.assertRaises(ExecutionError) as ctx:
+            engine.optimize(mock_callback)
+
+        self.assertIn('Unknown algorithm', str(ctx.exception))
+
+    def test_algorithm_options_passed_through(self):
+        """Test algorithm options are passed to solver."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'slsqp',
+            'max_iterations': 5,  # Very few iterations
+            'algorithm_options': {
+                'disp': False
+            }
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1000.0)
+
+        result = engine.optimize(mock_callback)
+
+        # Should respect max_iterations
+        self.assertLessEqual(result.iterations, 5 + 2)  # +2 tolerance for scipy overhead
+
+    def test_minimize_direction(self):
+        """Test minimize objective direction works correctly."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'cost', 'lower': 0.0, 'upper': 100.0, 'initial': 50.0}],
+            'objective': {'metric': 'mean_npv', 'direction': 'minimize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 20
+        }
+        engine.initialize(config)
+
+        # Mock callback: minimize cost (should go to lower bound)
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            cost = params['cost']
+            mean_npv = cost * 10  # Lower cost = lower NPV (minimize)
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0)
+
+        result = engine.optimize(mock_callback)
+
+        # Should minimize toward lower bound
+        self.assertLess(result.final_parameters['cost'], 30.0)
+
+    def test_algorithm_convergence_tracking(self):
+        """Test algorithm tracks iterations correctly."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}],
+            'objective': {'metric': 'mean_npv'},
+            'algorithm': 'slsqp',
+            'max_iterations': 10
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1000.0)
+
+        result = engine.optimize(mock_callback)
+
+        # Should have iteration count
+        self.assertGreater(result.iterations, 0)
+        self.assertLessEqual(result.iterations, 10)
+
+    def test_multi_parameter_optimization(self):
+        """Test optimization with multiple parameters."""
+        try:
+            import scipy
+        except ImportError:
+            self.skipTest("scipy not installed")
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.5, 'upper': 2.0, 'initial': 1.0},
+                {'name': 'reserve_factor', 'lower': 0.0, 'upper': 1.0, 'initial': 0.5}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'algorithm': 'slsqp',
+            'max_iterations': 30
+        }
+        engine.initialize(config)
+
+        # Mock callback: multi-parameter objective
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            pr = params['premium_rate']
+            rf = params['reserve_factor']
+            # Max at pr=1.5, rf=0.7
+            mean_npv = -(pr - 1.5)**2 * 100 - (rf - 0.7)**2 * 100 + 1000.0
+            return ValuationResult(mean_npv=mean_npv, std_dev=10.0)
+
+        result = engine.optimize(mock_callback)
+
+        self.assertTrue(result.converged)
+        self.assertEqual(len(result.final_parameters), 2)
+        # Should move toward optimal region
+        self.assertGreater(result.final_parameters['premium_rate'], 1.0)
+        self.assertGreater(result.final_parameters['reserve_factor'], 0.3)
+
+
 if __name__ == '__main__':
     unittest.main()
