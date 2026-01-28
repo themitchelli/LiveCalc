@@ -339,5 +339,201 @@ class TestTimeoutProtection(unittest.TestCase):
         self.assertIn("exceeded timeout", str(ctx.exception))
 
 
+class TestCalibrationTargetResolution(unittest.TestCase):
+    """Test calibration target resolution from Assumptions Manager (US-002)."""
+
+    def test_inline_targets_valid(self):
+        """Test initialization with inline calibration targets."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'premium_rate', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize_return',
+                'objective_metric': 'mean_npv',
+                'constraints': [
+                    {'name': 'solvency', 'operator': '>=', 'value': 0.95}
+                ]
+            }
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+        self.assertIsNotNone(engine._calibration_targets)
+        self.assertEqual(engine._calibration_targets.objective_function, 'maximize_return')
+        self.assertEqual(engine._calibration_targets.objective_metric, 'mean_npv')
+        self.assertEqual(len(engine._calibration_targets.constraints), 1)
+
+    def test_inline_targets_invalid_objective_function(self):
+        """Test validation catches invalid objective_function."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'invalid_objective',
+                'objective_metric': 'mean_npv'
+            }
+        }
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("Invalid objective_function", str(ctx.exception))
+
+    def test_inline_targets_invalid_objective_metric(self):
+        """Test validation catches invalid objective_metric."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize',
+                'objective_metric': 'invalid_metric'
+            }
+        }
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("Invalid objective_metric", str(ctx.exception))
+
+    def test_inline_targets_with_multiple_constraints(self):
+        """Test inline targets with multiple constraints."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize',
+                'objective_metric': 'mean_npv',
+                'constraints': [
+                    {'name': 'solvency', 'operator': '>=', 'value': 0.95},
+                    {'name': 'cost', 'operator': '<=', 'value': 100.0}
+                ]
+            }
+        }
+        engine.initialize(config)
+        self.assertEqual(len(engine._calibration_targets.constraints), 2)
+
+    def test_constraint_validation_missing_field(self):
+        """Test constraint validation catches missing required fields."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize',
+                'objective_metric': 'mean_npv',
+                'constraints': [
+                    {'name': 'solvency', 'operator': '>='}  # Missing 'value'
+                ]
+            }
+        }
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("missing required fields", str(ctx.exception))
+
+    def test_constraint_validation_invalid_operator(self):
+        """Test constraint validation catches invalid operators."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize',
+                'objective_metric': 'mean_npv',
+                'constraints': [
+                    {'name': 'solvency', 'operator': '!=', 'value': 0.95}  # Invalid operator
+                ]
+            }
+        }
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("invalid operator", str(ctx.exception))
+
+    def test_constraint_validation_non_numeric_value(self):
+        """Test constraint validation catches non-numeric values."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'objective_function': 'maximize',
+                'objective_metric': 'mean_npv',
+                'constraints': [
+                    {'name': 'solvency', 'operator': '>=', 'value': 'not_a_number'}
+                ]
+            }
+        }
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine.initialize(config)
+        self.assertIn("not numeric", str(ctx.exception))
+
+    def test_conflicting_constraints_detection(self):
+        """Test detection of conflicting constraints (lower > upper)."""
+        from src.solver_engine import CalibrationTargets
+
+        targets = CalibrationTargets(
+            objective_function='maximize',
+            objective_metric='mean_npv',
+            constraints=[
+                {'name': 'return', 'operator': '>=', 'value': 10.0},
+                {'name': 'return', 'operator': '<=', 'value': 5.0}  # Conflict!
+            ]
+        )
+
+        warnings = targets.check_conflicting_constraints()
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("infeasible", warnings[0])
+        self.assertIn("return", warnings[0])
+
+    def test_missing_calibration_targets_config(self):
+        """Test that calibration_targets field is optional."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'}
+            # No calibration_targets - should still work
+        }
+        engine.initialize(config)
+        self.assertTrue(engine.is_initialized)
+        self.assertIsNone(engine._calibration_targets)
+
+    def test_am_reference_invalid_format(self):
+        """Test AM reference validation catches invalid format."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'am_reference': 'invalid_format_no_colon'
+            }
+        }
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        # Will fail with either "not available" or "Invalid AM reference format"
+        error_msg = str(ctx.exception)
+        self.assertTrue(
+            "not available" in error_msg or "Invalid AM reference format" in error_msg,
+            f"Expected error about AM client or format, got: {error_msg}"
+        )
+
+    def test_am_reference_missing_credentials(self):
+        """Test AM reference requires credentials."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'},
+            'calibration_targets': {
+                'am_reference': 'calibration-targets:v1.0'
+            }
+        }
+        # No credentials provided
+        with self.assertRaises(InitializationError) as ctx:
+            engine.initialize(config)
+        # Will fail with either "not available" or "credentials required"
+        error_msg = str(ctx.exception)
+        self.assertTrue(
+            "not available" in error_msg or "credentials required" in error_msg,
+            f"Expected error about AM client or credentials, got: {error_msg}"
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

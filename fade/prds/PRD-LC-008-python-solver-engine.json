@@ -83,7 +83,7 @@
         "pythonCode": "from assumptions_client import AssumptionsClient; targets = client.resolve('calibration-targets', 'v1.0')",
         "assumptionStructure": "calibration_targets: { objective: string, constraints: list<{name: string, type: string, value: float}> }"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

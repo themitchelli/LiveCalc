@@ -141,6 +141,92 @@ The `objective` dict defines what to optimize:
 | `metric` | string | Yes | Metric to optimize (e.g., 'mean_npv', 'std_dev', 'cte_95') |
 | `direction` | string | No | 'maximize' or 'minimize' (default: 'maximize') |
 
+### Calibration Targets (US-002)
+
+Calibration targets define business objectives and constraints for optimization. They can be specified either inline in the config or resolved from Assumptions Manager.
+
+#### Inline Calibration Targets
+
+```json
+{
+  "parameters": [...],
+  "objective": {...},
+  "calibration_targets": {
+    "objective_function": "maximize_return",
+    "objective_metric": "mean_npv",
+    "constraints": [
+      {
+        "name": "solvency",
+        "operator": ">=",
+        "value": 0.95
+      },
+      {
+        "name": "cost",
+        "operator": "<=",
+        "value": 100000000.0
+      }
+    ]
+  }
+}
+```
+
+#### Assumptions Manager Reference
+
+```json
+{
+  "parameters": [...],
+  "objective": {...},
+  "calibration_targets": {
+    "am_reference": "calibration-targets:v1.0"
+  }
+}
+```
+
+With credentials:
+
+```python
+engine = SolverEngine()
+engine.initialize(config, credentials={
+    'am_url': 'https://am.example.com',
+    'jwt_token': 'eyJ...',
+    'cache_dir': '/path/to/cache'
+})
+```
+
+#### Calibration Target Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `objective_function` | string | Yes | Objective type: 'maximize_return', 'minimize_cost', 'hit_target', 'maximize', 'minimize' |
+| `objective_metric` | string | Yes | Metric to optimize: 'mean_npv', 'std_dev', 'cte_95', 'return', 'cost', 'solvency' |
+| `constraints` | list | No | List of constraint definitions |
+
+Each constraint has:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Constraint name (e.g., 'solvency', 'cost', 'return') |
+| `operator` | string | Yes | Comparison operator: '>=', '<=', '>', '<', '==' |
+| `value` | float | Yes | Constraint threshold value |
+
+#### Validation
+
+The solver validates calibration targets at initialization:
+
+- **Objective function**: Must be a valid type ('maximize_return', 'minimize_cost', etc.)
+- **Objective metric**: Must be a valid metric name ('mean_npv', 'cte_95', etc.)
+- **Constraints**: Each must have name, operator, and numeric value
+- **Conflict detection**: Warns if constraints are potentially infeasible (e.g., `return >= 10.0` AND `return <= 5.0`)
+
+Example logging:
+
+```
+INFO: Resolved calibration-targets:v1.0, optimizing for: maximize_return mean_npv with 2 constraint(s)
+INFO:   Constraint: solvency >= 0.95
+INFO:   Constraint: cost <= 100000000.0
+WARNING: Constraint 'return' may be infeasible: requires >= 10.0 and <= 5.0
+```
+
 ## API Reference
 
 ### SolverEngine
@@ -246,9 +332,29 @@ class ValuationResult:
 - Solver calls projection_callback multiple times (5-20 iterations) ✅
 - Error handling: timeout if >5 minutes, fail gracefully ✅
 
+### US-002: Calibration Target Resolution ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ Inline calibration target specification
+- ✅ Assumptions Manager reference support (`am_reference: "table:version"`)
+- ✅ `CalibrationTargets` dataclass with validation
+- ✅ Comprehensive constraint validation (operator, value, field checking)
+- ✅ Conflict detection for infeasible constraints
+- ✅ Integration with AssumptionsClient (when available)
+- ✅ Graceful fallback to inline targets when AM client not available
+- ✅ Unit tests (11 test cases)
+
+**Acceptance Criteria Met:**
+- Resolve 'calibration-targets:v1.0' from AM (e.g., target_return, min_solvency, max_cost) ✅
+- Targets include: objective_function, constraints (solvency > 0.95, return >= 10%) ✅
+- Validate that targets are achievable, warn if constraints are conflicting ✅
+- Log: 'Resolved calibration-targets:v1.0, optimizing for: maximize_return with solvency >= 0.95' ✅
+- Support updating targets via AM version changes ✅
+
 ### Upcoming User Stories
 
-- **US-002**: Calibration Target Resolution (from Assumptions Manager)
 - **US-003**: Parameter Definition & Bounds
 - **US-004**: Objective Function & Constraints
 - **US-005**: Solver Algorithm Selection (SLSQP, differential_evolution, custom)
@@ -279,7 +385,13 @@ US-001 test coverage:
 - ✅ Optimize method (6 tests)
 - ✅ Timeout protection (2 tests)
 
-**Total: 22 test cases**
+US-002 test coverage:
+- ✅ Inline target validation (8 tests)
+- ✅ Constraint validation (3 tests)
+- ✅ Conflict detection (1 test)
+- ✅ AM reference validation (2 tests)
+
+**Total: 33 test cases**
 
 ## Error Handling
 

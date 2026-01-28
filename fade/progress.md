@@ -4266,3 +4266,53 @@ For blocked stories, use:
   - livecalc-engines/python-solver/examples/solver_config.json (60 lines)
   - livecalc-engines/python-solver/README.md (400 lines)
 - Tests: All 21 tests pass successfully
+
+## 2026-01-27 23:00 - US-002: Calibration Target Resolution (PRD-LC-008) - COMPLETE
+
+- Implemented comprehensive calibration target resolution for Python Solver Engine
+- Added CalibrationTargets dataclass with full validation:
+  - objective_function: validates against allowed types (maximize_return, minimize_cost, hit_target, maximize, minimize)
+  - objective_metric: validates against allowed metrics (mean_npv, std_dev, cte_95, return, cost, solvency)
+  - constraints: validates structure (name, operator, value), checks operators (>=, <=, >, <, ==), validates numeric values
+  - check_conflicting_constraints(): detects infeasible constraints (e.g., lower bound > upper bound)
+- Added _resolve_calibration_targets() method to SolverEngine:
+  - Supports inline target specification (objective_function, objective_metric, constraints)
+  - Supports Assumptions Manager reference (am_reference: "table-name:version")
+  - Integrates with AssumptionsClient from livecalc-assumptions-lib
+  - Graceful fallback to inline targets when AM client not available
+  - Comprehensive error messages with troubleshooting guidance
+- Enhanced SolverEngine initialization:
+  - Resolves calibration targets during initialize() if specified in config
+  - Validates targets immediately (fail-fast)
+  - Logs resolved target information with constraint details
+  - Warns about potentially conflicting constraints
+- Created comprehensive test suite (11 tests):
+  - Inline target validation (valid targets, invalid objective_function, invalid objective_metric)
+  - Multiple constraints support
+  - Constraint field validation (missing fields, invalid operator, non-numeric value)
+  - Conflict detection for infeasible constraints
+  - AM reference format validation
+  - Missing credentials detection
+  - Optional calibration_targets field (backwards compatibility)
+- Updated README.md with comprehensive documentation:
+  - New "Calibration Targets (US-002)" section with examples
+  - Inline targets example with JSON
+  - AM reference example with credentials
+  - Calibration target fields table
+  - Constraint fields table
+  - Validation rules and conflict detection
+  - Example logging output
+- Updated Implementation Status section marking US-002 complete
+- Updated Test Coverage section: 33 total tests (22 US-001 + 11 US-002)
+- All acceptance criteria met:
+  - ✅ Resolve 'calibration-targets:v1.0' from AM (with am_reference)
+  - ✅ Targets include objective_function, constraints (solvency > 0.95, return >= 10%)
+  - ✅ Validate targets, warn if constraints conflicting (check_conflicting_constraints)
+  - ✅ Log: 'Resolved calibration-targets:v1.0, optimizing for: maximize_return with solvency >= 0.95'
+  - ✅ Support updating targets via AM version changes (version parameter in am_reference)
+- Files changed:
+  - livecalc-engines/python-solver/src/solver_engine.py (enhanced with calibration target resolution)
+  - livecalc-engines/python-solver/tests/test_solver_engine.py (added 11 US-002 tests)
+  - livecalc-engines/python-solver/README.md (updated with US-002 documentation)
+  - fade/prds/PRD-LC-008-python-solver-engine.json (marked US-002 passes: true)
+- Tests: All 32 tests pass (21 US-001 + 11 US-002)
