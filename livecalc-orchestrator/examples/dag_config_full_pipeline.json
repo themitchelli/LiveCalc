@@ -1,0 +1,59 @@
+{
+  "description": "Full pipeline: ESG → Projection → Solver",
+  "engines": [
+    {
+      "id": "esg",
+      "type": "python_esg",
+      "config": {
+        "esg_model": "vasicek",
+        "outer_paths": "10",
+        "inner_paths_per_outer": "1000",
+        "projection_years": "50",
+        "seed": "42",
+        "assumptions_version": "latest"
+      },
+      "inputs": [],
+      "outputs": ["scenarios"]
+    },
+    {
+      "id": "projection",
+      "type": "cpp_projection",
+      "config": {
+        "projection_years": "50",
+        "mortality_table": "assumptions://mortality-standard:v2.1",
+        "lapse_table": "assumptions://lapse-standard:v1.0",
+        "expenses": "assumptions://expenses-base:v1.0"
+      },
+      "inputs": ["policies", "esg.scenarios"],
+      "outputs": ["projection_results"]
+    },
+    {
+      "id": "solver",
+      "type": "python_solver",
+      "config": {
+        "algorithm": "slsqp",
+        "max_iterations": "100",
+        "tolerance": "0.0001",
+        "timeout_seconds": "300",
+        "calibration_targets": "assumptions://calibration-targets:v1.0"
+      },
+      "inputs": ["projection.projection_results"],
+      "outputs": ["optimized_parameters"]
+    }
+  ],
+  "data_sources": {
+    "policies": {
+      "type": "parquet",
+      "path": "data/policies.parquet"
+    }
+  },
+  "output": {
+    "type": "parquet",
+    "path": "output/optimization_results.parquet"
+  },
+  "am_credentials": {
+    "url": "${LIVECALC_AM_URL}",
+    "token": "${LIVECALC_AM_TOKEN}",
+    "cache_dir": "${HOME}/.livecalc/cache"
+  }
+}

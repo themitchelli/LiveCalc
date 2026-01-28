@@ -84,7 +84,7 @@
         "configFormat": "JSON dict passed to initialize()",
         "bufferFormat": "SharedArrayBuffer, layout documented per engine"
       },
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

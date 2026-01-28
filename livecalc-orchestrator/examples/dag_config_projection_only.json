@@ -1,0 +1,32 @@
+{
+  "description": "Simple projection-only workflow (no ESG, no solver)",
+  "engines": [
+    {
+      "id": "projection",
+      "type": "cpp_projection",
+      "config": {
+        "num_scenarios": "1000",
+        "projection_years": "50",
+        "seed": "42",
+        "mortality_table": "data/sample_mortality.csv",
+        "lapse_table": "data/sample_lapse.csv",
+        "expenses": "data/sample_expenses.csv",
+        "initial_rate": "0.03",
+        "drift": "0.02",
+        "volatility": "0.015"
+      },
+      "inputs": ["policies"],
+      "outputs": ["results"]
+    }
+  ],
+  "data_sources": {
+    "policies": {
+      "type": "parquet",
+      "path": "data/sample_policies.parquet"
+    }
+  },
+  "output": {
+    "type": "parquet",
+    "path": "output/projection_results.parquet"
+  }
+}
