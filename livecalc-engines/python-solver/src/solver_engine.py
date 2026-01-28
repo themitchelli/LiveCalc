@@ -31,6 +31,8 @@ from .solver_algorithms import (
     select_and_run_algorithm
 )
 
+from .result_exporter import ResultExporter
+
 # Import AssumptionsClient if available
 try:
     # Add assumptions library to path
@@ -62,6 +64,63 @@ class OptimizationResult:
     constraint_violations: Dict[str, float] = field(default_factory=dict)
     execution_time_seconds: float = 0.0
     partial_result: bool = False  # True if timeout or early exit
+
+    def to_json(
+        self,
+        include_history: bool = False,
+        iteration_history: Optional[List] = None,
+        pretty: bool = True
+    ) -> str:
+        """
+        Export result to JSON string (US-007).
+
+        Args:
+            include_history: If True, include iteration history
+            iteration_history: Optional list of IterationResult objects
+            pretty: If True, format with indentation
+
+        Returns:
+            JSON string representation
+        """
+        return ResultExporter.to_json(
+            self,
+            include_history=include_history,
+            iteration_history=iteration_history,
+            pretty=pretty
+        )
+
+    def to_json_file(
+        self,
+        file_path: str,
+        include_history: bool = False,
+        iteration_history: Optional[List] = None
+    ) -> None:
+        """
+        Export result to JSON file (US-007).
+
+        Args:
+            file_path: Output file path
+            include_history: If True, include iteration history
+            iteration_history: Optional list of IterationResult objects
+        """
+        ResultExporter.to_json_file(
+            self,
+            file_path=file_path,
+            include_history=include_history,
+            iteration_history=iteration_history
+        )
+
+    def to_summary(self, max_params: int = 10) -> str:
+        """
+        Format result as human-readable summary (US-007).
+
+        Args:
+            max_params: Maximum number of parameters to display
+
+        Returns:
+            Formatted summary string
+        """
+        return ResultExporter.format_result_summary(self, max_params=max_params)
 
 
 @dataclass
@@ -209,6 +268,7 @@ class SolverEngine(ICalcEngine):
         self._timeout_seconds = 300  # 5 minutes default
         self._calibration_targets: Optional[CalibrationTargets] = None
         self._assumptions_client: Optional[AssumptionsClient] = None
+        self._iteration_history: List[IterationResult] = []  # US-007: Track iteration history
 
     def initialize(self, config: Dict[str, Any], credentials: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -430,6 +490,9 @@ class SolverEngine(ICalcEngine):
             # Also respect scipy's success flag (both must agree for true convergence)
             if not scipy_result.success:
                 converged = False
+
+            # Store iteration history for export (US-007)
+            self._iteration_history = callback.iteration_history
 
             return OptimizationResult(
                 final_parameters=final_params,
@@ -1007,6 +1070,42 @@ class SolverEngine(ICalcEngine):
 
         return False
 
+    def get_iteration_history(self) -> List[IterationResult]:
+        """
+        Get iteration history from last optimization run (US-007).
+
+        Returns:
+            List of IterationResult objects from last run
+        """
+        return self._iteration_history
+
+    def export_iteration_history(
+        self,
+        file_path: str,
+        run_metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Export iteration history to Parquet file (US-007).
+
+        Useful for tracking optimization progress across multiple runs.
+
+        Args:
+            file_path: Output parquet file path
+            run_metadata: Optional metadata (timestamp, config, etc.)
+
+        Raises:
+            ImportError: If pandas/pyarrow not available
+        """
+        if not self._iteration_history:
+            logger.warning("No iteration history to export")
+            return
+
+        ResultExporter.to_parquet(
+            self._iteration_history,
+            file_path=file_path,
+            run_metadata=run_metadata
+        )
+
     def dispose(self) -> None:
         """Clean up resources."""
         logger.info("Disposing SolverEngine")
@@ -1015,3 +1114,4 @@ class SolverEngine(ICalcEngine):
         self._credentials = None
         self._calibration_targets = None
         self._assumptions_client = None
+        self._iteration_history = []

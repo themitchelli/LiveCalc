@@ -715,9 +715,128 @@ class ValuationResult:
 - Log each iteration: 'Iteration 5: objective=1234.5, constraints_violated=0, parameters=[1.1, 0.95]' ✅
 - Return final metrics: converged (bool), iterations_used, final_objective, constraint_status ✅
 
+### US-007: Result Output & Parameter Export ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ JSON export with optimized parameters and convergence metrics
+- ✅ JSON export with iteration history (full optimization trace)
+- ✅ Parquet export for iteration tracking across runs
+- ✅ Human-readable summary formatting
+- ✅ `OptimizationResult.to_json()` method
+- ✅ `OptimizationResult.to_json_file()` method
+- ✅ `OptimizationResult.to_summary()` method
+- ✅ `SolverEngine.get_iteration_history()` method
+- ✅ `SolverEngine.export_iteration_history()` method for Parquet export
+- ✅ Unit tests (11 test cases)
+
+**Acceptance Criteria Met:**
+- Output format: JSON with optimized parameter values, objective value, convergence metrics ✅
+- Example: `{ final_params: {premium_rate: 1.15, reserve_factor: 0.92}, objective: 1500.0, converged: true, iterations: 12 }` ✅
+- Parquet export option for tracking optimization history (all iterations) ✅
+- Clear documentation of which parameters produced the result ✅
+
+**JSON Export Example:**
+
+```python
+# Basic JSON export
+json_str = result.to_json(pretty=True)
+
+# JSON export with iteration history
+history = engine.get_iteration_history()
+json_str = result.to_json(
+    include_history=True,
+    iteration_history=history,
+    pretty=True
+)
+
+# Save to file
+result.to_json_file(
+    'optimization_result.json',
+    include_history=True,
+    iteration_history=history
+)
+```
+
+**JSON Structure:**
+
+```json
+{
+  "final_params": {
+    "premium_rate": 1.15,
+    "reserve_factor": 0.92
+  },
+  "objective_value": 1500.0,
+  "converged": true,
+  "iterations": 12,
+  "execution_time_seconds": 2.34,
+  "constraint_violations": {},
+  "partial_result": false,
+  "constraints_satisfied": true,
+  "iteration_history": [
+    {
+      "iteration": 1,
+      "parameters": {"premium_rate": 1.0, "reserve_factor": 0.9},
+      "objective_value": 1450.0,
+      "constraint_violations": {}
+    },
+    ...
+  ]
+}
+```
+
+**Parquet Export Example:**
+
+```python
+# Export iteration history to Parquet for analysis
+run_metadata = {
+    'timestamp': '2026-01-28T00:00:00',
+    'algorithm': 'slsqp',
+    'num_parameters': 2
+}
+
+engine.export_iteration_history(
+    'iteration_history.parquet',
+    run_metadata=run_metadata
+)
+
+# Load for analysis
+import pandas as pd
+df = pd.read_parquet('iteration_history.parquet')
+
+# Columns:
+# - iteration, objective_value, total_violations
+# - param_premium_rate, param_reserve_factor
+# - constraint_*_violation (for each constraint)
+# - meta_timestamp, meta_algorithm, meta_num_parameters
+```
+
+**Human-Readable Summary:**
+
+```python
+summary = result.to_summary()
+print(summary)
+```
+
+Output:
+```
+=== Optimization Result Summary ===
+
+Status: Converged
+Iterations: 12
+Execution Time: 2.34s
+Objective Value: 1500.0000
+
+Optimized Parameters:
+  premium_rate: 1.1500
+  reserve_factor: 0.9200
+
+All Constraints Satisfied: Yes
+```
+
 ### Upcoming User Stories
 
-- **US-007**: Result Output & Parameter Export
 - **US-008**: Error Handling & Robustness
 
 ## Testing
@@ -794,7 +913,19 @@ US-006 test coverage:
 - ✅ Partial result flag on early exit (1 test)
 - ✅ Convergence detection (1 test)
 
-**Total: 95 test cases**
+US-007 test coverage:
+- ✅ JSON export basic (1 test)
+- ✅ JSON export with iteration history (1 test)
+- ✅ JSON file export (1 test)
+- ✅ Parquet export (1 test)
+- ✅ Parquet export with constraints (1 test)
+- ✅ Result summary format (1 test)
+- ✅ Constraints satisfied flag (1 test)
+- ✅ Parameter truncation in summary (1 test)
+- ✅ Iteration history access (1 test)
+- ✅ Empty iteration history export (1 test)
+
+**Total: 106 test cases**
 
 ## Error Handling
 
@@ -858,7 +989,7 @@ result = solver.optimize(projection_callback)
 - [x] US-004: Objective Function & Constraints
 - [x] US-005: Solver Algorithm Selection
 - [x] US-006: Iteration Tracking & Convergence
-- [ ] US-007: Result Output & Parameter Export
+- [x] US-007: Result Output & Parameter Export
 - [ ] US-008: Error Handling & Robustness
 
 ## License

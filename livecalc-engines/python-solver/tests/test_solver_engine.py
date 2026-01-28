@@ -1771,5 +1771,346 @@ class TestIterationTrackingAndConvergence(unittest.TestCase):
             self.assertTrue(result.partial_result)
 
 
+class TestResultOutputAndParameterExport(unittest.TestCase):
+    """Test result export functionality (US-007)."""
+
+    def test_json_export_basic(self):
+        """Test basic JSON export with final parameters."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.8, 'upper': 1.5, 'initial': 1.0},
+                {'name': 'reserve_factor', 'lower': 0.5, 'upper': 1.2, 'initial': 0.9}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(
+                mean_npv=1000.0 * params['premium_rate'] + 500.0 * params['reserve_factor'],
+                std_dev=100.0,
+                cte_95=800.0
+            )
+
+        result = engine.optimize(mock_callback)
+
+        # Export to JSON
+        json_str = result.to_json(pretty=True)
+
+        # Validate JSON structure
+        import json
+        data = json.loads(json_str)
+
+        self.assertIn('final_params', data)
+        self.assertIn('objective_value', data)
+        self.assertIn('converged', data)
+        self.assertIn('iterations', data)
+        self.assertIn('execution_time_seconds', data)
+        self.assertIn('constraint_violations', data)
+        self.assertIn('partial_result', data)
+        self.assertIn('constraints_satisfied', data)
+
+        # Verify parameter values are included
+        self.assertIn('premium_rate', data['final_params'])
+        self.assertIn('reserve_factor', data['final_params'])
+
+    def test_json_export_with_iteration_history(self):
+        """Test JSON export including iteration history."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            return ValuationResult(mean_npv=-(x - 3.0)**2 + 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Get iteration history
+        history = engine.get_iteration_history()
+        self.assertGreater(len(history), 0)
+
+        # Export with history
+        json_str = result.to_json(include_history=True, iteration_history=history, pretty=True)
+
+        import json
+        data = json.loads(json_str)
+
+        self.assertIn('iteration_history', data)
+        self.assertGreater(len(data['iteration_history']), 0)
+
+        # Check iteration structure
+        first_iter = data['iteration_history'][0]
+        self.assertIn('iteration', first_iter)
+        self.assertIn('parameters', first_iter)
+        self.assertIn('objective_value', first_iter)
+        self.assertIn('constraint_violations', first_iter)
+
+    def test_json_file_export(self):
+        """Test JSON export to file."""
+        import tempfile
+        import os
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'}
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=params['x'] * 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Export to temporary file
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, 'result.json')
+            result.to_json_file(file_path)
+
+            # Verify file exists and is valid JSON
+            self.assertTrue(os.path.exists(file_path))
+
+            with open(file_path, 'r') as f:
+                import json
+                data = json.load(f)
+                self.assertIn('final_params', data)
+                self.assertIn('objective_value', data)
+
+    def test_parquet_export(self):
+        """Test Parquet export of iteration history."""
+        try:
+            import pandas as pd
+        except ImportError:
+            self.skipTest("pandas not available for Parquet export")
+
+        import tempfile
+        import os
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            return ValuationResult(mean_npv=-(x - 3.0)**2 + 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Export to Parquet
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, 'history.parquet')
+            run_metadata = {
+                'timestamp': '2026-01-28T00:00:00',
+                'config_name': 'test_run'
+            }
+
+            engine.export_iteration_history(file_path, run_metadata=run_metadata)
+
+            # Verify file exists and is readable
+            self.assertTrue(os.path.exists(file_path))
+
+            df = pd.read_parquet(file_path)
+            self.assertGreater(len(df), 0)
+
+            # Check required columns
+            self.assertIn('iteration', df.columns)
+            self.assertIn('objective_value', df.columns)
+            self.assertIn('param_x', df.columns)
+            self.assertIn('total_violations', df.columns)
+
+            # Check metadata columns
+            self.assertIn('meta_timestamp', df.columns)
+            self.assertIn('meta_config_name', df.columns)
+
+    def test_parquet_export_with_constraints(self):
+        """Test Parquet export includes constraint violations."""
+        try:
+            import pandas as pd
+        except ImportError:
+            self.skipTest("pandas not available for Parquet export")
+
+        import tempfile
+        import os
+
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'constraints': [
+                {'name': 'std_dev', 'operator': '<=', 'value': 50.0}
+            ],
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            x = params['x']
+            return ValuationResult(
+                mean_npv=x * 100,
+                std_dev=x * 10  # Violates constraint when x > 5
+            )
+
+        result = engine.optimize(mock_callback)
+
+        # Export to Parquet
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, 'history.parquet')
+            engine.export_iteration_history(file_path)
+
+            df = pd.read_parquet(file_path)
+
+            # Check constraint violation column
+            self.assertIn('constraint_std_dev_violation', df.columns)
+
+    def test_result_summary_format(self):
+        """Test human-readable summary formatting."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'premium_rate', 'lower': 0.8, 'upper': 1.5, 'initial': 1.0},
+                {'name': 'reserve_factor', 'lower': 0.5, 'upper': 1.2, 'initial': 0.9}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'}
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1500.0, std_dev=100.0)
+
+        result = engine.optimize(mock_callback)
+
+        # Get summary
+        summary = result.to_summary()
+
+        # Verify summary contains key information
+        self.assertIn('Optimization Result Summary', summary)
+        self.assertIn('Status:', summary)
+        self.assertIn('Iterations:', summary)
+        self.assertIn('Execution Time:', summary)
+        self.assertIn('Objective Value:', summary)
+        self.assertIn('Optimized Parameters:', summary)
+        self.assertIn('premium_rate', summary)
+        self.assertIn('reserve_factor', summary)
+
+    def test_constraints_satisfied_flag(self):
+        """Test constraints_satisfied flag in JSON export."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'constraints': [
+                {'name': 'std_dev', 'operator': '<=', 'value': 50.0}
+            ]
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=100.0, std_dev=30.0)  # Satisfies constraint
+
+        result = engine.optimize(mock_callback)
+
+        json_str = result.to_json()
+        import json
+        data = json.loads(json_str)
+
+        self.assertTrue(data['constraints_satisfied'])
+        self.assertEqual(len(data['constraint_violations']), 0)
+
+    def test_parameter_truncation_in_summary(self):
+        """Test summary truncates parameters when too many."""
+        # Create config with many parameters
+        params = [
+            {'name': f'param_{i}', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            for i in range(15)
+        ]
+
+        engine = SolverEngine()
+        config = {
+            'parameters': params,
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'}
+        }
+        engine.initialize(config)
+
+        def mock_callback(params_dict: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=sum(params_dict.values()) * 10)
+
+        result = engine.optimize(mock_callback)
+
+        # Get summary with max_params=5
+        summary = result.to_summary(max_params=5)
+
+        # Should show 5 params and a "... and N more" message
+        self.assertIn('param_0', summary)
+        self.assertIn('param_4', summary)
+        self.assertIn('and 10 more', summary)
+
+    def test_iteration_history_access(self):
+        """Test accessing iteration history after optimization."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [
+                {'name': 'x', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}
+            ],
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'},
+            'max_iterations': 5
+        }
+        engine.initialize(config)
+
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=params['x'] * 100)
+
+        result = engine.optimize(mock_callback)
+
+        # Get iteration history
+        history = engine.get_iteration_history()
+
+        self.assertIsNotNone(history)
+        self.assertGreater(len(history), 0)
+
+        # Check first iteration
+        first_iter = history[0]
+        self.assertIsNotNone(first_iter.parameters)
+        self.assertIsNotNone(first_iter.objective_value)
+        self.assertIsNotNone(first_iter.constraint_violations)
+
+    def test_empty_iteration_history_export(self):
+        """Test export handles empty iteration history gracefully."""
+        import tempfile
+        import os
+
+        engine = SolverEngine()
+
+        # Try to export before any optimization
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = os.path.join(tmpdir, 'history.parquet')
+
+            # Should warn but not crash
+            engine.export_iteration_history(file_path)
+
+            # File should not be created for empty history
+            # (ResultExporter returns early)
+
+
 if __name__ == '__main__':
     unittest.main()

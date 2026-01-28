@@ -22,6 +22,8 @@ from .solver_engine import (
     ProjectionCallback
 )
 
+from .result_exporter import ResultExporter
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -37,4 +39,5 @@ __all__ = [
     "OptimizationResult",
     "ValuationResult",
     "ProjectionCallback",
+    "ResultExporter",
 ]
