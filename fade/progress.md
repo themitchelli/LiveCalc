@@ -4354,3 +4354,32 @@ For blocked stories, use:
   - livecalc-engines/python-solver/tests/test_solver_engine.py (added 18 US-003 tests, updated existing tests)
   - fade/prds/PRD-LC-008-python-solver-engine.json (marked US-003 passes: true)
 - Tests: All 50 tests pass (22 US-001 + 11 US-002 + 18 US-003 = 51 tests total, minus 1 removed)
+
+## 2026-01-28 00:32 - US-004: Objective Function & Constraints (PRD-LC-008) - COMPLETE
+
+- Implemented comprehensive objective function extraction supporting standard and custom metrics
+- Added custom metric computation with division, multiplication, and alias operations
+- Implemented constraint evaluation for all comparison operators (>=, <=, >, <, ==)
+- Added constraint violation tracking and reporting
+- Implemented objective direction handling (maximize/minimize)
+- Enhanced optimization loop to evaluate constraints at each iteration
+- Created comprehensive test suite with 23 new test cases covering:
+  - Standard objective metric extraction (3 tests)
+  - Custom metric computation (5 tests: division, multiplication, two-field operations, error handling)
+  - Constraint evaluation (8 tests: satisfied/violated for >=, <=, multiple constraints)
+  - Custom metric constraints (2 tests)
+  - Objective direction (3 tests: maximize, minimize, from calibration targets)
+  - Integration with optimize (2 tests)
+- Updated README.md with comprehensive US-004 documentation:
+  - Standard objective metrics section
+  - Custom metrics section with examples
+  - Constraint evaluation section with operators and examples
+  - Objective direction section
+  - Complex example with multiple constraints
+- Files changed:
+  - livecalc-engines/python-solver/src/solver_engine.py (added 250+ lines of objective/constraint logic)
+  - livecalc-engines/python-solver/tests/test_solver_engine.py (added 23 tests for US-004)
+  - livecalc-engines/python-solver/README.md (updated with US-004 documentation and status)
+  - fade/prds/PRD-LC-008-python-solver-engine.json (marked US-004 passes: true)
+- Tests: 74 total test cases (22 US-001 + 11 US-002 + 18 US-003 + 23 US-004)
+- All acceptance criteria met

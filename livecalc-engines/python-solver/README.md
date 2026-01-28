@@ -227,6 +227,173 @@ INFO:   Constraint: cost <= 100000000.0
 WARNING: Constraint 'return' may be infeasible: requires >= 10.0 and <= 5.0
 ```
 
+### Objective Functions & Constraints (US-004)
+
+The solver evaluates objective functions and constraints at each iteration of the optimization.
+
+#### Standard Objective Metrics
+
+The solver can optimize any metric available in the `ValuationResult`:
+
+- `mean_npv`: Mean NPV across scenarios
+- `std_dev`: Standard deviation of NPVs
+- `cte_95`: Conditional Tail Expectation (95th percentile)
+- Custom metrics: User-defined calculations from result fields
+
+#### Custom Metrics
+
+Define custom metrics as computed expressions:
+
+```json
+{
+  "objective": {
+    "metric": "cost_per_policy"
+  },
+  "custom_metrics": {
+    "cost_per_policy": "mean_npv / 1000",
+    "return_on_std": "mean_npv / std_dev",
+    "scaled_return": "mean_npv * 2"
+  }
+}
+```
+
+Supported operations:
+- **Division**: `"numerator / denominator"`
+- **Multiplication**: `"left * right"`
+- **Alias**: `"field_name"` (just reference another field)
+
+Values can be:
+- Result fields (e.g., `mean_npv`, `std_dev`, `cte_95`)
+- Percentile values (e.g., `P95`, `P99`)
+- Literal numbers (e.g., `1000`, `2`)
+
+Example using multiple result fields:
+```python
+custom_metrics = {
+    'cost_per_policy': 'mean_npv / num_policies',
+    'return_ratio': 'mean_npv / std_dev',
+    'risk_adjusted_return': 'mean_npv / cte_95'
+}
+```
+
+#### Constraint Evaluation
+
+Constraints are evaluated at each iteration. The solver tracks violations and can use them to guide optimization (US-005).
+
+**Supported Operators:**
+- `>=`: Greater than or equal to
+- `<=`: Less than or equal to
+- `>`: Strictly greater than
+- `<`: Strictly less than
+- `==`: Equal (within 0.1% tolerance)
+
+**Constraint Configuration:**
+
+```json
+{
+  "constraints": [
+    {
+      "name": "cte_95",
+      "operator": ">=",
+      "value": 900.0
+    },
+    {
+      "name": "std_dev",
+      "operator": "<=",
+      "value": 200.0
+    },
+    {
+      "name": "return_ratio",
+      "operator": ">=",
+      "value": 5.0
+    }
+  ],
+  "custom_metrics": {
+    "return_ratio": "mean_npv / std_dev"
+  }
+}
+```
+
+**Constraint Violations:**
+
+When a constraint is violated, the solver calculates the violation amount:
+
+```python
+# For >= constraints:
+violation = max(0, target - actual)
+
+# For <= constraints:
+violation = max(0, actual - target)
+
+# For == constraints:
+violation = max(0, abs(actual - target) - tolerance)
+```
+
+The `OptimizationResult` includes `constraint_violations` dict:
+
+```python
+result.constraint_violations = {
+    'cte_95': 100.0,  # Violated by 100: target was 1000, actual was 900
+    'std_dev': 0.0    # Satisfied: actual was 150, target was 200
+}
+```
+
+#### Objective Direction
+
+Control whether to maximize or minimize the objective:
+
+```json
+{
+  "objective": {
+    "metric": "mean_npv",
+    "direction": "maximize"  // or "minimize"
+  }
+}
+```
+
+Or use calibration targets:
+
+```json
+{
+  "calibration_targets": {
+    "objective_function": "minimize_cost",  // Will minimize
+    "objective_metric": "mean_npv"
+  }
+}
+```
+
+When minimizing, the solver internally negates the objective value so algorithms can always maximize.
+
+#### Example: Complex Objective with Constraints
+
+```python
+config = {
+    'parameters': [
+        {'name': 'premium_rate', 'lower': 0.8, 'upper': 1.5, 'initial': 1.0},
+        {'name': 'reserve_factor', 'lower': 0.5, 'upper': 1.2, 'initial': 0.9}
+    ],
+    'objective': {
+        'metric': 'risk_adjusted_return',
+        'direction': 'maximize'
+    },
+    'custom_metrics': {
+        'risk_adjusted_return': 'mean_npv / std_dev',
+        'cost_per_policy': 'mean_npv / 10000'
+    },
+    'constraints': [
+        {'name': 'cte_95', 'operator': '>=', 'value': 900.0},
+        {'name': 'std_dev', 'operator': '<=', 'value': 200.0},
+        {'name': 'cost_per_policy', 'operator': '<=', 'value': 100.0}
+    ]
+}
+```
+
+This configuration:
+1. Maximizes risk-adjusted return (mean NPV / std dev)
+2. Ensures CTE95 >= 900 (solvency requirement)
+3. Ensures std dev <= 200 (risk limit)
+4. Ensures cost per policy <= 100 (pricing constraint)
+
 ## API Reference
 
 ### SolverEngine
@@ -353,10 +520,48 @@ class ValuationResult:
 - Log: 'Resolved calibration-targets:v1.0, optimizing for: maximize_return with solvency >= 0.95' ✅
 - Support updating targets via AM version changes ✅
 
+### US-003: Parameter Definition & Bounds ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ Comprehensive parameter validation (required fields: name, initial, lower, upper)
+- ✅ Parameter types: continuous and discrete
+- ✅ Bounds validation (lower < upper)
+- ✅ Initial value within bounds check
+- ✅ Step size validation for discrete parameters
+- ✅ Duplicate parameter name detection
+- ✅ Unit tests (18 test cases)
+
+**Acceptance Criteria Met:**
+- Configuration specifies parameter_names and types ✅
+- Each parameter has lower_bound, upper_bound, initial_value, step_size (for discrete) ✅
+- Example config structure implemented and tested ✅
+- Validate initial_value within bounds, fail if not ✅
+- Support continuous and discrete parameters ✅
+
+### US-004: Objective Function & Constraints ✅
+
+**Status:** Complete
+
+**Implemented:**
+- ✅ Standard objective metric extraction (mean_npv, std_dev, cte_95)
+- ✅ Custom metric computation (division, multiplication, aliases)
+- ✅ Constraint evaluation (>=, <=, >, <, ==)
+- ✅ Constraint violation tracking and reporting
+- ✅ Objective direction (maximize/minimize)
+- ✅ Integration with optimization loop
+- ✅ Unit tests (23 test cases)
+
+**Acceptance Criteria Met:**
+- Objective function: maximize/minimize a metric (return, cost, NPV, etc.) ✅
+- Constraints: inequality constraints (solvency >= 0.95, cost <= 100m) ✅
+- Extract objective and constraint values from projection results (ValuationResult) ✅
+- Example: objective = 'mean_npv', constraints = [{'metric': 'cte_95', 'operator': '>=', 'value': 0.5}] ✅
+- Support custom metrics computed from result (e.g., 'cost_per_policy = total_cost / num_policies') ✅
+
 ### Upcoming User Stories
 
-- **US-003**: Parameter Definition & Bounds
-- **US-004**: Objective Function & Constraints
 - **US-005**: Solver Algorithm Selection (SLSQP, differential_evolution, custom)
 - **US-006**: Iteration Tracking & Convergence
 - **US-007**: Result Output & Parameter Export
@@ -391,7 +596,28 @@ US-002 test coverage:
 - ✅ Conflict detection (1 test)
 - ✅ AM reference validation (2 tests)
 
-**Total: 33 test cases**
+US-003 test coverage:
+- ✅ Valid parameter validation (1 test)
+- ✅ Missing fields detection (4 tests)
+- ✅ Invalid parameter types (1 test)
+- ✅ Invalid bounds (1 test)
+- ✅ Initial value outside bounds (2 tests)
+- ✅ Boundary conditions (2 tests)
+- ✅ Discrete parameter step validation (4 tests)
+- ✅ Duplicate parameter names (1 test)
+- ✅ Non-numeric bounds (1 test)
+- ✅ Multiple parameters (1 test)
+
+US-004 test coverage:
+- ✅ Standard objective extraction (3 tests)
+- ✅ Custom metric computation (5 tests)
+- ✅ Constraint evaluation (8 tests)
+- ✅ Multiple constraints (2 tests)
+- ✅ Custom metric constraints (2 tests)
+- ✅ Objective direction (3 tests)
+- ✅ Integration with optimize (2 tests)
+
+**Total: 74 test cases**
 
 ## Error Handling
 

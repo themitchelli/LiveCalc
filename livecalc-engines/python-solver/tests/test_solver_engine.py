@@ -22,7 +22,8 @@ from src.solver_engine import (
     SolverEngine,
     OptimizationResult,
     ValuationResult,
-    ProjectionCallback
+    ProjectionCallback,
+    CalibrationTargets
 )
 from src.calc_engine_interface import (
     InitializationError,
@@ -897,6 +898,302 @@ class TestParameterDefinitionAndBounds(unittest.TestCase):
         }
         engine.initialize(config)
         self.assertTrue(engine.is_initialized)
+
+
+class TestObjectiveFunctionAndConstraints(unittest.TestCase):
+    """Test objective function and constraint evaluation (US-004)."""
+
+    def test_extract_standard_objective_metric(self):
+        """Test extraction of standard objective metric from ValuationResult."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 1.0}],
+            'objective': {'metric': 'mean_npv'}
+        }
+        engine.initialize(config)
+
+        # Create mock result
+        result = ValuationResult(mean_npv=1234.5, std_dev=100.0, cte_95=1100.0)
+
+        # Extract objective
+        objective = engine._extract_objective(result)
+        self.assertEqual(objective, 1234.5)
+
+    def test_extract_different_objective_metrics(self):
+        """Test extraction of different objective metrics."""
+        engine = SolverEngine()
+        result = ValuationResult(mean_npv=1000.0, std_dev=200.0, cte_95=800.0)
+
+        # Test mean_npv
+        engine._config = {'objective': {'metric': 'mean_npv'}}
+        self.assertEqual(engine._extract_objective(result), 1000.0)
+
+        # Test std_dev
+        engine._config = {'objective': {'metric': 'std_dev'}}
+        self.assertEqual(engine._extract_objective(result), 200.0)
+
+        # Test cte_95
+        engine._config = {'objective': {'metric': 'cte_95'}}
+        self.assertEqual(engine._extract_objective(result), 800.0)
+
+    def test_extract_objective_invalid_metric(self):
+        """Test extraction fails for invalid metric."""
+        engine = SolverEngine()
+        engine._config = {'objective': {'metric': 'nonexistent_metric'}}
+        result = ValuationResult(mean_npv=1000.0)
+
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine._extract_objective(result)
+        self.assertIn("not found", str(ctx.exception))
+
+    def test_custom_metric_division(self):
+        """Test custom metric with division."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'cost_per_policy'},
+            'custom_metrics': {
+                'cost_per_policy': 'mean_npv / 1000'
+            }
+        }
+        result = ValuationResult(mean_npv=5000.0)
+
+        objective = engine._extract_objective(result)
+        self.assertEqual(objective, 5.0)  # 5000 / 1000
+
+    def test_custom_metric_multiplication(self):
+        """Test custom metric with multiplication."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'scaled_npv'},
+            'custom_metrics': {
+                'scaled_npv': 'mean_npv * 2'
+            }
+        }
+        result = ValuationResult(mean_npv=1000.0)
+
+        objective = engine._extract_objective(result)
+        self.assertEqual(objective, 2000.0)  # 1000 * 2
+
+    def test_custom_metric_with_two_result_fields(self):
+        """Test custom metric using two fields from result."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'return_on_std'},
+            'custom_metrics': {
+                'return_on_std': 'mean_npv / std_dev'
+            }
+        }
+        result = ValuationResult(mean_npv=1000.0, std_dev=100.0)
+
+        objective = engine._extract_objective(result)
+        self.assertEqual(objective, 10.0)  # 1000 / 100
+
+    def test_custom_metric_division_by_zero(self):
+        """Test custom metric fails on division by zero."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'invalid_ratio'},
+            'custom_metrics': {
+                'invalid_ratio': 'mean_npv / 0'
+            }
+        }
+        result = ValuationResult(mean_npv=1000.0)
+
+        with self.assertRaises(ConfigurationError) as ctx:
+            engine._extract_objective(result)
+        self.assertIn("division by zero", str(ctx.exception))
+
+    def test_evaluate_constraint_satisfied_gte(self):
+        """Test constraint evaluation when >= constraint is satisfied."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 900.0}
+            ]
+        }
+        result = ValuationResult(mean_npv=1000.0, cte_95=950.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertEqual(violations, {})  # No violations
+
+    def test_evaluate_constraint_violated_gte(self):
+        """Test constraint evaluation when >= constraint is violated."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 1000.0}
+            ]
+        }
+        result = ValuationResult(mean_npv=1000.0, cte_95=900.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertIn('cte_95', violations)
+        self.assertEqual(violations['cte_95'], 100.0)  # 1000 - 900
+
+    def test_evaluate_constraint_satisfied_lte(self):
+        """Test constraint evaluation when <= constraint is satisfied."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'std_dev', 'operator': '<=', 'value': 200.0}
+            ]
+        }
+        result = ValuationResult(mean_npv=1000.0, std_dev=150.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertEqual(violations, {})  # No violations
+
+    def test_evaluate_constraint_violated_lte(self):
+        """Test constraint evaluation when <= constraint is violated."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'std_dev', 'operator': '<=', 'value': 100.0}
+            ]
+        }
+        result = ValuationResult(mean_npv=1000.0, std_dev=150.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertIn('std_dev', violations)
+        self.assertEqual(violations['std_dev'], 50.0)  # 150 - 100
+
+    def test_evaluate_multiple_constraints(self):
+        """Test evaluation of multiple constraints."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 900.0},
+                {'name': 'std_dev', 'operator': '<=', 'value': 200.0},
+                {'name': 'mean_npv', 'operator': '>=', 'value': 1000.0}
+            ]
+        }
+        result = ValuationResult(mean_npv=1100.0, std_dev=150.0, cte_95=950.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertEqual(violations, {})  # All satisfied
+
+    def test_evaluate_multiple_constraints_some_violated(self):
+        """Test evaluation with some constraints violated."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 1000.0},  # Violated
+                {'name': 'std_dev', 'operator': '<=', 'value': 200.0},  # Satisfied
+                {'name': 'mean_npv', 'operator': '>=', 'value': 1000.0}  # Satisfied
+            ]
+        }
+        result = ValuationResult(mean_npv=1100.0, std_dev=150.0, cte_95=900.0)
+
+        violations = engine._evaluate_constraints(result)
+        self.assertEqual(len(violations), 1)
+        self.assertIn('cte_95', violations)
+
+    def test_constraint_with_custom_metric(self):
+        """Test constraint evaluation with custom metric."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'return_ratio', 'operator': '>=', 'value': 5.0}
+            ],
+            'custom_metrics': {
+                'return_ratio': 'mean_npv / std_dev'
+            }
+        }
+        result = ValuationResult(mean_npv=1000.0, std_dev=100.0)  # ratio = 10.0
+
+        violations = engine._evaluate_constraints(result)
+        self.assertEqual(violations, {})  # 10.0 >= 5.0 satisfied
+
+    def test_constraint_with_custom_metric_violated(self):
+        """Test constraint violation with custom metric."""
+        engine = SolverEngine()
+        engine._config = {
+            'constraints': [
+                {'name': 'return_ratio', 'operator': '>=', 'value': 15.0}
+            ],
+            'custom_metrics': {
+                'return_ratio': 'mean_npv / std_dev'
+            }
+        }
+        result = ValuationResult(mean_npv=1000.0, std_dev=100.0)  # ratio = 10.0
+
+        violations = engine._evaluate_constraints(result)
+        self.assertIn('return_ratio', violations)
+        self.assertEqual(violations['return_ratio'], 5.0)  # 15 - 10
+
+    def test_objective_direction_maximize(self):
+        """Test objective direction adjustment for maximization."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'mean_npv', 'direction': 'maximize'}
+        }
+
+        adjusted = engine._apply_objective_direction(1000.0)
+        self.assertEqual(adjusted, 1000.0)  # No change for maximize
+
+    def test_objective_direction_minimize(self):
+        """Test objective direction adjustment for minimization."""
+        engine = SolverEngine()
+        engine._config = {
+            'objective': {'metric': 'std_dev', 'direction': 'minimize'}
+        }
+
+        adjusted = engine._apply_objective_direction(100.0)
+        self.assertEqual(adjusted, -100.0)  # Negated for minimize
+
+    def test_objective_direction_from_calibration_targets(self):
+        """Test objective direction from calibration targets."""
+        engine = SolverEngine()
+        engine._calibration_targets = CalibrationTargets(
+            objective_function='minimize_cost',
+            objective_metric='mean_npv'
+        )
+
+        adjusted = engine._apply_objective_direction(500.0)
+        self.assertEqual(adjusted, -500.0)  # Negated for minimize
+
+    def test_optimize_with_constraints(self):
+        """Test optimize method evaluates constraints."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}],
+            'objective': {'metric': 'mean_npv'},
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 900.0}
+            ]
+        }
+        engine.initialize(config)
+
+        # Mock projection callback
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1000.0, std_dev=100.0, cte_95=950.0)
+
+        result = engine.optimize(mock_callback)
+
+        self.assertTrue(result.converged)
+        self.assertEqual(result.constraint_violations, {})  # All satisfied
+
+    def test_optimize_with_violated_constraints(self):
+        """Test optimize method detects constraint violations."""
+        engine = SolverEngine()
+        config = {
+            'parameters': [{'name': 'param1', 'lower': 0.0, 'upper': 10.0, 'initial': 5.0}],
+            'objective': {'metric': 'mean_npv'},
+            'constraints': [
+                {'name': 'cte_95', 'operator': '>=', 'value': 1000.0}
+            ]
+        }
+        engine.initialize(config)
+
+        # Mock projection callback with violated constraint
+        def mock_callback(params: Dict[str, float]) -> ValuationResult:
+            return ValuationResult(mean_npv=1000.0, std_dev=100.0, cte_95=900.0)
+
+        result = engine.optimize(mock_callback)
+
+        self.assertTrue(result.converged)
+        self.assertIn('cte_95', result.constraint_violations)
+        self.assertEqual(result.constraint_violations['cte_95'], 100.0)
 
 
 if __name__ == '__main__':

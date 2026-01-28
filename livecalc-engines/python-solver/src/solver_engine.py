@@ -341,10 +341,12 @@ class SolverEngine(ICalcEngine):
         initial_parameters: Dict[str, float]
     ) -> OptimizationResult:
         """
-        Internal optimization loop (placeholder for US-001).
+        Internal optimization loop (placeholder for US-001, enhanced for US-004).
 
         This is a simple implementation for US-001. More sophisticated algorithms
         will be implemented in US-005.
+
+        US-004 enhancement: Evaluates objective function and constraints.
 
         Args:
             projection_callback: Projection function
@@ -363,18 +365,33 @@ class SolverEngine(ICalcEngine):
         # Run projection with initial parameters
         try:
             result = projection_callback(current_params)
-            objective_value = self._extract_objective(result)
 
-            logger.info(f"Iteration {iterations}: objective={objective_value}, params={current_params}")
+            # Extract objective value (US-004)
+            raw_objective = self._extract_objective(result)
+            objective_value = self._apply_objective_direction(raw_objective)
 
-            # For US-001, we just demonstrate the interface works
+            # Evaluate constraints (US-004)
+            constraint_violations = self._evaluate_constraints(result)
+
+            # Log iteration with constraint status
+            constraints_status = "satisfied" if not constraint_violations else f"{len(constraint_violations)} violated"
+            logger.info(
+                f"Iteration {iterations}: objective={objective_value:.4f} (raw={raw_objective:.4f}), "
+                f"constraints={constraints_status}, params={current_params}"
+            )
+
+            if constraint_violations:
+                for name, violation in constraint_violations.items():
+                    logger.warning(f"  Constraint '{name}' violated by {violation:.4f}")
+
+            # For US-001/US-004, we just demonstrate the interface works
             # Return result without actually optimizing
             return OptimizationResult(
                 final_parameters=current_params,
-                objective_value=objective_value,
+                objective_value=raw_objective,  # Return raw value (not direction-adjusted)
                 iterations=iterations + 1,
                 converged=True,
-                constraint_violations={},
+                constraint_violations=constraint_violations,
                 execution_time_seconds=0.0,
                 partial_result=False
             )
@@ -390,6 +407,8 @@ class SolverEngine(ICalcEngine):
         """
         Extract objective value from valuation result.
 
+        Supports both standard metrics and custom computed metrics.
+
         Args:
             result: ValuationResult from projection
 
@@ -401,10 +420,236 @@ class SolverEngine(ICalcEngine):
         """
         metric = self._config['objective']['metric']
 
+        # Check if it's a custom metric with computation
+        if 'custom_metrics' in self._config and metric in self._config['custom_metrics']:
+            return self._compute_custom_metric(metric, result)
+
+        # Standard metric extraction
         if hasattr(result, metric):
             return getattr(result, metric)
         else:
             raise ConfigurationError(f"Objective metric '{metric}' not found in ValuationResult")
+
+    def _compute_custom_metric(self, metric_name: str, result: ValuationResult) -> float:
+        """
+        Compute custom metric from valuation result.
+
+        Supports expressions like:
+        - 'cost_per_policy = total_cost / num_policies'
+        - 'return_on_investment = mean_npv / initial_investment'
+
+        Args:
+            metric_name: Name of custom metric
+            result: ValuationResult from projection
+
+        Returns:
+            Computed metric value
+
+        Raises:
+            ConfigurationError: If custom metric cannot be computed
+        """
+        custom_metrics = self._config['custom_metrics']
+        metric_def = custom_metrics[metric_name]
+
+        if not isinstance(metric_def, str):
+            raise ConfigurationError(
+                f"Custom metric '{metric_name}' must be a string expression, got: {type(metric_def)}"
+            )
+
+        # Parse expression (simple format: "numerator / denominator")
+        if '/' in metric_def:
+            parts = metric_def.split('/')
+            if len(parts) != 2:
+                raise ConfigurationError(
+                    f"Custom metric '{metric_name}' expression must have format 'a / b', got: {metric_def}"
+                )
+
+            numerator_name = parts[0].strip()
+            denominator_name = parts[1].strip()
+
+            # Extract values
+            numerator = self._extract_value_from_result(numerator_name, result)
+            denominator = self._extract_value_from_result(denominator_name, result)
+
+            if denominator == 0:
+                raise ConfigurationError(
+                    f"Custom metric '{metric_name}' division by zero: {denominator_name} = 0"
+                )
+
+            return numerator / denominator
+
+        elif '*' in metric_def:
+            parts = metric_def.split('*')
+            if len(parts) != 2:
+                raise ConfigurationError(
+                    f"Custom metric '{metric_name}' expression must have format 'a * b', got: {metric_def}"
+                )
+
+            left_name = parts[0].strip()
+            right_name = parts[1].strip()
+
+            left = self._extract_value_from_result(left_name, result)
+            right = self._extract_value_from_result(right_name, result)
+
+            return left * right
+
+        else:
+            # Single value (just an alias)
+            return self._extract_value_from_result(metric_def.strip(), result)
+
+    def _extract_value_from_result(self, value_name: str, result: ValuationResult) -> float:
+        """
+        Extract a value from valuation result by name.
+
+        Args:
+            value_name: Name of value (can be attribute or literal number)
+            result: ValuationResult from projection
+
+        Returns:
+            Extracted value
+
+        Raises:
+            ConfigurationError: If value not found
+        """
+        # Try to parse as literal number first
+        try:
+            return float(value_name)
+        except ValueError:
+            pass
+
+        # Check if it's an attribute of result
+        if hasattr(result, value_name):
+            return float(getattr(result, value_name))
+
+        # Check percentiles dict
+        if hasattr(result, 'percentiles') and value_name in result.percentiles:
+            return float(result.percentiles[value_name])
+
+        raise ConfigurationError(
+            f"Value '{value_name}' not found in ValuationResult. "
+            f"Available: {[attr for attr in dir(result) if not attr.startswith('_')]}"
+        )
+
+    def _evaluate_constraints(self, result: ValuationResult) -> Dict[str, float]:
+        """
+        Evaluate all constraints against valuation result.
+
+        Args:
+            result: ValuationResult from projection
+
+        Returns:
+            Dictionary of constraint violations (empty if all satisfied)
+            Format: {constraint_name: violation_amount}
+            Positive violation = constraint violated by that amount
+            Zero or negative = constraint satisfied
+
+        Raises:
+            ConfigurationError: If constraint metric not found
+        """
+        violations = {}
+
+        # Get constraints from config or calibration targets
+        constraints = []
+        if 'constraints' in self._config:
+            constraints = self._config['constraints']
+        elif self._calibration_targets and self._calibration_targets.constraints:
+            constraints = self._calibration_targets.constraints
+
+        for constraint in constraints:
+            name = constraint['name']
+            operator = constraint['operator']
+            target_value = float(constraint['value'])
+
+            # Extract actual value from result
+            try:
+                # Check if it's a custom metric
+                if 'custom_metrics' in self._config and name in self._config['custom_metrics']:
+                    actual_value = self._compute_custom_metric(name, result)
+                else:
+                    actual_value = self._extract_value_from_result(name, result)
+            except ConfigurationError as e:
+                raise ConfigurationError(
+                    f"Cannot evaluate constraint '{name}': {e}"
+                ) from e
+
+            # Evaluate constraint
+            violation = self._check_constraint(actual_value, operator, target_value, name)
+            if violation > 0:
+                violations[name] = violation
+
+        return violations
+
+    def _check_constraint(
+        self,
+        actual: float,
+        operator: str,
+        target: float,
+        name: str
+    ) -> float:
+        """
+        Check if constraint is satisfied.
+
+        Args:
+            actual: Actual value from result
+            operator: Comparison operator (>=, <=, >, <, ==)
+            target: Target value from constraint
+            name: Constraint name for logging
+
+        Returns:
+            Violation amount (0 or negative if satisfied, positive if violated)
+        """
+        if operator == '>=':
+            # Violation if actual < target
+            return max(0, target - actual)
+        elif operator == '>':
+            # Violation if actual <= target
+            return max(0, target - actual + 1e-9)
+        elif operator == '<=':
+            # Violation if actual > target
+            return max(0, actual - target)
+        elif operator == '<':
+            # Violation if actual >= target
+            return max(0, actual - target + 1e-9)
+        elif operator == '==':
+            # Violation is absolute difference
+            diff = abs(actual - target)
+            # Consider satisfied if within 0.1% tolerance
+            tolerance = abs(target * 0.001) if target != 0 else 1e-9
+            return max(0, diff - tolerance)
+        else:
+            raise ConfigurationError(
+                f"Unknown constraint operator '{operator}' for constraint '{name}'"
+            )
+
+    def _apply_objective_direction(self, objective_value: float) -> float:
+        """
+        Apply objective function direction (maximize vs minimize).
+
+        For minimization, returns negative of objective so that
+        optimization algorithms can always maximize.
+
+        Args:
+            objective_value: Raw objective value
+
+        Returns:
+            Adjusted objective value based on direction
+        """
+        # Check calibration targets first
+        if self._calibration_targets:
+            direction = self._calibration_targets.objective_function
+            if 'minimize' in direction.lower():
+                return -objective_value
+            else:
+                return objective_value
+
+        # Check config objective direction
+        if 'objective' in self._config and 'direction' in self._config['objective']:
+            direction = self._config['objective']['direction'].lower()
+            if direction == 'minimize':
+                return -objective_value
+
+        # Default: maximize
+        return objective_value
 
     def _validate_parameters(self, parameters: List[Dict[str, Any]]) -> None:
         """
